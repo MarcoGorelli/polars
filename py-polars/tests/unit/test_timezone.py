@@ -7,7 +7,11 @@ import polars as pl
 
 @pytest.mark.parametrize(
     ("tz_string", "timedelta"),
-    [("+01:00", timedelta(minutes=60)), ("-01:30", timedelta(hours=-1, minutes=-30))],
+    [
+        ("+01:00", timedelta(minutes=60)),
+        ("-01:30", timedelta(hours=-1, minutes=-30)),
+        ("Z", timedelta(hours=0))
+        ],
 )
 def test_timezone_aware_strptime(tz_string: str, timedelta: timedelta) -> None:
     times = pl.DataFrame(
