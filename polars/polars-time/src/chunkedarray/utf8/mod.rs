@@ -5,11 +5,17 @@ mod strptime;
 use chrono::ParseError;
 pub use patterns::Pattern;
 
+use regex::Regex;
+
+use once_cell::sync::Lazy;
+
 use super::*;
 #[cfg(feature = "dtype-date")]
 use crate::chunkedarray::date::naive_date_to_date;
 #[cfg(feature = "dtype-time")]
 use crate::chunkedarray::time::time_to_time64ns;
+
+static TZ_AWARE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(%z|%:z|%#z)$").unwrap());
 
 #[cfg(feature = "dtype-time")]
 fn time_pattern<F, K>(val: &str, convert: F) -> Option<&'static str>
@@ -395,8 +401,7 @@ pub trait Utf8Methods: AsUtf8 {
             Some(fmt) => fmt,
             None => return infer::to_datetime(utf8_ca, tu),
         };
-        // todo! use regex?
-        if fmt.contains("%z") || fmt.contains("%:z") || fmt.contains("%#z") {
+        if TZ_AWARE_RE.is_match(&fmt) {
             tz_aware = true;
         }
         let fmt = self::strptime::compile_fmt(fmt);
@@ -417,6 +422,14 @@ pub trait Utf8Methods: AsUtf8 {
                 let mut tz = None;
 
                 let mut convert = |s: &str| {
+                    let new_s;
+                    let s = match s.ends_with('Z') {
+                        true => {
+                            new_s = format!("{}+00:00", s.trim_end_matches('Z'));
+                            new_s.as_str()
+                        },
+                        false => s,
+                    };
                     DateTime::parse_from_str(s, &fmt).ok().map(|dt| {
                         match tz {
                             None => tz = Some(dt.timezone()),
