@@ -225,9 +225,9 @@ impl DatetimeChunked {
 
     /// Change the underlying [`TimeZone`]. This does not modify the data.
     pub fn set_time_zone(&mut self, tz: Option<TimeZone>) -> PolarsResult<()> {
-        if tz.is_some() {
+        if let Some(tz_new) = &tz {
             #[cfg(feature = "timezones")]
-            validate_time_zone(tz.as_ref().unwrap().to_string())?;
+            validate_time_zone(tz_new.to_string())?;
         }
         self.2 = Some(Datetime(self.time_unit(), tz));
         Ok(())
