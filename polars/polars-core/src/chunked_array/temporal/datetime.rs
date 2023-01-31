@@ -84,26 +84,15 @@ impl DatetimeChunked {
 
         match (self.time_zone(), tz) {
             (Some(from), Some(to)) => {
-                // let old: Tz = from.parse().map_err(|_| {
-                //     PolarsError::ComputeError(format!("Could not parse timezone: '{from}'").into())
-                // })?;
-                // let new: Tz = to.parse().map_err(|_| {
-                //     PolarsError::ComputeError(format!("Could not parse timezone: '{to}'").into())
-                // })?;
-                // let new: TimeZone = "+01:00";
                 let out = self
                     .apply_kernel(&|arr| cast_timezone(arr, self.time_unit().to_arrow(), to.to_string(), from.to_string()));
                 Ok(out.into_datetime(self.time_unit(), Some(to.to_string())))
             }
-            // (Some(from), None) => {
-            //     let old: Tz = from.parse().map_err(|_| {
-            //         PolarsError::ComputeError(format!("Could not parse timezone: '{from}'").into())
-            //     })?;
-            //     let new: Tz = "UTC".parse().unwrap();
-            //     let out = self
-            //         .apply_kernel(&|arr| cast_timezone(arr, self.time_unit().to_arrow(), new, old));
-            //     Ok(out.into_datetime(self.time_unit(), None))
-            // }
+            (Some(from), None) => {
+                let out = self
+                    .apply_kernel(&|arr| cast_timezone(arr, self.time_unit().to_arrow(), "UTC".to_string(), from.to_string()));
+                Ok(out.into_datetime(self.time_unit(), None))
+            }
             (_, _) => Err(PolarsError::ComputeError(
                 "Cannot cast Naive Datetime. First set a timezone".into(),
             )),
