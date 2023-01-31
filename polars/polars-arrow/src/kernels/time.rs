@@ -94,14 +94,12 @@ pub fn cast_timezone(
                                 .naive_local()
                                 .timestamp_micros(),
                             Err(_) => match parse_offset(&to) {
-                                Ok(to_tz) => {
-                                    from_tz
-                                        .from_local_datetime(&ndt)
-                                        .unwrap()
-                                        .with_timezone(&to_tz)
-                                        .naive_local()
-                                        .timestamp_micros()
-                                }
+                                Ok(to_tz) => from_tz
+                                    .from_local_datetime(&ndt)
+                                    .unwrap()
+                                    .with_timezone(&to_tz)
+                                    .naive_local()
+                                    .timestamp_micros(),
                                 Err(_) => panic!("Could not parse timezone {to}"),
                             },
                         },
