@@ -10,7 +10,7 @@ import pandas as pd
 import pyarrow as pa
 import pytest
 
-from polars.exceptions import ComputeError
+from polars.exceptions import ComputeError, PanicException
 
 if sys.version_info >= (3, 9):
     import zoneinfo
@@ -2051,13 +2051,48 @@ def test_cast_timezone() -> None:
     }
 
 
-def test_cast_timezone_from_fixed_offset() -> None:
+def test_cast_timezone_invalid_timezone() -> None:
     ts = pl.Series(["2020-01-01 00:00:00+01:00"]).str.strptime(
         pl.Datetime, "%Y-%m-%d %H:%M:%S%z"
     )
-    # TODO: don't raise at all? https://github.com/pola-rs/polars/issues/6410
-    with pytest.raises(ComputeError, match=r"Could not parse timezone: '\+01:00'"):
-        ts.dt.cast_time_zone("Europe/Brussels")
+    with pytest.raises(PanicException, match=r"fooo"):
+        ts.dt.cast_time_zone("fooo")
+
+
+@pytest.mark.parametrize(
+    ("from_tz", "to_tz", "expected"),
+    [
+        (
+            "America/Barbados",
+            "+01:00",
+            datetime(2020, 1, 1, 0, 0, tzinfo=timezone(timedelta(seconds=3600))),
+        ),
+        (
+            "+01:00",
+            "America/Barbados",
+            datetime(
+                2020, 1, 1, 0, 0, tzinfo=zoneinfo.ZoneInfo(key="America/Barbados")
+            ),
+        ),
+        (
+            "America/Barbados",
+            "Europe/Helsinki",
+            datetime(2020, 1, 1, 0, 0, tzinfo=zoneinfo.ZoneInfo(key="Europe/Helsinki")),
+        ),
+        (
+            "+02:00",
+            "+01:00",
+            datetime(2020, 1, 1, 0, 0, tzinfo=timezone(timedelta(seconds=3600))),
+        ),
+    ],
+)
+@pytest.mark.parametrize("tu", ["ms", "us", "ns"])
+def test_cast_timezone_fixed_offsets_and_area_location(
+    from_tz: str, to_tz: str, expected: datetime, tu: TimeUnit
+) -> None:
+    ts = pl.Series(["2020-01-01"]).str.strptime(pl.Datetime(tu))
+    result = ts.dt.tz_localize(from_tz).dt.cast_time_zone(to_tz).item()
+    assert result == expected
 
 
 def test_with_time_zone_none() -> None:

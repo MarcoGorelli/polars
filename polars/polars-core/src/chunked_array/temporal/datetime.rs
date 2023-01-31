@@ -80,17 +80,27 @@ impl DatetimeChunked {
 
     #[cfg(feature = "timezones")]
     pub fn cast_time_zone(&self, tz: Option<&str>) -> PolarsResult<DatetimeChunked> {
-        use chrono_tz::Tz;
-
         match (self.time_zone(), tz) {
             (Some(from), Some(to)) => {
-                let out = self
-                    .apply_kernel(&|arr| cast_timezone(arr, self.time_unit().to_arrow(), to.to_string(), from.to_string()));
+                let out = self.apply_kernel(&|arr| {
+                    cast_timezone(
+                        arr,
+                        self.time_unit().to_arrow(),
+                        to.to_string(),
+                        from.to_string(),
+                    )
+                });
                 Ok(out.into_datetime(self.time_unit(), Some(to.to_string())))
             }
             (Some(from), None) => {
-                let out = self
-                    .apply_kernel(&|arr| cast_timezone(arr, self.time_unit().to_arrow(), "UTC".to_string(), from.to_string()));
+                let out = self.apply_kernel(&|arr| {
+                    cast_timezone(
+                        arr,
+                        self.time_unit().to_arrow(),
+                        "UTC".to_string(),
+                        from.to_string(),
+                    )
+                });
                 Ok(out.into_datetime(self.time_unit(), None))
             }
             (_, _) => Err(PolarsError::ComputeError(
