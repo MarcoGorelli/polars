@@ -19,6 +19,8 @@ pub fn cast_timezone(
     to: String,
 ) -> ArrayRef {
     use chrono::TimeZone;
+    use chrono_tz::Tz;
+    use crate::error::PolarsError;
 
     match tu {
         TimeUnit::Microsecond => Box::new(unary(
@@ -27,10 +29,57 @@ pub fn cast_timezone(
                 println!("actually got here");
                 let ndt = timestamp_us_to_datetime(value);
                 // let tz_aware = from.from_local_datetime(&ndt).unwrap();
-                let tz_aware = parse_offset(&from).unwrap().from_utc_datetime(&ndt);
-                let newto = parse_offset(&to).unwrap();
-                let new_tz_aware = tz_aware.with_timezone(&newto);
-                new_tz_aware.naive_local().timestamp_micros()
+                // let tz_aware = parse_offset(&from).unwrap().from_utc_datetime(&ndt);
+                // so, we need to do a kind of try-except for this newto
+                match from.parse::<chrono_tz::Tz>() {
+                    Ok(from_tz) => {
+                        match to.parse::<chrono_tz::Tz>() {
+                            Ok(to_tz) => {
+                                tz.from_utc_datetime(&ndt).with_timezone(&tz).naive_local().timestamp_micros()
+                            }
+                            Err(_) => match parse_offset(&to) {
+                                Ok(to_tz) => {
+                                    tz.from_utc_datetime(&ndt).with_timezone(&tz).naive_local().timestamp_micros()
+                                    // tz_aware.with_timezone(&tz).naive_local().timestamp_micros()
+                                }
+                                Err(_) => unreachable!(),
+                            },
+                        }
+                        // tz.from_utc_datetime(&ndt)
+                    }
+                    Err(_) => match parse_offset(&from) {
+                        Ok(from_tz) => {
+                            match to.parse::<chrono_tz::Tz>() {
+                                Ok(to_tz) => {
+                                    tz.from_utc_datetime(&ndt).with_timezone(&tz).naive_local().timestamp_micros()
+                                }
+                                Err(_) => match parse_offset(&to) {
+                                    Ok(to_tz) => {
+                                        tz.from_utc_datetime(&ndt).with_timezone(&tz).naive_local().timestamp_micros()
+                                        // tz_aware.with_timezone(&tz).naive_local().timestamp_micros()
+                                    }
+                                    Err(_) => unreachable!(),
+                                },
+                            }
+                            // tz.from_utc_datetime(&ndt)
+                        }
+                        Err(_) => unreachable!(),
+                    },
+                }
+                // match to.parse::<chrono_tz::Tz>() {
+                //     Ok(tz) => {
+                //         tz_aware.with_timezone(&tz).naive_local().timestamp_micros()
+                //     }
+                //     Err(_) => match parse_offset(&to) {
+                //         Ok(tz) => {
+                //             tz_aware.with_timezone(&tz).naive_local().timestamp_micros()
+                //         }
+                //         Err(_) => unreachable!(),
+                //     },
+                // }
+                // let newto = parse_offset(&to).unwrap();
+                // let new_tz_aware = tz_aware.with_timezone(&newto);
+                // new_tz_aware.naive_local().timestamp_micros()
             },
             ArrowDataType::Int64,
         )),

@@ -91,10 +91,8 @@ impl DatetimeChunked {
                 //     PolarsError::ComputeError(format!("Could not parse timezone: '{to}'").into())
                 // })?;
                 // let new: TimeZone = "+01:00";
-                let new = "+01:00".to_string();
-                let old = "+00:00".to_string();
                 let out = self
-                    .apply_kernel(&|arr| cast_timezone(arr, self.time_unit().to_arrow(),new.clone(), old.clone()));
+                    .apply_kernel(&|arr| cast_timezone(arr, self.time_unit().to_arrow(), to.to_string(), from.to_string()));
                 Ok(out.into_datetime(self.time_unit(), Some(to.to_string())))
             }
             // (Some(from), None) => {
