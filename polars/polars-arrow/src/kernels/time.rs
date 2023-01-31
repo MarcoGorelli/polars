@@ -95,9 +95,6 @@ pub fn cast_timezone(
                                 .timestamp_micros(),
                             Err(_) => match parse_offset(&to) {
                                 Ok(to_tz) => {
-                                    println!("here we are!");
-                                    println!("to tz: {:?}", to_tz);
-                                    println!("from tz: {:?}", from_tz);
                                     from_tz
                                         .from_local_datetime(&ndt)
                                         .unwrap()
