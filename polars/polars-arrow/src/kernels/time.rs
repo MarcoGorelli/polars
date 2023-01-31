@@ -35,11 +35,11 @@ pub fn cast_timezone(
                     Ok(from_tz) => {
                         match to.parse::<chrono_tz::Tz>() {
                             Ok(to_tz) => {
-                                tz.from_utc_datetime(&ndt).with_timezone(&tz).naive_local().timestamp_micros()
+                                from_tz.from_utc_datetime(&ndt).with_timezone(&to_tz).naive_local().timestamp_micros()
                             }
                             Err(_) => match parse_offset(&to) {
                                 Ok(to_tz) => {
-                                    tz.from_utc_datetime(&ndt).with_timezone(&tz).naive_local().timestamp_micros()
+                                    from_tz.from_utc_datetime(&ndt).with_timezone(&to_tz).naive_local().timestamp_micros()
                                     // tz_aware.with_timezone(&tz).naive_local().timestamp_micros()
                                 }
                                 Err(_) => unreachable!(),
@@ -51,11 +51,11 @@ pub fn cast_timezone(
                         Ok(from_tz) => {
                             match to.parse::<chrono_tz::Tz>() {
                                 Ok(to_tz) => {
-                                    tz.from_utc_datetime(&ndt).with_timezone(&tz).naive_local().timestamp_micros()
+                                    from_tz.from_utc_datetime(&ndt).with_timezone(&to_tz).naive_local().timestamp_micros()
                                 }
                                 Err(_) => match parse_offset(&to) {
                                     Ok(to_tz) => {
-                                        tz.from_utc_datetime(&ndt).with_timezone(&tz).naive_local().timestamp_micros()
+                                        from_tz.from_utc_datetime(&ndt).with_timezone(&to_tz).naive_local().timestamp_micros()
                                         // tz_aware.with_timezone(&tz).naive_local().timestamp_micros()
                                     }
                                     Err(_) => unreachable!(),
