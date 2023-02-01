@@ -5,8 +5,7 @@ use arrow::temporal_conversions::{
     parse_offset, timestamp_ms_to_datetime, timestamp_ns_to_datetime, timestamp_us_to_datetime,
 };
 #[cfg(feature = "timezones")]
-use chrono::TimeZone;
-use chrono::{FixedOffset, NaiveDateTime};
+use chrono::{FixedOffset, NaiveDateTime, TimeZone};
 #[cfg(feature = "timezones")]
 use chrono_tz::Tz;
 
