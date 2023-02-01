@@ -10,7 +10,7 @@ import pandas as pd
 import pyarrow as pa
 import pytest
 
-from polars.exceptions import ComputeError, PanicException
+from polars.exceptions import ComputeError
 
 if sys.version_info >= (3, 9):
     import zoneinfo
@@ -2055,8 +2055,8 @@ def test_cast_timezone_invalid_timezone() -> None:
     ts = pl.Series(["2020-01-01 00:00:00+01:00"]).str.strptime(
         pl.Datetime, "%Y-%m-%d %H:%M:%S%z"
     )
-    with pytest.raises(PanicException, match=r"fooo"):
-        ts.dt.cast_time_zone("fooo")
+    with pytest.raises(ComputeError, match=r"Could not parse time zone foo"):
+        ts.dt.cast_time_zone("foo")
 
 
 @pytest.mark.parametrize(

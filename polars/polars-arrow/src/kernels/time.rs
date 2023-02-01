@@ -1,5 +1,4 @@
 use arrow::array::PrimitiveArray;
-use crate::error::{PolarsError, Result};
 use arrow::compute::arity::unary;
 use arrow::datatypes::{DataType as ArrowDataType, TimeUnit};
 use arrow::temporal_conversions::{
@@ -8,6 +7,7 @@ use arrow::temporal_conversions::{
 #[cfg(feature = "timezones")]
 use chrono::{NaiveDateTime, TimeZone};
 
+use crate::error::{PolarsError, Result};
 use crate::prelude::ArrayRef;
 
 #[cfg(feature = "timezones")]
@@ -71,7 +71,9 @@ pub fn cast_timezone(
             Ok(to_tz) => Ok(convert_to_timestamp(from_tz, to_tz, arr, tu)),
             Err(_) => match parse_offset(&to) {
                 Ok(to_tz) => Ok(convert_to_timestamp(from_tz, to_tz, arr, tu)),
-                Err(_) => Err(PolarsError::ComputeError("Could not parse timezone {to}".into())),
+                Err(_) => Err(PolarsError::ComputeError(
+                    format!("Could not parse time zone {to}").into(),
+                )),
             },
         },
         Err(_) => match parse_offset(&from) {
@@ -79,10 +81,14 @@ pub fn cast_timezone(
                 Ok(to_tz) => Ok(convert_to_timestamp(from_tz, to_tz, arr, tu)),
                 Err(_) => match parse_offset(&to) {
                     Ok(to_tz) => Ok(convert_to_timestamp(from_tz, to_tz, arr, tu)),
-                    Err(_) => Err(PolarsError::ComputeError("Could not parse timezone {to}".into())),
+                    Err(_) => Err(PolarsError::ComputeError(
+                        format!("Could not parse time zone {to}").into(),
+                    )),
                 },
             },
-            Err(_) => Err(PolarsError::ComputeError("Could not parse timezone {to}".into())),
+            Err(_) => Err(PolarsError::ComputeError(
+                format!("Could not parse time zone {from}").into(),
+            )),
         },
     }
 }
