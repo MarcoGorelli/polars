@@ -9,36 +9,46 @@ use crate::prelude::ArrayRef;
 use crate::error::Result;
 use crate::error::PolarsError;
 use chrono::FixedOffset;
-use chrono::NaiveDatetime;
+use chrono::NaiveDateTime;
 use chrono_tz::Tz;
+use chrono::TimeZone;
 
-fn from_fixed_offset_to_tz( from_tz: FixedOffset, to_tz: Tz, ndt: NaiveDatetime,) -> NaiveDatetime {
-    from_tz.from_local_datetime(ndt)
+fn from_fixed_offset_to_tz( from_tz: FixedOffset, to_tz: Tz, ndt: NaiveDateTime,) -> NaiveDateTime {
+    from_tz.from_local_datetime(&ndt)
     .unwrap()
     .with_timezone(&to_tz)
     .naive_local()
 }
-fn from_fixed_offset_to_fixed_offset( from_tz: FixedOffset, to_tz: FixedOffset, ndt: NaiveDatetime,) -> NaiveDatetime {
-    from_tz.from_local_datetime(ndt)
+fn from_fixed_offset_to_fixed_offset( from_tz: FixedOffset, to_tz: FixedOffset, ndt: NaiveDateTime,) -> NaiveDateTime {
+    from_tz.from_local_datetime(&ndt)
     .unwrap()
     .with_timezone(&to_tz)
     .naive_local()
 }
-fn from_tz_to_fixed_offset( from_tz: Tz, to_tz: FixedOffset, ndt: NaiveDatetime,) -> NaiveDatetime {
-    from_tz.from_local_datetime(ndt)
+fn from_tz_to_fixed_offset( from_tz: Tz, to_tz: FixedOffset, ndt: NaiveDateTime,) -> NaiveDateTime {
+    from_tz.from_local_datetime(&ndt)
     .unwrap()
     .with_timezone(&to_tz)
     .naive_local()
 }
-fn from_tz_to_tz( from_tz: Tz, to_tz: Tz, ndt: NaiveDatetime,) -> NaiveDatetime {
-    from_tz.from_local_datetime(ndt)
+fn from_tz_to_tz( from_tz: Tz, to_tz: Tz, ndt: NaiveDateTime,) -> NaiveDateTime {
+    from_tz.from_local_datetime(&ndt)
     .unwrap()
     .with_timezone(&to_tz)
     .naive_local()
 }
-fn convert_millis(value: DateTime, op: fn(NaiveDatetime)->NaiveDatetime){
-    []
+// fn convert_millis(value: i64, op: fn(NaiveDateTime)->NaiveDateTime) -> i64{
+//     let ndt = timestamp_ms_to_datetime(value);
+//     op(ndt).timestamp_millis()
+// }
+fn convert_micros(value: i64, op: impl Fn(NaiveDateTime)->NaiveDateTime) -> i64{
+    let ndt = timestamp_us_to_datetime(value);
+    op(ndt).timestamp_micros()
 }
+// fn convert_nanos(value: i64, op: fn(NaiveDateTime)->NaiveDateTime) -> i64{
+//     let ndt = timestamp_ns_to_datetime(value);
+//     op(ndt).timestamp_nanos()
+// }
 
 
 #[cfg(feature = "timezones")]
@@ -53,16 +63,12 @@ pub fn cast_timezone(
     match from.parse::<chrono_tz::Tz>() {
         Ok(from_tz) => match to.parse::<chrono_tz::Tz>() {
             Ok(to_tz) => {
-                Ok(Box::new(unary(arr, |value| {let ndt = timestamp_ms_to_datetime(value); from_tz_to_tz(&ndt).timestamp_ms_to_datetime()},
-                    ArrowDataType::Int64,
-                )))
+                Ok(Box::new(unary(arr, |value| {convert_micros(value, |value|{from_tz_to_tz(from_tz, to_tz, value)})}, ArrowDataType::Int64)))
             }
             Err(_) => match parse_offset(&to) {
                 Ok(to_tz) => {
-                    Ok(Box::new(unary(arr, |value| {let ndt = timestamp_ms_to_datetime(value); from_tz_to_fixed_offset(&ndt).timestamp_ms_to_datetime()},
-                        ArrowDataType::Int64,
-                    )))
-                } 
+                    Ok(Box::new(unary(arr, |value| {convert_micros(value, |value|{from_tz_to_fixed_offset(from_tz, to_tz, value)})}, ArrowDataType::Int64)))
+                }
                 Err(_) => Err(PolarsError::ComputeError(
                     "only allowed for child arrays without nulls".into(),
                 ))
@@ -71,18 +77,5 @@ pub fn cast_timezone(
         Err(_) => Err(PolarsError::ComputeError(
             "only allowed for child arrays without nulls".into(),
         ))
-    };
-    let op = func?;
-
-    match tu {
-        TimeUnit::Millisecond => Box::new(unary(
-            arr,
-            |value| {
-                let ndt = timestamp_ms_to_datetime(value);
-                op(&ndt)
-            },
-            ArrowDataType::Int64,
-        )),
-        _ => unreachable!(),
     }
 }

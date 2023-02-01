@@ -88,7 +88,7 @@ impl DatetimeChunked {
                         self.time_unit().to_arrow(),
                         to.to_string(),
                         from.to_string(),
-                    )
+                    )?
                 });
                 Ok(out.into_datetime(self.time_unit(), Some(to.to_string())))
             }
@@ -99,7 +99,7 @@ impl DatetimeChunked {
                         self.time_unit().to_arrow(),
                         "UTC".to_string(),
                         from.to_string(),
-                    )
+                    )?
                 });
                 Ok(out.into_datetime(self.time_unit(), None))
             }
