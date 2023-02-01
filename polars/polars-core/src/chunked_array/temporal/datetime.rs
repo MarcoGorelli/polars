@@ -96,6 +96,21 @@ impl DatetimeChunked {
                 let out = unsafe { ChunkedArray::from_chunks(self.name(), chunks) };
                 Ok(out.into_datetime(self.time_unit(), Some(to.to_string())))
             }
+            (Some(from), None) => {
+                let chunks = self
+                    .downcast_iter()
+                    .map(|arr| {
+                        Ok(cast_timezone(
+                            arr,
+                            self.time_unit().to_arrow(),
+                            "UTC".to_string(),
+                            from.to_string(),
+                        )?)
+                    })
+                    .collect::<PolarsResult<_>>()?;
+                let out = unsafe { ChunkedArray::from_chunks(self.name(), chunks) };
+                Ok(out.into_datetime(self.time_unit(), None))
+            }
             (_, _) => Err(PolarsError::ComputeError(
                 "Cannot cast Naive Datetime. First set a timezone".into(),
             )),
