@@ -20,13 +20,13 @@ pub fn date_range_impl(
     tu: TimeUnit,
     _tz: Option<&TimeZone>,
 ) -> PolarsResult<DatetimeChunked> {
+    println!("we be here!");
     let mut out = Int64Chunked::new_vec(name, date_range_vec(start, stop, every, closed, tu))
         .into_datetime(tu, None);
 
     #[cfg(feature = "timezones")]
     if let Some(tz) = _tz {
         out = out
-            .with_time_zone("UTC".to_string())?
             .cast_time_zone(Some(tz))
             .unwrap()
     }
