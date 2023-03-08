@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, NaiveDateTime};
+use chrono::{NaiveDate, NaiveDateTime, DateTime, FixedOffset};
 use polars_arrow::export::arrow::array::PrimitiveArray;
 use polars_core::prelude::*;
 use polars_core::utils::arrow::types::NativeType;
@@ -162,6 +162,85 @@ pub(crate) fn transform_datetime_ns(val: &str, fmt: &str) -> Option<i64> {
             .ok()
             .map(|nd| datetime_to_timestamp_ns(nd.and_hms_opt(0, 0, 0).unwrap()))
     })
+}
+
+#[cfg(feature = "dtype-datetime")]
+pub(crate) fn transform_tzaware_datetime_ns(
+    val: &str,
+    fmt: &str,
+    time_zone: &mut Option<FixedOffset>,  // time zone of whole array
+    utc: bool,  // whether we're converting to utc
+) -> Option<i64> {
+    match DateTime::parse_from_str(val, fmt) {
+        Ok(dt) => 
+            match utc {
+                true => Some(datetime_to_timestamp_ns(dt.naive_utc())),
+                false => {
+                    if let Some(tz_found) = time_zone {
+                        match *tz_found == dt.timezone() {
+                            true => Some(datetime_to_timestamp_ns(dt.naive_utc())),
+                            false => None,
+                        }
+                    } else {
+                        *time_zone = Some(dt.timezone());
+                        Some(datetime_to_timestamp_ns(dt.naive_utc()))
+                    }
+                }
+            }
+        Err(_) => None
+    }
+}
+#[cfg(feature = "dtype-datetime")]
+pub(crate) fn transform_tzaware_datetime_us(
+    val: &str,
+    fmt: &str,
+    time_zone: &mut Option<FixedOffset>,  // time zone of whole array
+    utc: bool,  // whether we're converting to utc
+) -> Option<i64> {
+    match DateTime::parse_from_str(val, fmt) {
+        Ok(dt) => 
+            match utc {
+                true => Some(datetime_to_timestamp_us(dt.naive_utc())),
+                false => {
+                    if let Some(tz_found) = time_zone {
+                        match *tz_found == dt.timezone() {
+                            true => Some(datetime_to_timestamp_us(dt.naive_utc())),
+                            false => None,
+                        }
+                    } else {
+                        *time_zone = Some(dt.timezone());
+                        Some(datetime_to_timestamp_us(dt.naive_utc()))
+                    }
+                }
+            }
+        Err(_) => None
+    }
+}
+#[cfg(feature = "dtype-datetime")]
+pub(crate) fn transform_tzaware_datetime_ms(
+    val: &str,
+    fmt: &str,
+    time_zone: &mut Option<FixedOffset>,  // time zone of whole array
+    utc: bool,  // whether we're converting to utc
+) -> Option<i64> {
+    match DateTime::parse_from_str(val, fmt) {
+        Ok(dt) => 
+            match utc {
+                true => Some(datetime_to_timestamp_ms(dt.naive_utc())),
+                false => {
+                    if let Some(tz_found) = time_zone {
+                        match *tz_found == dt.timezone() {
+                            true => Some(datetime_to_timestamp_ms(dt.naive_utc())),
+                            false => None,
+                        }
+                    } else {
+                        *time_zone = Some(dt.timezone());
+                        Some(datetime_to_timestamp_ms(dt.naive_utc()))
+                    }
+                }
+            }
+        Err(_) => None
+    }
 }
 
 #[cfg(feature = "dtype-datetime")]

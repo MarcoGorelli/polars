@@ -405,58 +405,35 @@ pub trait Utf8Methods: AsUtf8 {
             #[cfg(feature = "timezones")]
             {
                 use chrono::DateTime;
-                use polars_arrow::export::hashbrown::hash_map::Entry;
                 let mut cache_map = PlHashMap::new();
                 let mut tz = None;
 
-                let mut convert = |s: &str| {
-                    DateTime::parse_from_str(s, &fmt)
-                        .ok()
-                        .map(|dt| {
-                            if !_utc {
-                                if let Some(tz_found) = tz {
-                                    polars_ensure!(
-                                        tz_found == dt.timezone(),
-                                        ComputeError: "different timezones found during 'strptime' \
-                                        operation (you might want to use `utc=True` and then set \
-                                        the time zone after parsing"
-                                );
-                                } else {
-                                    tz = Some(dt.timezone());
-                                }
-                            }
-                            Ok(func(dt.naive_utc()))
-                        })
-                        .transpose()
+                let transform = match tu {
+                    TimeUnit::Nanoseconds => infer::transform_tzaware_datetime_ns,
+                    TimeUnit::Microseconds => infer::transform_tzaware_datetime_us,
+                    TimeUnit::Milliseconds => infer::transform_tzaware_datetime_ms,
                 };
 
                 let mut ca: Int64Chunked = utf8_ca
                     .into_iter()
                     .map(|opt_s| {
                         opt_s
-                            .map(|s| {
-                                let out = if cache {
-                                    match cache_map.entry(s) {
-                                        Entry::Vacant(entry) => {
-                                            let value = convert(s)?;
-                                            entry.insert(value);
-                                            value
-                                        }
-                                        Entry::Occupied(val) => *val.get(),
-                                    }
+                            .and_then(|val| {
+                                println!("tz: {:?}", tz);
+                                if cache {
+                                    *cache_map.entry(val).or_insert_with(|| transform(val, &fmt, &mut tz, _utc))
                                 } else {
-                                    convert(s)?
-                                };
-                                Ok(out)
+                                    transform(val, &fmt, &mut tz, _utc)
+                                }
                             })
-                            .transpose()
-                            .map(|options| options.flatten())
                     })
-                    .collect::<PolarsResult<_>>()?;
-
+                    .collect_trusted();
+                println!("about to rename");
                 ca.rename(utf8_ca.name());
                 if !_utc {
+                    println!("about to map");
                     let tz = tz.map(|of| format!("{of}"));
+                    println!("about to go into_datetime");
                     Ok(ca.into_datetime(tu, tz))
                 } else {
                     Ok(ca.into_datetime(tu, Some("UTC".to_string())))
@@ -517,7 +494,9 @@ pub trait Utf8Methods: AsUtf8 {
                     .map(|opt_s| {
                         opt_s.and_then(|s| {
                             if cache {
-                                *cache_map.entry(s).or_insert_with(|| transform(s, &fmt))
+                                *cache_map
+                                    .entry(s)
+                                    .or_insert_with(|| transform(s, &fmt))
                             } else {
                                 transform(s, &fmt)
                             }

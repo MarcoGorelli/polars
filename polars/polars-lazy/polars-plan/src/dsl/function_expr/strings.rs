@@ -378,7 +378,12 @@ pub(super) fn strptime(s: &Series, options: &StrpTimeOptions) -> PolarsResult<Se
     if options.strict {
         polars_ensure!(
             out.null_count() == ca.null_count(),
-            ComputeError: "strict conversion to dates failed, try setting strict=False",
+            ComputeError:
+            "strict conversion to dates failed, you might want to try:
+            - setting strict=False,\n\
+            - using `Datetime` instead of `Date` (or vice-versa)\n\
+            - setting `utc=True` if your date strings contain different offsets\n\
+            ",
         );
     }
     Ok(out.into_series())
