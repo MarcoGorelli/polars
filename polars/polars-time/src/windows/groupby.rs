@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+use chrono::format::Fixed;
 use polars_arrow::trusted_len::TrustedLen;
 use polars_arrow::utils::CustomIterTools;
 use polars_core::export::rayon::prelude::*;
@@ -9,6 +10,8 @@ use polars_core::POOL;
 use polars_utils::flatten;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+use chrono::TimeZone as TimeZoneTrait;
+use chrono::FixedOffset;
 
 use crate::prelude::*;
 
@@ -162,10 +165,10 @@ pub fn groupby_windows(
 }
 
 // this assumes that the starting point is alwa
-pub(crate) fn groupby_values_iter_full_lookbehind(
+pub(crate) fn groupby_values_iter_full_lookbehind<'a, T: TimeZoneTrait + 'a>(
     period: Duration,
     offset: Duration,
-    time: &[i64],
+    time: &'a [i64],
     closed_window: ClosedWindow,
     tu: TimeUnit,
     start_offset: usize,
@@ -174,9 +177,9 @@ pub(crate) fn groupby_values_iter_full_lookbehind(
     debug_assert!(offset.negative);
 
     let add = match tu {
-        TimeUnit::Nanoseconds => Duration::add_ns,
-        TimeUnit::Microseconds => Duration::add_us,
-        TimeUnit::Milliseconds => Duration::add_ms,
+        TimeUnit::Nanoseconds => Duration::add_ns::<T>,
+        TimeUnit::Microseconds => Duration::add_us::<T>,
+        TimeUnit::Milliseconds => Duration::add_ms::<T>,
     };
 
     let mut last_lookbehind_i = 0;
@@ -225,17 +228,17 @@ pub(crate) fn groupby_values_iter_full_lookbehind(
 }
 
 // this one is correct for all lookbehind/lookaheads, but is slower
-pub(crate) fn groupby_values_iter_window_behind_t(
+pub(crate) fn groupby_values_iter_window_behind_t<'a, T: TimeZoneTrait + 'a>(
     period: Duration,
     offset: Duration,
-    time: &[i64],
+    time: &'a [i64],
     closed_window: ClosedWindow,
     tu: TimeUnit,
 ) -> impl Iterator<Item = (IdxSize, IdxSize)> + TrustedLen + '_ {
     let add = match tu {
-        TimeUnit::Nanoseconds => Duration::add_ns,
-        TimeUnit::Microseconds => Duration::add_us,
-        TimeUnit::Milliseconds => Duration::add_ms,
+        TimeUnit::Nanoseconds => Duration::add_ns::<T>,
+        TimeUnit::Microseconds => Duration::add_us::<T>,
+        TimeUnit::Milliseconds => Duration::add_ms::<T>,
     };
 
     let mut lagging_offset = 0;
@@ -280,17 +283,17 @@ pub(crate) fn groupby_values_iter_window_behind_t(
 }
 
 // this one is correct for all lookbehind/lookaheads, but is slower
-pub(crate) fn groupby_values_iter_partial_lookbehind(
+pub(crate) fn groupby_values_iter_partial_lookbehind<'a, T: TimeZoneTrait + 'a>(
     period: Duration,
     offset: Duration,
-    time: &[i64],
+    time: &'a [i64],
     closed_window: ClosedWindow,
     tu: TimeUnit,
 ) -> impl Iterator<Item = (IdxSize, IdxSize)> + TrustedLen + '_ {
     let add = match tu {
-        TimeUnit::Nanoseconds => Duration::add_ns,
-        TimeUnit::Microseconds => Duration::add_us,
-        TimeUnit::Milliseconds => Duration::add_ms,
+        TimeUnit::Nanoseconds => Duration::add_ns::<T>,
+        TimeUnit::Microseconds => Duration::add_us::<T>,
+        TimeUnit::Milliseconds => Duration::add_ms::<T>,
     };
 
     let mut lagging_offset = 0;
@@ -322,10 +325,10 @@ pub(crate) fn groupby_values_iter_partial_lookbehind(
     })
 }
 
-pub(crate) fn groupby_values_iter_full_lookahead(
+pub(crate) fn groupby_values_iter_full_lookahead<'a, T: TimeZoneTrait + 'a>(
     period: Duration,
     offset: Duration,
-    time: &[i64],
+    time: &'a [i64],
     closed_window: ClosedWindow,
     tu: TimeUnit,
     start_offset: usize,
@@ -335,9 +338,9 @@ pub(crate) fn groupby_values_iter_full_lookahead(
     debug_assert!(!offset.negative);
 
     let add = match tu {
-        TimeUnit::Nanoseconds => Duration::add_ns,
-        TimeUnit::Microseconds => Duration::add_us,
-        TimeUnit::Milliseconds => Duration::add_ms,
+        TimeUnit::Nanoseconds => Duration::add_ns::<T>,
+        TimeUnit::Microseconds => Duration::add_us::<T>,
+        TimeUnit::Milliseconds => Duration::add_ms::<T>,
     };
 
     let mut last = i64::MIN;
@@ -388,18 +391,18 @@ pub(crate) fn groupby_values_iter<'a>(
         // only lookbehind
         if offset.nanoseconds() == period.nanoseconds() {
             let iter =
-                groupby_values_iter_full_lookbehind(period, offset, time, closed_window, tu, 0);
+                groupby_values_iter_full_lookbehind::<FixedOffset>(period, offset, time, closed_window, tu, 0);
             Box::new(iter)
         }
         // partial lookbehind
         else {
             let iter =
-                groupby_values_iter_partial_lookbehind(period, offset, time, closed_window, tu);
+                groupby_values_iter_partial_lookbehind::<FixedOffset>(period, offset, time, closed_window, tu);
             Box::new(iter)
         }
     } else {
         let iter =
-            groupby_values_iter_full_lookahead(period, offset, time, closed_window, tu, 0, None);
+            groupby_values_iter_full_lookahead::<FixedOffset>(period, offset, time, closed_window, tu, 0, None);
         Box::new(iter)
     }
 }
@@ -433,7 +436,7 @@ pub fn groupby_values(
                         .copied()
                         .map(|(base_offset, len)| {
                             let upper_bound = base_offset + len;
-                            let iter = groupby_values_iter_full_lookbehind(
+                            let iter = groupby_values_iter_full_lookbehind::<FixedOffset>(
                                 period,
                                 offset,
                                 &time[..upper_bound],
@@ -453,7 +456,7 @@ pub fn groupby_values(
             //  [---]
             else {
                 let iter =
-                    groupby_values_iter_window_behind_t(period, offset, time, closed_window, tu);
+                    groupby_values_iter_window_behind_t::<FixedOffset>(period, offset, time, closed_window, tu);
                 iter.map(|(offset, len)| [offset, len]).collect_trusted()
             }
         }
@@ -465,7 +468,7 @@ pub fn groupby_values(
         //  [---]
         else {
             let iter =
-                groupby_values_iter_partial_lookbehind(period, offset, time, closed_window, tu);
+                groupby_values_iter_partial_lookbehind::<FixedOffset>(period, offset, time, closed_window, tu);
             iter.map(|(offset, len)| [offset, len]).collect_trusted()
         }
     } else {
@@ -476,7 +479,7 @@ pub fn groupby_values(
                 .map(|(base_offset, len)| {
                     let lower_bound = base_offset;
                     let upper_bound = base_offset + len;
-                    let iter = groupby_values_iter_full_lookahead(
+                    let iter = groupby_values_iter_full_lookahead::<FixedOffset>(
                         period,
                         offset,
                         time,

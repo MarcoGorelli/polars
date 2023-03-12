@@ -3,8 +3,8 @@ use arrow::temporal_conversions::{
     parse_offset, timestamp_ms_to_datetime, timestamp_ns_to_datetime, timestamp_us_to_datetime,
 };
 #[cfg(feature = "timezones")]
-use chrono::{DateTime, LocalResult, TimeZone as TimeZoneTrait, Utc};
-use chrono::{Datelike, NaiveDateTime};
+use chrono::{DateTime, LocalResult, Utc};
+use chrono::{Datelike, NaiveDateTime, TimeZone as TimeZoneTrait, FixedOffset};
 use polars_core::prelude::*;
 use polars_core::series::IsSorted;
 
@@ -54,35 +54,44 @@ pub fn date_range_impl(
     } else {
         IsSorted::Ascending
     };
-    let (start, stop): (PolarsResult<i64>, PolarsResult<i64>) = match _tz {
+    let mut out = match _tz {
         #[cfg(feature = "timezones")]
         Some(tz) => match tz.parse::<chrono_tz::Tz>() {
-            Ok(tz) => (
-                localize_timestamp(start, tu, tz),
-                localize_timestamp(stop, tu, tz),
-            ),
+            Ok(tz) => {
+                let start = localize_timestamp(start, tu, tz);
+                let stop = localize_timestamp(stop, tu, tz);
+                Int64Chunked::new_vec(
+                    name,
+                    date_range_vec(start?, stop?, every, closed, tu, &Some(tz))?,
+                )
+                .into_datetime(tu, None)
+                .replace_time_zone(Some("UTC"))?
+                .convert_time_zone(tz.to_string())?
+            },
             Err(_) => match parse_offset(tz) {
-                Ok(tz) => (
-                    localize_timestamp(start, tu, tz),
-                    localize_timestamp(stop, tu, tz),
-                ),
+                Ok(tz) => {
+                    let start = localize_timestamp(start, tu, tz);
+                    let stop = localize_timestamp(stop, tu, tz);
+                    Int64Chunked::new_vec(
+                        name,
+                        date_range_vec(start?, stop?, every, closed, tu, &Some(tz))?,
+                    )
+                    .into_datetime(tu, None)
+                    .replace_time_zone(Some("UTC"))?
+                    .convert_time_zone(tz.to_string())?
+                },
                 _ => polars_bail!(ComputeError: "unable to parse time zone: {}", tz),
             },
         },
-        _ => (Ok(start), Ok(stop)),
+        _ => {
+            Int64Chunked::new_vec(
+                name,
+                date_range_vec::<FixedOffset>(start, stop, every, closed, tu, &None)?,
+            )
+            .into_datetime(tu, None)
+        }
     };
-    let mut out = Int64Chunked::new_vec(
-        name,
-        date_range_vec(start?, stop?, every, closed, tu, &_tz.cloned())?,
-    )
-    .into_datetime(tu, None);
 
-    #[cfg(feature = "timezones")]
-    if let Some(tz) = _tz {
-        out = out
-            .replace_time_zone(Some("UTC"))?
-            .convert_time_zone(tz.to_string())?
-    }
     out.set_sorted_flag(s);
     Ok(out)
 }

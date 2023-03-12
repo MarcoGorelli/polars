@@ -20,9 +20,9 @@ pub(super) fn date_offset(s: Series, offset: Duration) -> PolarsResult<Series> {
             };
 
             let adder = match tu {
-                TimeUnit::Nanoseconds => Duration::add_ns,
-                TimeUnit::Microseconds => Duration::add_us,
-                TimeUnit::Milliseconds => Duration::add_ms,
+                TimeUnit::Nanoseconds => Duration::add_ns::<FixedOffset>,
+                TimeUnit::Microseconds => Duration::add_us::<FixedOffset>,
+                TimeUnit::Milliseconds => Duration::add_ms::<FixedOffset>,
             };
             // TODO remove unwrap once time zone is respected
             ca.0.apply_mut(|v| adder(&offset, v, &None).unwrap());

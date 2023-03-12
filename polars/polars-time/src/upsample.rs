@@ -1,5 +1,6 @@
 use polars_core::prelude::*;
 use polars_ops::prelude::*;
+use chrono::TimeZone as TimeZoneTrait;
 
 use crate::prelude::*;
 
@@ -28,7 +29,7 @@ pub trait PolarsUpsample {
     /// - 1i    (1 index count)
     /// Or combine them:
     /// "3d12h4m25s" # 3 days, 12 hours, 4 minutes, and 25 seconds
-    fn upsample<I: IntoVec<String>>(
+    fn upsample<I: IntoVec<String>, T: TimeZoneTrait>(
         &self,
         by: I,
         time_column: &str,
@@ -60,7 +61,7 @@ pub trait PolarsUpsample {
     /// - 1i    (1 index count)
     /// Or combine them:
     /// "3d12h4m25s" # 3 days, 12 hours, 4 minutes, and 25 seconds
-    fn upsample_stable<I: IntoVec<String>>(
+    fn upsample_stable<I: IntoVec<String>, T: TimeZoneTrait>(
         &self,
         by: I,
         time_column: &str,
@@ -70,7 +71,7 @@ pub trait PolarsUpsample {
 }
 
 impl PolarsUpsample for DataFrame {
-    fn upsample<I: IntoVec<String>>(
+    fn upsample<I: IntoVec<String>, T: TimeZoneTrait>(
         &self,
         by: I,
         time_column: &str,
@@ -78,10 +79,10 @@ impl PolarsUpsample for DataFrame {
         offset: Duration,
     ) -> PolarsResult<DataFrame> {
         let by = by.into_vec();
-        upsample_impl(self, by, time_column, every, offset, false)
+        upsample_impl::<T>(self, by, time_column, every, offset, false)
     }
 
-    fn upsample_stable<I: IntoVec<String>>(
+    fn upsample_stable<I: IntoVec<String>, T: TimeZoneTrait>(
         &self,
         by: I,
         time_column: &str,
@@ -89,11 +90,11 @@ impl PolarsUpsample for DataFrame {
         offset: Duration,
     ) -> PolarsResult<DataFrame> {
         let by = by.into_vec();
-        upsample_impl(self, by, time_column, every, offset, true)
+        upsample_impl::<T>(self, by, time_column, every, offset, true)
     }
 }
 
-fn upsample_impl(
+fn upsample_impl<T: TimeZoneTrait>(
     source: &DataFrame,
     by: Vec<String>,
     index_column: &str,
@@ -108,13 +109,13 @@ fn upsample_impl(
             s.cast(&DataType::Datetime(TimeUnit::Milliseconds, None))
         })
         .unwrap();
-        let mut out = upsample_impl(&df, by, index_column, every, offset, stable).unwrap();
+        let mut out = upsample_impl::<T>(&df, by, index_column, every, offset, stable).unwrap();
         out.try_apply(index_column, |s| s.cast(&DataType::Date))
             .unwrap();
         Ok(out)
     } else if by.is_empty() {
         let index_column = source.column(index_column)?;
-        upsample_single_impl(source, index_column, every, offset)
+        upsample_single_impl::<T>(source, index_column, every, offset)
     } else {
         let gb = if stable {
             source.groupby_stable(by)
@@ -124,12 +125,12 @@ fn upsample_impl(
         // don't parallelize this, this may SO on large data.
         gb?.apply(|df| {
             let index_column = df.column(index_column)?;
-            upsample_single_impl(&df, index_column, every, offset)
+            upsample_single_impl::<T>(&df, index_column, every, offset)
         })
     }
 }
 
-fn upsample_single_impl(
+fn upsample_single_impl<T: TimeZoneTrait>(
     source: &DataFrame,
     index_column: &Series,
     every: Duration,
@@ -147,9 +148,9 @@ fn upsample_single_impl(
             match (first, last) {
                 (Some(first), Some(last)) => {
                     let first = match tu {
-                        TimeUnit::Nanoseconds => offset.add_ns(first, &None)?,
-                        TimeUnit::Microseconds => offset.add_us(first, &None)?,
-                        TimeUnit::Milliseconds => offset.add_ms(first, &None)?,
+                        TimeUnit::Nanoseconds => offset.add_ns::<T>(first, &None)?,
+                        TimeUnit::Microseconds => offset.add_us::<T>(first, &None)?,
+                        TimeUnit::Milliseconds => offset.add_ms::<T>(first, &None)?,
                     };
                     let range = match tz {
                         #[cfg(feature = "timezones")]

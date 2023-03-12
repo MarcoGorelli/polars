@@ -1,4 +1,5 @@
 use polars_core::prelude::*;
+use chrono::TimeZone as TimeZoneTrait;
 
 use crate::prelude::*;
 
@@ -34,13 +35,13 @@ pub const NS_HOUR: i64 = 60 * NS_MINUTE;
 pub const NS_DAY: i64 = 24 * NS_HOUR;
 pub const NS_WEEK: i64 = 7 * NS_DAY;
 
-pub fn date_range(
+pub fn date_range<T: TimeZoneTrait>(
     start: i64,
     stop: i64,
     every: Duration,
     closed: ClosedWindow,
     tu: TimeUnit,
-    tz: &Option<TimeZone>,
+    tz: &Option<T>,
 ) -> PolarsResult<Vec<i64>> {
     let size = match tu {
         TimeUnit::Nanoseconds => ((stop - start) / every.duration_ns() + 1) as usize,
@@ -51,9 +52,9 @@ pub fn date_range(
 
     let mut t = start;
     let f = match tu {
-        TimeUnit::Nanoseconds => <Duration>::add_ns,
-        TimeUnit::Microseconds => <Duration>::add_us,
-        TimeUnit::Milliseconds => <Duration>::add_ms,
+        TimeUnit::Nanoseconds => <Duration>::add_ns::<T>,
+        TimeUnit::Microseconds => <Duration>::add_us::<T>,
+        TimeUnit::Milliseconds => <Duration>::add_ms::<T>,
     };
     match closed {
         ClosedWindow::Both => {

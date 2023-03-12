@@ -2,6 +2,7 @@
 use chrono::NaiveDateTime;
 #[cfg(feature = "timezones")]
 use now::DateTimeNow;
+use chrono::FixedOffset;
 use polars_arrow::export::arrow::temporal_conversions::*;
 use polars_core::prelude::*;
 use polars_core::utils::arrow::temporal_conversions::{timeunit_scale, SECONDS_IN_DAY};
@@ -32,7 +33,7 @@ impl Window {
     pub fn truncate_ns(&self, t: i64) -> i64 {
         let t = self.every.truncate_ns(t);
         // TODO remove unwrap once time zone is respected
-        self.offset.add_ns(t, &None).unwrap()
+        self.offset.add_ns::<FixedOffset>(t, &None).unwrap()
     }
 
     pub fn truncate_no_offset_ns(&self, t: i64) -> i64 {
@@ -43,7 +44,7 @@ impl Window {
     pub fn truncate_us(&self, t: i64) -> i64 {
         let t = self.every.truncate_us(t);
         // TODO remove unwrap once time zone is respected
-        self.offset.add_us(t, &None).unwrap()
+        self.offset.add_us::<FixedOffset>(t, &None).unwrap()
     }
 
     pub fn truncate_no_offset_us(&self, t: i64) -> i64 {
@@ -53,7 +54,7 @@ impl Window {
     pub fn truncate_ms(&self, t: i64) -> i64 {
         let t = self.every.truncate_ms(t);
         // TODO remove unwrap once time zone is respected
-        self.offset.add_ms(t, &None).unwrap()
+        self.offset.add_ms::<FixedOffset>(t, &None).unwrap()
     }
 
     #[inline]
@@ -99,14 +100,14 @@ impl Window {
             && self.every.duration_ns() > NANOSECONDS * SECONDS_IN_DAY
         {
             // TODO remove unwrap once time zone is respected
-            self.offset.add_ns(t, &None).unwrap()
+            self.offset.add_ns::<FixedOffset>(t, &None).unwrap()
         } else {
             // offset is translated in the truncate
             self.truncate_ns(t)
         };
 
         // TODO remove unwrap once time zone is respected
-        let stop = self.period.add_ns(start, &None).unwrap();
+        let stop = self.period.add_ns::<FixedOffset>(start, &None).unwrap();
 
         Bounds::new_checked(start, stop)
     }
@@ -116,12 +117,12 @@ impl Window {
             && self.every.duration_us() > MICROSECONDS * SECONDS_IN_DAY
         {
             // TODO remove unwrap once time zone is supported
-            self.offset.add_us(t, &None).unwrap()
+            self.offset.add_us::<FixedOffset>(t, &None).unwrap()
         } else {
             self.truncate_us(t)
         };
         // TODO remove unwrap once time zone is supported
-        let stop = self.period.add_us(start, &None).unwrap();
+        let stop = self.period.add_us::<FixedOffset>(start, &None).unwrap();
 
         Bounds::new_checked(start, stop)
     }
@@ -131,13 +132,13 @@ impl Window {
             && self.every.duration_ms() > MILLISECONDS * SECONDS_IN_DAY
         {
             // TODO remove unwrap once time zone is supported
-            self.offset.add_ms(t, &None).unwrap()
+            self.offset.add_ms::<FixedOffset>(t, &None).unwrap()
         } else {
             self.truncate_ms(t)
         };
 
         // TODO remove unwrap once time zone is supported
-        let stop = self.period.add_ms(start, &None).unwrap();
+        let stop = self.period.add_ms::<FixedOffset>(start, &None).unwrap();
 
         Bounds::new_checked(start, stop)
     }
@@ -181,9 +182,9 @@ impl BoundsIter {
             StartBy::DataPoint => {
                 let mut boundary = boundary;
                 let offset_fn = match tu {
-                    TimeUnit::Nanoseconds => Duration::add_ns,
-                    TimeUnit::Microseconds => Duration::add_us,
-                    TimeUnit::Milliseconds => Duration::add_ms,
+                    TimeUnit::Nanoseconds => Duration::add_ns::<FixedOffset>,
+                    TimeUnit::Microseconds => Duration::add_us::<FixedOffset>,
+                    TimeUnit::Milliseconds => Duration::add_ms::<FixedOffset>,
                 };
                 // TODO remove unwrap once time zone is respected
                 boundary.stop = offset_fn(&window.period, boundary.start, &None).unwrap();
@@ -201,7 +202,7 @@ impl BoundsIter {
                     let (from, to, offset): (
                         fn(i64) -> NaiveDateTime,
                         fn(NaiveDateTime) -> i64,
-                        fn(&Duration, i64, &Option<TimeZone>) -> PolarsResult<i64>,
+                        fn(&Duration, i64, &Option<FixedOffset>) -> PolarsResult<i64>,
                     ) = match tu {
                         TimeUnit::Nanoseconds => (
                             timestamp_ns_to_datetime,
@@ -261,16 +262,16 @@ impl Iterator for BoundsIter {
             match self.tu {
                 // TODO remove unwrap once time zone is respected
                 TimeUnit::Nanoseconds => {
-                    self.bi.start = self.window.every.add_ns(self.bi.start, &None).unwrap();
-                    self.bi.stop = self.window.every.add_ns(self.bi.stop, &None).unwrap();
+                    self.bi.start = self.window.every.add_ns::<FixedOffset>(self.bi.start, &None).unwrap();
+                    self.bi.stop = self.window.every.add_ns::<FixedOffset>(self.bi.stop, &None).unwrap();
                 }
                 TimeUnit::Microseconds => {
-                    self.bi.start = self.window.every.add_us(self.bi.start, &None).unwrap();
-                    self.bi.stop = self.window.every.add_us(self.bi.stop, &None).unwrap();
+                    self.bi.start = self.window.every.add_us::<FixedOffset>(self.bi.start, &None).unwrap();
+                    self.bi.stop = self.window.every.add_us::<FixedOffset>(self.bi.stop, &None).unwrap();
                 }
                 TimeUnit::Milliseconds => {
-                    self.bi.start = self.window.every.add_ms(self.bi.start, &None).unwrap();
-                    self.bi.stop = self.window.every.add_ms(self.bi.stop, &None).unwrap();
+                    self.bi.start = self.window.every.add_ms::<FixedOffset>(self.bi.start, &None).unwrap();
+                    self.bi.stop = self.window.every.add_ms::<FixedOffset>(self.bi.stop, &None).unwrap();
                 }
             }
             Some(out)

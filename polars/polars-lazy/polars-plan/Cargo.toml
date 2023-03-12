@@ -17,6 +17,7 @@ polars-core = { version = "0.27.2", path = "../../polars-core", features = ["laz
 polars-io = { version = "0.27.2", path = "../../polars-io", features = ["lazy", "csv-file", "private"], default-features = false }
 polars-ops = { version = "0.27.2", path = "../../polars-ops", default-features = false }
 polars-time = { version = "0.27.2", path = "../../polars-time", optional = true }
+chrono = { version = "0.4", optional = true }
 polars-utils = { version = "0.27.2", path = "../../polars-utils" }
 pyo3 = { version = "0.18", optional = true }
 rayon.workspace = true
@@ -55,7 +56,7 @@ dtype-time = ["polars-core/dtype-time", "polars-time/dtype-time"]
 dtype-categorical = ["polars-core/dtype-categorical"]
 dtype-struct = ["polars-core/dtype-struct"]
 object = ["polars-core/object"]
-date_offset = ["polars-time"]
+date_offset = ["polars-time", "chrono"]
 list_take = ["polars-ops/list_take"]
 list_count = ["polars-ops/list_count"]
 trigonometry = []
