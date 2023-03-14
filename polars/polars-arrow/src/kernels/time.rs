@@ -6,6 +6,7 @@ use arrow::temporal_conversions::{
 };
 #[cfg(feature = "timezones")]
 use chrono::{NaiveDateTime, TimeZone};
+use chrono::LocalResult;
 use polars_error::polars_bail;
 
 use crate::error::PolarsResult;
@@ -16,12 +17,17 @@ fn convert_to_naive_local<T1: TimeZone, T2: TimeZone>(
     from_tz: &T1,
     to_tz: &T2,
     ndt: NaiveDateTime,
-) -> NaiveDateTime {
-    from_tz
-        .from_local_datetime(&ndt)
-        .unwrap()
-        .with_timezone(to_tz)
-        .naive_local()
+) -> PolarsResult<NaiveDateTime> {
+    let dt = from_tz.from_local_datetime(&ndt);
+    match dt {
+        LocalResult::Single(dt) => Ok(dt.with_timezone(to_tz).naive_local()),
+        LocalResult::Ambiguous(_, _) => {
+            polars_bail!(ComputeError: "ambiguous timestamps are not (yet) supported")
+        }
+        LocalResult::None => {
+            polars_bail!(ComputeError: "non-existent timestamps are not (yet) supported")
+        }
+    }
 }
 
 #[cfg(feature = "timezones")]
@@ -30,32 +36,32 @@ fn convert_to_timestamp<T1: TimeZone, T2: TimeZone>(
     to_tz: T2,
     arr: &PrimitiveArray<i64>,
     tu: TimeUnit,
-) -> ArrayRef {
+) -> PolarsResult<ArrayRef> {
     match tu {
-        TimeUnit::Millisecond => Box::new(unary(
+        TimeUnit::Millisecond => Ok(Box::new(unary(
             arr,
             |value| {
                 let ndt = timestamp_ms_to_datetime(value);
-                convert_to_naive_local(&from_tz, &to_tz, ndt).timestamp_millis()
+                convert_to_naive_local(&from_tz, &to_tz, ndt)?.timestamp_millis()
             },
             ArrowDataType::Int64,
-        )),
-        TimeUnit::Microsecond => Box::new(unary(
+        ))),
+        TimeUnit::Microsecond => Ok(Box::new(unary(
             arr,
             |value| {
                 let ndt = timestamp_us_to_datetime(value);
-                convert_to_naive_local(&from_tz, &to_tz, ndt).timestamp_micros()
+                convert_to_naive_local(&from_tz, &to_tz, ndt)?.timestamp_micros()
             },
             ArrowDataType::Int64,
-        )),
-        TimeUnit::Nanosecond => Box::new(unary(
+        ))),
+        TimeUnit::Nanosecond => Ok(Box::new(unary(
             arr,
             |value| {
                 let ndt = timestamp_ns_to_datetime(value);
-                convert_to_naive_local(&from_tz, &to_tz, ndt).timestamp_nanos()
+                convert_to_naive_local(&from_tz, &to_tz, ndt)?.timestamp_nanos()
             },
             ArrowDataType::Int64,
-        )),
+        ))),
         _ => unreachable!(),
     }
 }
@@ -69,17 +75,17 @@ pub fn replace_timezone(
 ) -> PolarsResult<ArrayRef> {
     Ok(match from.parse::<chrono_tz::Tz>() {
         Ok(from_tz) => match to.parse::<chrono_tz::Tz>() {
-            Ok(to_tz) => convert_to_timestamp(from_tz, to_tz, arr, tu),
+            Ok(to_tz) => convert_to_timestamp(from_tz, to_tz, arr, tu)?,
             Err(_) => match parse_offset(&to) {
-                Ok(to_tz) => convert_to_timestamp(from_tz, to_tz, arr, tu),
+                Ok(to_tz) => convert_to_timestamp(from_tz, to_tz, arr, tu)?,
                 Err(_) => polars_bail!(ComputeError: "unable to parse time zone: {}", to),
             },
         },
         Err(_) => match parse_offset(&from) {
             Ok(from_tz) => match to.parse::<chrono_tz::Tz>() {
-                Ok(to_tz) => convert_to_timestamp(from_tz, to_tz, arr, tu),
+                Ok(to_tz) => convert_to_timestamp(from_tz, to_tz, arr, tu)?,
                 Err(_) => match parse_offset(&to) {
-                    Ok(to_tz) => convert_to_timestamp(from_tz, to_tz, arr, tu),
+                    Ok(to_tz) => convert_to_timestamp(from_tz, to_tz, arr, tu)?,
                     Err(_) => polars_bail!(ComputeError: "unable to parse time zone: {}", to),
                 },
             },
