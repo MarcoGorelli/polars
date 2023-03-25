@@ -20,6 +20,7 @@ impl Series {
             GroupsProxy::Idx(groups) => agg_helper_idx_on_all::<IdxType, _>(groups, |idx| {
                 debug_assert!(idx.len() <= self.len());
                 if idx.is_empty() {
+                    println!("hit valid_count! 23");
                     None
                 } else if !self.has_validity() {
                     Some(idx.len() as IdxSize)
@@ -51,6 +52,7 @@ impl Series {
             GroupsProxy::Idx(groups) => {
                 let mut iter = groups.iter().map(|(first, idx)| {
                     if idx.is_empty() {
+                        println!("hit agg first! 55:");
                         None
                     } else {
                         Some(first as usize)
@@ -85,6 +87,7 @@ impl Series {
             GroupsProxy::Idx(groups) => agg_helper_idx_on_all::<IdxType, _>(groups, |idx| {
                 debug_assert!(idx.len() <= self.len());
                 if idx.is_empty() {
+                    println!("hit n_unique 90");
                     None
                 } else {
                     let take = self.take_iter_unchecked(&mut idx.iter().map(|i| *i as usize));
@@ -185,6 +188,7 @@ impl Series {
             GroupsProxy::Idx(groups) => {
                 let mut iter = groups.all().iter().map(|idx| {
                     if idx.is_empty() {
+                        println!("hit agg last 191");
                         None
                     } else {
                         Some(idx[idx.len() - 1] as usize)

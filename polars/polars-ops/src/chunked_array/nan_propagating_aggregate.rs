@@ -97,6 +97,7 @@ where
         GroupsProxy::Idx(groups) => _agg_helper_idx::<T, _>(groups, |(first, idx)| {
             debug_assert!(idx.len() <= ca.len());
             if idx.is_empty() {
+                println!("agg nan max 100");
                 None
             } else if idx.len() == 1 {
                 ca.get(first as usize)
@@ -170,6 +171,7 @@ where
         GroupsProxy::Idx(groups) => _agg_helper_idx::<T, _>(groups, |(first, idx)| {
             debug_assert!(idx.len() <= ca.len());
             if idx.is_empty() {
+                println!("agg nan min 174");
                 None
             } else if idx.len() == 1 {
                 ca.get(first as usize)

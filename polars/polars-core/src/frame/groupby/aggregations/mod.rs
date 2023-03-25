@@ -225,6 +225,7 @@ impl BooleanChunked {
             GroupsProxy::Idx(groups) => _agg_helper_idx_bool(groups, |(first, idx)| {
                 debug_assert!(idx.len() <= self.len());
                 if idx.is_empty() {
+                    println!("agg min 228");
                     None
                 } else if idx.len() == 1 {
                     self.get(first as usize)
@@ -267,6 +268,7 @@ impl BooleanChunked {
             GroupsProxy::Idx(groups) => _agg_helper_idx_bool(groups, |(first, idx)| {
                 debug_assert!(idx.len() <= self.len());
                 if idx.is_empty() {
+                    println!("agg max 270");
                     None
                 } else if idx.len() == 1 {
                     self.get(first as usize)
@@ -319,6 +321,7 @@ impl Utf8Chunked {
                 _agg_helper_idx_utf8(groups, |(first, idx)| {
                     debug_assert!(idx.len() <= ca_self.len());
                     if idx.is_empty() {
+                        println!("agg mmin 322");
                         None
                     } else if idx.len() == 1 {
                         ca_self.get(first as usize)
@@ -380,6 +383,7 @@ impl Utf8Chunked {
                 _agg_helper_idx_utf8(groups, |(first, idx)| {
                     debug_assert!(idx.len() <= self.len());
                     if idx.is_empty() {
+                        println!("agg agg max 383");
                         None
                     } else if idx.len() == 1 {
                         ca_self.get(first as usize)
@@ -513,6 +517,7 @@ where
         GroupsProxy::Idx(groups) => agg_helper_idx_on_all::<K, _>(groups, |idx| {
             debug_assert!(idx.len() <= ca.len());
             if idx.is_empty() {
+                println!("agg quantile gen");
                 return None;
             }
             let take = { ca.take_unchecked(idx.into()) };
@@ -577,6 +582,7 @@ where
         GroupsProxy::Idx(groups) => agg_helper_idx_on_all::<K, _>(groups, |idx| {
             debug_assert!(idx.len() <= ca.len());
             if idx.is_empty() {
+                println!("agg median gen");
                 return None;
             }
             let take = { ca.take_unchecked(idx.into()) };
@@ -613,6 +619,7 @@ where
             GroupsProxy::Idx(groups) => _agg_helper_idx::<T, _>(groups, |(first, idx)| {
                 debug_assert!(idx.len() <= self.len());
                 if idx.is_empty() {
+                    println!("agg agg min 616");
                     None
                 } else if idx.len() == 1 {
                     self.get(first as usize)
@@ -691,6 +698,7 @@ where
             GroupsProxy::Idx(groups) => _agg_helper_idx::<T, _>(groups, |(first, idx)| {
                 debug_assert!(idx.len() <= self.len());
                 if idx.is_empty() {
+                    println!("agg agg max 694");
                     None
                 } else if idx.len() == 1 {
                     self.get(first as usize)
@@ -760,6 +768,7 @@ where
             GroupsProxy::Idx(groups) => _agg_helper_idx::<T, _>(groups, |(first, idx)| {
                 debug_assert!(idx.len() <= self.len());
                 if idx.is_empty() {
+                    println!("hit agg sum! 763");
                     None
                 } else if idx.len() == 1 {
                     self.get(first as usize)
@@ -846,6 +855,7 @@ where
                     // access
                     debug_assert!(idx.len() <= self.len());
                     let out = if idx.is_empty() {
+                        println!("agg agg mean 850");
                         None
                     } else if idx.len() == 1 {
                         self.get(first as usize).map(|sum| sum.to_f64().unwrap())
@@ -924,6 +934,7 @@ where
             GroupsProxy::Idx(groups) => agg_helper_idx_on_all::<T, _>(groups, |idx| {
                 debug_assert!(idx.len() <= ca.len());
                 if idx.is_empty() {
+                    println!("hit agg var 928");
                     return None;
                 }
                 let take = { ca.take_unchecked(idx.into()) };
@@ -968,6 +979,7 @@ where
             GroupsProxy::Idx(groups) => agg_helper_idx_on_all::<T, _>(groups, |idx| {
                 debug_assert!(idx.len() <= ca.len());
                 if idx.is_empty() {
+                    println!("hit agg std 973");
                     return None;
                 }
                 let take = { ca.take_unchecked(idx.into()) };
@@ -1055,6 +1067,7 @@ where
                     // access
                     debug_assert!(idx.len() <= self.len());
                     if idx.is_empty() {
+                        println!("agg mean 1061");
                         None
                     } else if idx.len() == 1 {
                         self.get(first as usize).map(|sum| sum.to_f64().unwrap())
@@ -1126,6 +1139,7 @@ where
             GroupsProxy::Idx(groups) => agg_helper_idx_on_all::<Float64Type, _>(groups, |idx| {
                 debug_assert!(idx.len() <= self.len());
                 if idx.is_empty() {
+                    println!("agg var 1133");
                     return None;
                 }
                 let take = { self.take_unchecked(idx.into()) };
@@ -1159,6 +1173,7 @@ where
             GroupsProxy::Idx(groups) => agg_helper_idx_on_all::<Float64Type, _>(groups, |idx| {
                 debug_assert!(idx.len() <= self.len());
                 if idx.is_empty() {
+                    println!("agg std 1167");
                     return None;
                 }
                 let take = { self.take_unchecked(idx.into()) };
