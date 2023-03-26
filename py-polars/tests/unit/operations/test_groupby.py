@@ -693,14 +693,24 @@ def test_groupby_multiple_column_reference() -> None:
     }
 
 @pytest.mark.parametrize(
-    ('aggregation', 'expected', 'expected_dtype'),
+    ('aggregation', 'args', 'expected', 'expected_dtype'),
     [
-        ('sum', [1, None], pl.Int64),
-        ('count', [1, 0], pl.UInt32),
+        ('count', [], [1, 0], pl.UInt32),
+        ('first', [], [1, None], pl.Int64),
+        ('head', [], [[1], []], pl.List(pl.Int64)),
+        ('last', [], [1, None], pl.Int64),
+        ('max', [], [1, None], pl.Int64),
+        ('mean', [], [1.0, None], pl.Float64),
+        ('median', [], [1.0, None], pl.Float64),
+        ('min', [], [1, None], pl.Int64),
+        ('n_unique', [], [1, None], pl.UInt32),
+        ('quantile', [.5], [1., None], pl.Float64),
+        ('sum', [], [1, None], pl.Int64),
+        ('tail', [], [[1], []], pl.List(pl.Int64)),
     ]
 )
-def test_groupby_empty_groups(aggregation, expected, expected_dtype):
+def test_groupby_empty_groups(aggregation, args, expected, expected_dtype):
     df = pl.DataFrame({'a': [1,2], 'b': [1,2]})
-    result = df.groupby('b', maintain_order=True).agg(getattr(pl.col('a').filter(pl.col('b')!=2), aggregation)())
+    result = df.groupby('b', maintain_order=True).agg(getattr(pl.col('a').filter(pl.col('b')!=2), aggregation)(*args))
     expected = pl.DataFrame({'b': [1, 2], 'a': expected}).with_columns(pl.col('a').cast(expected_dtype))
     assert_frame_equal(result, expected)
