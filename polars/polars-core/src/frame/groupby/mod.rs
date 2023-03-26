@@ -802,6 +802,7 @@ impl<'df> GroupBy<'df> {
     where
         F: FnMut(DataFrame) -> PolarsResult<DataFrame> + Send + Sync,
     {
+        println!("we in this apply!");
         let df = self.prepare_apply()?;
         let dfs = self
             .get_groups()
@@ -809,7 +810,10 @@ impl<'df> GroupBy<'df> {
             .map(|g| {
                 // safety
                 // groups are in bounds
+                // here, should we check for an empty one?
+                println!("df: {:?}", df);
                 let sub_df = unsafe { take_df(&df, g) };
+                println!("sub_df: {:?}", sub_df);
                 f(sub_df)
             })
             .collect::<PolarsResult<Vec<_>>>()?;

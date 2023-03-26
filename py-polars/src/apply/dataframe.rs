@@ -30,11 +30,13 @@ pub fn apply_lambda_unknown<'a>(
     inference_size: usize,
 ) -> PyResult<(PyObject, bool)> {
     let mut null_count = 0;
+    println!("df: {:?}", df);
     let mut iters = get_iters(df);
 
     for _ in 0..df.height() {
         let iter = iters.iter_mut().map(|it| Wrap(it.next().unwrap()));
         let arg = (PyTuple::new(py, iter),);
+        println!("arg: {:?}", arg);
         let out = lambda.call1(arg)?;
 
         if out.is_none() {

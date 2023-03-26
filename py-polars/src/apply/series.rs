@@ -233,7 +233,9 @@ where
 impl<'a> ApplyLambda<'a> for BooleanChunked {
     fn apply_lambda_unknown(&'a self, py: Python, lambda: &'a PyAny) -> PyResult<PySeries> {
         let mut null_count = 0;
+        println!("apply lambda unknown!");
         for opt_v in self.into_iter() {
+            println!("opt_v: {:?}", opt_v);
             if let Some(v) = opt_v {
                 let arg = PyTuple::new(py, [v]);
                 let out = lambda.call1(arg)?;
@@ -529,6 +531,7 @@ where
 {
     fn apply_lambda_unknown(&'a self, py: Python, lambda: &'a PyAny) -> PyResult<PySeries> {
         let mut null_count = 0;
+        println!("apply lambda unknown! 534");
         for opt_v in self.into_iter() {
             if let Some(v) = opt_v {
                 let arg = PyTuple::new(py, [v]);
@@ -1166,10 +1169,12 @@ fn call_series_lambda(pypolars: &PyModule, lambda: &PyAny, series: Series) -> Op
 
 impl<'a> ApplyLambda<'a> for ListChunked {
     fn apply_lambda_unknown(&'a self, py: Python, lambda: &'a PyAny) -> PyResult<PySeries> {
+        println!("apply lambda unknown! 1172");
         let pypolars = PyModule::import(py, "polars")?;
         let mut null_count = 0;
         for opt_v in self.into_iter() {
             if let Some(v) = opt_v {
+                println!("v: {:?}", v);
                 // create a PySeries struct/object for Python
                 let pyseries = PySeries::new(v);
                 // Wrap this PySeries object in the python side Series wrapper
@@ -1179,6 +1184,7 @@ impl<'a> ApplyLambda<'a> for ListChunked {
                     .call1((pyseries,))
                     .unwrap();
 
+                println!("py series wrapper: {:?}", python_series_wrapper);
                 let out = lambda.call1((python_series_wrapper,))?;
                 if out.is_none() {
                     null_count += 1;
@@ -1645,6 +1651,7 @@ impl<'a> ApplyLambda<'a> for ListChunked {
 #[cfg(feature = "object")]
 impl<'a> ApplyLambda<'a> for ObjectChunked<ObjectValue> {
     fn apply_lambda_unknown(&'a self, py: Python, lambda: &'a PyAny) -> PyResult<PySeries> {
+        println!("apply lambda unknown! 1652");
         let mut null_count = 0;
         for opt_v in self.into_iter() {
             if let Some(v) = opt_v {
@@ -1938,6 +1945,7 @@ fn make_dict_arg(py: Python, names: &[&str], vals: &[AnyValue]) -> Py<PyDict> {
 
 impl<'a> ApplyLambda<'a> for StructChunked {
     fn apply_lambda_unknown(&'a self, py: Python, lambda: &'a PyAny) -> PyResult<PySeries> {
+        println!("apply lambda unknown! 1946");
         let names = self.fields().iter().map(|s| s.name()).collect::<Vec<_>>();
         let mut null_count = 0;
         for val in self.into_iter() {

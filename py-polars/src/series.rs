@@ -845,6 +845,7 @@ impl PySeries {
         output_type: Option<Wrap<DataType>>,
         skip_nulls: bool,
     ) -> PyResult<PySeries> {
+        println!("in apply_lambda!");
         let series = &self.series;
 
         if skip_nulls && (series.null_count() == series.len()) {
@@ -858,6 +859,7 @@ impl PySeries {
         }
 
         let output_type = output_type.map(|dt| dt.0);
+        println!("output dtype: {:?}", output_type);
 
         macro_rules! dispatch_apply {
             ($self:expr, $method:ident, $($args:expr),*) => {
@@ -868,6 +870,7 @@ impl PySeries {
                         ca.$method($($args),*)
                     },
                     _ => {
+                        println!("all arrow series 2!");
                         apply_method_all_arrow_series2!(
                             $self,
                             $method,
@@ -879,6 +882,8 @@ impl PySeries {
             }
 
         }
+
+        println!("series dtype: {:?}", self.series.dtype());
 
         Python::with_gil(|py| {
             if matches!(
@@ -893,6 +898,7 @@ impl PySeries {
             {
                 let mut avs = Vec::with_capacity(self.series.len());
                 let iter = self.series.iter().map(|av| {
+                    println!("av: {:?}", av);
                     let input = Wrap(av);
                     call_lambda_and_extract::<_, Wrap<AnyValue>>(py, lambda, input)
                         .unwrap()
@@ -901,7 +907,7 @@ impl PySeries {
                 avs.extend(iter);
                 return Ok(Series::new(self.name(), &avs).into());
             }
-
+            println!("about to go here!");
             let out = match output_type {
                 Some(DataType::Int8) => {
                     let ca: Int8Chunked = dispatch_apply!(
@@ -1060,6 +1066,7 @@ impl PySeries {
                 }
                 #[cfg(feature = "object")]
                 Some(DataType::Object(_)) => {
+                    println!("we gonna dispatch appy object?");
                     let ca = dispatch_apply!(
                         series,
                         apply_lambda_with_object_out_type,
@@ -1070,7 +1077,10 @@ impl PySeries {
                     )?;
                     ca.into_series()
                 }
-                None => return dispatch_apply!(series, apply_lambda_unknown, py, lambda),
+                None => {
+                    println!("in thi none, gonna dispatch apply");
+                    return dispatch_apply!(series, apply_lambda_unknown, py, lambda)
+                }
 
                 _ => return dispatch_apply!(series, apply_lambda_unknown, py, lambda),
             };
