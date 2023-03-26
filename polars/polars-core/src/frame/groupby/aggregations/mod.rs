@@ -768,7 +768,7 @@ where
             GroupsProxy::Idx(groups) => _agg_helper_idx::<T, _>(groups, |(first, idx)| {
                 debug_assert!(idx.len() <= self.len());
                 if idx.is_empty() {
-                    println!("hit agg sum! 763");
+                    println!("hit agg sum! 763");  // done
                     None
                 } else if idx.len() == 1 {
                     self.get(first as usize)
