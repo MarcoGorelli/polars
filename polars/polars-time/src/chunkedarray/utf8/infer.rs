@@ -3,6 +3,7 @@ use once_cell::sync::Lazy;
 use polars_arrow::export::arrow::array::PrimitiveArray;
 use polars_core::prelude::*;
 use polars_core::utils::arrow::types::NativeType;
+use regex::bytes::Regex as BytesRegex;
 use regex::Regex;
 
 use super::patterns::{self, PatternWithOffset};
@@ -12,9 +13,7 @@ use crate::chunkedarray::utf8::patterns::Pattern;
 use crate::chunkedarray::utf8::strptime;
 use crate::prelude::utf8::strptime::StrpTimeState;
 
-static DATE_DMY_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(
-        r#"(?x)
+const DATE_DMY_PATTERN: &str = r#"(?x)
         ^
         ['"]?            # optional quotes
         (?:\d{1,2})
@@ -24,29 +23,25 @@ static DATE_DMY_RE: Lazy<Regex> = Lazy::new(|| {
         (?:\d{4,})
         ['"]?            # optional quotes
         $
-    "#,
-    )
-    .unwrap()
-});
-static DATE_YMD_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(
-        r#"(?x)
+        "#;
+static DATE_DMY_RE: Lazy<Regex> = Lazy::new(|| Regex::new(DATE_DMY_PATTERN).unwrap());
+static DATE_DMY_BYTES_RE: Lazy<BytesRegex> =
+    Lazy::new(|| BytesRegex::new(DATE_DMY_PATTERN).unwrap());
+const DATE_YMD_PATTERN: &str = r#"(?x)
         ^
-        ['"]?  # optional quotes
+        ['"]?            # optional quotes
         (?:\d{4,})
-        [-/]   # separator
+        [-/]             # separator
         (?P<month>\d{1,2})
-        [-/]   # separator
+        [-/]             # separator
         (?:\d{1,2})
-        ['"]?  # optional quotes
+        ['"]?            # optional quotes
         $
-        "#,
-    )
-    .unwrap()
-});
-static DATETIME_DMY_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(
-        r#"(?x)
+        "#;
+static DATE_YMD_RE: Lazy<Regex> = Lazy::new(|| Regex::new(DATE_YMD_PATTERN).unwrap());
+static DATE_YMD_BYTES_RE: Lazy<BytesRegex> =
+    Lazy::new(|| BytesRegex::new(DATE_YMD_PATTERN).unwrap());
+const DATETIME_DMY_PATTERN: &str = r#"(?x)
         ^
         ['"]?  # optional quotes
         (?:\d{1,2})
@@ -69,13 +64,12 @@ static DATETIME_DMY_RE: Lazy<Regex> = Lazy::new(|| {
         )?
         ['"]?  # optional quotes
         $
-        "#,
-    )
-    .unwrap()
-});
-static DATETIME_YMD_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(
-        r#"(?x)
+        "#;
+
+static DATETIME_DMY_RE: Lazy<Regex> = Lazy::new(|| Regex::new(DATETIME_DMY_PATTERN).unwrap());
+static DATETIME_DMY_BYTES_RE: Lazy<BytesRegex> =
+    Lazy::new(|| BytesRegex::new(DATETIME_DMY_PATTERN).unwrap());
+const DATETIME_YMD_PATTERN: &str = r#"(?x)
         ^
         ['"]?  # optional quotes
         (?:\d{4,})   # year
@@ -98,13 +92,11 @@ static DATETIME_YMD_RE: Lazy<Regex> = Lazy::new(|| {
         )?
         ['"]?  # optional quotes
         $
-        "#,
-    )
-    .unwrap()
-});
-static DATETIME_YMDZ_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(
-        r#"(?x)
+        "#;
+static DATETIME_YMD_RE: Lazy<Regex> = Lazy::new(|| Regex::new(DATETIME_YMD_PATTERN).unwrap());
+static DATETIME_YMD_BYTES_RE: Lazy<BytesRegex> =
+    Lazy::new(|| BytesRegex::new(DATETIME_YMD_PATTERN).unwrap());
+const DATETIME_YMDZ_PATTERN: &str = r#"(?x)
         ^
         ['"]?  # optional quotes
         (?:\d{4,})
@@ -134,76 +126,116 @@ static DATETIME_YMDZ_RE: Lazy<Regex> = Lazy::new(|| {
         )
         ['"]?  # optional quotes
         $
-        "#,
-    )
-    .unwrap()
-});
+        "#;
+static DATETIME_YMDZ_RE: Lazy<Regex> = Lazy::new(|| Regex::new(DATETIME_YMDZ_PATTERN).unwrap());
+static DATETIME_YMDZ_BYTES_RE: Lazy<BytesRegex> =
+    Lazy::new(|| BytesRegex::new(DATETIME_YMDZ_PATTERN).unwrap());
 
 impl Pattern {
     pub fn is_inferable(&self, val: &str) -> bool {
         match self {
             Pattern::DateDMY => match DATE_DMY_RE.captures(val) {
-                Some(search) => {
-                        (1..=12).contains(
-                            &search
-                                .name("month")
-                                .unwrap()
-                                .as_str()
-                                .parse::<u8>()
-                                .unwrap(),
-                        )
-                }
+                Some(search) => (1..=12).contains(
+                    &search
+                        .name("month")
+                        .unwrap()
+                        .as_str()
+                        .parse::<u8>()
+                        .unwrap(),
+                ),
                 None => false,
             },
             Pattern::DateYMD => match DATE_YMD_RE.captures(val) {
-                Some(search) => {
-                    (1..=12).contains(
-                        &search
-                            .name("month")
-                            .unwrap()
-                            .as_str()
-                            .parse::<u8>()
-                            .unwrap(),
-                    )                }
+                Some(search) => (1..=12).contains(
+                    &search
+                        .name("month")
+                        .unwrap()
+                        .as_str()
+                        .parse::<u8>()
+                        .unwrap(),
+                ),
                 None => false,
             },
             Pattern::DatetimeDMY => match DATETIME_DMY_RE.captures(val) {
-                Some(search) => {
-                        (1..=12).contains(
-                            &search
-                                .name("month")
-                                .unwrap()
-                                .as_str()
-                                .parse::<u8>()
-                                .unwrap(),
-                        )
-                }
+                Some(search) => (1..=12).contains(
+                    &search
+                        .name("month")
+                        .unwrap()
+                        .as_str()
+                        .parse::<u8>()
+                        .unwrap(),
+                ),
                 None => false,
             },
             Pattern::DatetimeYMD => match DATETIME_YMD_RE.captures(val) {
-                Some(search) => {
-                    (1..=12).contains(
-                        &search
-                            .name("month")
-                            .unwrap()
-                            .as_str()
-                            .parse::<u8>()
-                            .unwrap(),
-                    )
-                }
+                Some(search) => (1..=12).contains(
+                    &search
+                        .name("month")
+                        .unwrap()
+                        .as_str()
+                        .parse::<u8>()
+                        .unwrap(),
+                ),
                 None => false,
             },
             Pattern::DatetimeYMDZ => match DATETIME_YMDZ_RE.captures(val) {
-                Some(search) => {
-                    (1..=12).contains(
-                        &search
-                            .name("month")
-                            .unwrap()
-                            .as_str()
-                            .parse::<u8>()
-                            .unwrap(),
-                    )
-                }
+                Some(search) => (1..=12).contains(
+                    &search
+                        .name("month")
+                        .unwrap()
+                        .as_str()
+                        .parse::<u8>()
+                        .unwrap(),
+                ),
+                None => false,
+            },
+        }
+    }
+    pub fn is_inferable_bytes(&self, val: &[u8]) -> bool {
+        match self {
+            Pattern::DateDMY => match DATE_DMY_BYTES_RE.captures(val) {
+                Some(search) => (1..=12).contains(
+                    &std::str::from_utf8(&search.name("month").unwrap().as_bytes())
+                        .unwrap()
+                        .parse::<u8>()
+                        .unwrap(),
+                ),
+                None => false,
+            },
+            Pattern::DateYMD => match DATE_YMD_BYTES_RE.captures(val) {
+                Some(search) => (1..=12).contains(
+                    &std::str::from_utf8(&search.name("month").unwrap().as_bytes())
+                        .unwrap()
+                        .parse::<u8>()
+                        .unwrap(),
+                ),
+                None => false,
+            },
+            Pattern::DatetimeDMY => match DATETIME_DMY_BYTES_RE.captures(val) {
+                Some(search) => (1..=12).contains(
+                    &std::str::from_utf8(&search.name("month").unwrap().as_bytes())
+                        .unwrap()
+                        .parse::<u8>()
+                        .unwrap(),
+                ),
+                None => false,
+            },
+            Pattern::DatetimeYMD => match DATETIME_YMD_BYTES_RE.captures(val) {
+                Some(search) => (1..=12).contains(
+                    &std::str::from_utf8(&search.name("month").unwrap().as_bytes())
+                        .unwrap()
+                        .parse::<u8>()
+                        .unwrap(),
+                ),
+                None => false,
+            },
+            Pattern::DatetimeYMDZ => match DATETIME_YMDZ_BYTES_RE.captures(val) {
+                Some(search) => (1..=12).contains(
+                    &std::str::from_utf8(&search.name("month").unwrap().as_bytes())
+                        .unwrap()
+                        .parse::<u8>()
+                        .unwrap(),
+                ),
                 None => false,
             },
         }
@@ -227,7 +259,7 @@ impl StrpTimeParser<i64> for DatetimeInfer<i64> {
                 .or_else(|| {
                     // TODO! this will try all patterns.
                     // somehow we must early escape if value is invalid
-                    if !self.pattern.is_inferable(std::str::from_utf8(val).unwrap()) {
+                    if !self.pattern.is_inferable_bytes(val) {
                         return None;
                     }
                     for fmt in self.patterns {
@@ -260,7 +292,7 @@ impl StrpTimeParser<i32> for DatetimeInfer<i32> {
                 .parse(val, self.latest_fmt.as_bytes(), self.fmt_len)
                 .map(|ndt| naive_date_to_date(ndt.date()))
                 .or_else(|| {
-                    if !self.pattern.is_inferable(std::str::from_utf8(val).unwrap()) {
+                    if !self.pattern.is_inferable_bytes(val) {
                         return None;
                     }
                     for fmt in self.patterns {
