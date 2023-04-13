@@ -17,11 +17,11 @@ static DATE_DMY_RE: Lazy<Regex> = Lazy::new(|| {
         r#"(?x)
         ^
         ['"]?            # optional quotes
-        (?P<day>\d{1,2})
+        (?:\d{1,2})
         [-/]             # separator
         (?P<month>\d{1,2})
         [-/]             # separator
-        (?P<year>\d{4,})
+        (?:\d{4,})
         ['"]?            # optional quotes
         $
     "#,
@@ -33,11 +33,11 @@ static DATE_YMD_RE: Lazy<Regex> = Lazy::new(|| {
         r#"(?x)
         ^
         ['"]?  # optional quotes
-        (?P<year>\d{4,})
+        (?:\d{4,})
         [-/]   # separator
         (?P<month>\d{1,2})
         [-/]   # separator
-        (?P<day>\d{1,2})
+        (?:\d{1,2})
         ['"]?  # optional quotes
         $
         "#,
@@ -49,21 +49,21 @@ static DATETIME_DMY_RE: Lazy<Regex> = Lazy::new(|| {
         r#"(?x)
         ^
         ['"]?  # optional quotes
-        (?P<day>\d{1,2})
+        (?:\d{1,2})
         [-/]   # separator
         (?P<month>\d{1,2})
         [-/]   # separator
-        (?P<year>\d{4,})
+        (?:\d{4,})
         (?:
             [T\ ]  # separator
-            (?P<hour>\d{2})
+            (?:\d{2})
             :?  # separator
-            (?P<minute>\d{2})
+            (?:\d{2})
             (?:
                 :?  # separator
-                (?P<second>\d{2})
+                (?:\d{2})
                 (?:
-                    \.(?P<subsecond>\d{1,9})
+                    \.(?:\d{1,9})
                 )?
             )?
         )?
@@ -78,21 +78,21 @@ static DATETIME_YMD_RE: Lazy<Regex> = Lazy::new(|| {
         r#"(?x)
         ^
         ['"]?  # optional quotes
-        (?P<year>\d{4,})   # year
+        (?:\d{4,})   # year
         [-/]   # separator
         (?P<month>\d{1,2})  # month
         [-/]   # separator
-        (?P<day>\d{1,2})  # day
+        (?:\d{1,2})  # day
         (?:
             [T\ ]  # separator
-            (?P<hour>\d{2})  # hour
+            (?:\d{2})  # hour
             :?  # separator
-            (?P<minute>\d{2})  # minute
+            (?:\d{2})  # minute
             (?:
                 :?  # separator
-                (?P<second>\d{2})  # seconds
+                (?:\d{2})  # seconds
                 (?: 
-                    \.(?P<subsecond>\d{1,9})
+                    \.(?:\d{1,9})
                 )?
             )?
         )?
@@ -107,28 +107,28 @@ static DATETIME_YMDZ_RE: Lazy<Regex> = Lazy::new(|| {
         r#"(?x)
         ^
         ['"]?  # optional quotes
-        (?P<year>\d{4,})
+        (?:\d{4,})
         [-/]  # separator
         (?P<month>\d{1,2})
         [-/]  # separator
-        (?P<day>\d{1,2})
+        (?:\d{1,2})
         [T\ ]  # separator
-        (?P<hour>\d{2})
+        (?:\d{2})
         :?  # separator
-        (?P<minute>\d{2})
+        (?:\d{2})
         (?:
             :?  # separator
-            (?P<second>\d{2})
+            (?:\d{2})
             (?:
-                \.(?P<subsecond>\d{1,9})
+                \.(?:\d{1,9})
             )?
         )?
         (?: 
             # offset (e.g. +01:00)
             [+-]
-            (?P<offset_hour>\d{2})
+            (?:\d{2})
             :?
-            (?P<offset_minute>\d{2})
+            (?:\d{2})
             # or Zulu suffix
             |Z
         )
