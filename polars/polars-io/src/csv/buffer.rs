@@ -474,7 +474,10 @@ where
                     // fall back on chrono parser
                     // this is a lot slower, we need to do utf8 checking and use
                     // the slower parser
-                    None => slow_datetime_parser(self, bytes, ignore_errors),
+                    None => {
+                        self.builder.append_null();
+                        Ok(())
+                    }
                 }
             }
         }
