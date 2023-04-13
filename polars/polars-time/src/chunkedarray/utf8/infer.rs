@@ -16,13 +16,13 @@ static DATE_DMY_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
         r#"(?x)
         ^
-        ['"]?      # quotes
-        (\d{1,2})  # day
-        [-/]       # separator
-        (\d{1,2})  # month
-        [-/]       # separator
-        (\d{4,})   # year
-        ['"]?      # quotes
+        ['"]?            # optional quotes
+        (?P<day>\d{1,2})
+        [-/]             # separator
+        (?P<month>\d{1,2})
+        [-/]             # separator
+        (?P<year>\d{4,})
+        ['"]?            # optional quotes
         $
     "#,
     )
@@ -32,13 +32,13 @@ static DATE_YMD_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
         r#"(?x)
         ^
-        ['"]?      # quotes
-        (\d{4,})   # year
-        [-/]       # separator
-        (\d{1,2})  # month
-        [-/]       # separator
-        (\d{1,2})  # day
-        ['"]?      # quotes
+        ['"]?  # optional quotes
+        (?P<year>\d{4,})
+        [-/]   # separator
+        (?P<month>\d{1,2})
+        [-/]   # separator
+        (?P<day>\d{1,2})
+        ['"]?  # optional quotes
         $
         "#,
     )
@@ -48,27 +48,26 @@ static DATETIME_DMY_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
         r#"(?x)
         ^
-        ['"]?      # quotes
-        (\d{1,2})  # day
-        [-/]       # separator
-        (\d{1,2})  # month
-        [-/]       # separator
-        (\d{4,})   # year
+        ['"]?  # optional quotes
+        (?P<day>\d{1,2})
+        [-/]   # separator
+        (?P<month>\d{1,2})
+        [-/]   # separator
+        (?P<year>\d{4,})
         (?:
-            [T\ ]    # separator
-            (\d{2})  # hour
-            :?       # separator
-            (\d{2})  # minute
+            [T\ ]  # separator
+            (?P<hour>\d{2})
+            :?  # separator
+            (?P<minute>\d{2})
             (?:
-                :?       # separator
-                (\d{2})  # seconds
+                :?  # separator
+                (?P<second>\d{2})
                 (?:
-                    # subseconds
-                    \.(\d{1,9}) 
+                    \.(?P<subsecond>\d{1,9})
                 )?
             )?
         )?
-        ['"]?      # quotes
+        ['"]?  # optional quotes
         $
         "#,
     )
@@ -78,27 +77,26 @@ static DATETIME_YMD_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
         r#"(?x)
         ^
-        ['"]?      # quotes
-        (\d{4,})   # year
-        [-/]       # separator
-        (\d{1,2})  # month
-        [-/]       # separator
-        (\d{1,2})  # day
+        ['"]?  # optional quotes
+        (?P<year>\d{4,})   # year
+        [-/]   # separator
+        (?P<month>\d{1,2})  # month
+        [-/]   # separator
+        (?P<day>\d{1,2})  # day
         (?:
-            [T\ ]    # separator
-            (\d{2})  # hour
-            :?       # separator
-            (\d{2})  # minute
+            [T\ ]  # separator
+            (?P<hour>\d{2})  # hour
+            :?  # separator
+            (?P<minute>\d{2})  # minute
             (?:
-                :?       # separator
-                (\d{2})  # seconds
+                :?  # separator
+                (?P<second>\d{2})  # seconds
                 (?: 
-                    # subseconds
-                    \.(\d{1,9})
+                    \.(?P<subsecond>\d{1,9})
                 )?
             )?
         )?
-        ['"]?      # quotes
+        ['"]?  # optional quotes
         $
         "#,
     )
@@ -108,31 +106,33 @@ static DATETIME_YMDZ_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
         r#"(?x)
         ^
-        ['"]?      # quotes
-        (\d{4,})   # year
-        [-/]       # separator
-        (\d{1,2})  # month
-        [-/]       # separator
-        (\d{1,2})  # day
-        [T\ ]      # separator
-        (\d{2})    # hour
-        :?         # separator
-        (\d{2})    # minute
+        ['"]?  # optional quotes
+        (?P<year>\d{4,})
+        [-/]  # separator
+        (?P<month>\d{1,2})
+        [-/]  # separator
+        (?P<day>\d{1,2})
+        [T\ ]  # separator
+        (?P<hour>\d{2})
+        :?  # separator
+        (?P<minute>\d{2})
         (?:
-            :?       # separator
-            (\d{2})  # seconds
+            :?  # separator
+            (?P<second>\d{2})
             (?:
-                # subseconds
-                \.(\d{1,9})
+                \.(?P<subsecond>\d{1,9})
             )?
         )?
         (?: 
-            # offset (+01:00)
-            [+-](\d{2}):?(\d{2})
+            # offset (e.g. +01:00)
+            [+-]
+            (?P<offset_hour>\d{2})
+            :?
+            (?P<offset_minute>\d{2})
             # or Zulu suffix
             |Z
         )
-        ['"]?      # quotes
+        ['"]?  # optional quotes
         $
         "#,
     )
@@ -144,50 +144,168 @@ impl Pattern {
         match self {
             Pattern::DateDMY => match DATE_DMY_RE.captures(val) {
                 Some(search) => {
-                    (1..=31).contains(&search[1].parse::<i32>().unwrap())
-                        && (1..=12).contains(&search[2].parse::<i32>().unwrap())
+                    (1..=31).contains(&search.name("day").unwrap().as_str().parse::<i32>().unwrap())
+                        && (1..=12).contains(
+                            &search
+                                .name("month")
+                                .unwrap()
+                                .as_str()
+                                .parse::<i32>()
+                                .unwrap(),
+                        )
                 }
                 None => false,
             },
             Pattern::DateYMD => match DATE_YMD_RE.captures(val) {
                 Some(search) => {
-                    (1..=12).contains(&search[2].parse::<i32>().unwrap())
-                        && (1..=31).contains(&search[3].parse::<i32>().unwrap())
+                    (1..=12).contains(
+                        &search
+                            .name("month")
+                            .unwrap()
+                            .as_str()
+                            .parse::<i32>()
+                            .unwrap(),
+                    ) && (1..=31)
+                        .contains(&search.name("day").unwrap().as_str().parse::<i32>().unwrap())
                 }
                 None => false,
             },
             Pattern::DatetimeDMY => match DATETIME_DMY_RE.captures(val) {
                 Some(search) => {
-                    (1..=31).contains(&search[1].parse::<i32>().unwrap())
-                        && (1..=12).contains(&search[2].parse::<i32>().unwrap())
+                    (1..=31).contains(&search.name("day").unwrap().as_str().parse::<i32>().unwrap())
+                        && (1..=12).contains(
+                            &search
+                                .name("month")
+                                .unwrap()
+                                .as_str()
+                                .parse::<i32>()
+                                .unwrap(),
+                        )
+                        && (search.name("hour").is_none()
+                            || (0..=23).contains(
+                                &search
+                                    .name("hour")
+                                    .unwrap()
+                                    .as_str()
+                                    .parse::<i32>()
+                                    .unwrap(),
+                            ))
+                        && (search.name("minute").is_none()
+                            || (0..=59).contains(
+                                &search
+                                    .name("minute")
+                                    .unwrap()
+                                    .as_str()
+                                    .parse::<i32>()
+                                    .unwrap(),
+                            ))
+                        && (search.name("second").is_none()
+                            || (0..=59).contains(
+                                &search
+                                    .name("second")
+                                    .unwrap()
+                                    .as_str()
+                                    .parse::<i32>()
+                                    .unwrap(),
+                            ))
                 }
                 None => false,
             },
             Pattern::DatetimeYMD => match DATETIME_YMD_RE.captures(val) {
                 Some(search) => {
-                    (1..=12).contains(&search[2].parse::<i32>().unwrap())
-                        && (1..=31).contains(&search[3].parse::<i32>().unwrap())
-                        && (search.get(4).is_none()
-                            || (0..=23).contains(&search[4].parse::<i32>().unwrap()))
-                        && (search.get(5).is_none()
-                            || (0..=59).contains(&search[5].parse::<i32>().unwrap()))
-                        && (search.get(6).is_none()
-                            || (0..=59).contains(&search[6].parse::<i32>().unwrap()))
+                    (1..=12).contains(
+                        &search
+                            .name("month")
+                            .unwrap()
+                            .as_str()
+                            .parse::<i32>()
+                            .unwrap(),
+                    ) && (1..=31)
+                        .contains(&search.name("day").unwrap().as_str().parse::<i32>().unwrap())
+                        && (search.name("hour").is_none()
+                            || (0..=23).contains(
+                                &search
+                                    .name("hour")
+                                    .unwrap()
+                                    .as_str()
+                                    .parse::<i32>()
+                                    .unwrap(),
+                            ))
+                        && (search.name("minute").is_none()
+                            || (0..=59).contains(
+                                &search
+                                    .name("minute")
+                                    .unwrap()
+                                    .as_str()
+                                    .parse::<i32>()
+                                    .unwrap(),
+                            ))
+                        && (search.name("second").is_none()
+                            || (0..=59).contains(
+                                &search
+                                    .name("second")
+                                    .unwrap()
+                                    .as_str()
+                                    .parse::<i32>()
+                                    .unwrap(),
+                            ))
                 }
                 None => false,
             },
             Pattern::DatetimeYMDZ => match DATETIME_YMDZ_RE.captures(val) {
                 Some(search) => {
-                    (1..=12).contains(&search[2].parse::<i32>().unwrap())
-                        && (1..=31).contains(&search[3].parse::<i32>().unwrap())
-                        && (0..=23).contains(&search[4].parse::<i32>().unwrap())
-                        && (0..=59).contains(&search[5].parse::<i32>().unwrap())
-                        && (search.get(6).is_none()
-                            || (0..=59).contains(&search[6].parse::<i32>().unwrap()))
-                        && (search.get(8).is_none()
-                            || (0..=23).contains(&search[8].parse::<i32>().unwrap()))
-                        && (search.get(9).is_none()
-                            || (0..=23).contains(&search[9].parse::<i32>().unwrap()))
+                    (1..=12).contains(
+                        &search
+                            .name("month")
+                            .unwrap()
+                            .as_str()
+                            .parse::<i32>()
+                            .unwrap(),
+                    ) && (1..=31)
+                        .contains(&search.name("day").unwrap().as_str().parse::<i32>().unwrap())
+                        && (0..=23).contains(
+                            &search
+                                .name("hour")
+                                .unwrap()
+                                .as_str()
+                                .parse::<i32>()
+                                .unwrap(),
+                        )
+                        && (0..=59).contains(
+                            &search
+                                .name("minute")
+                                .unwrap()
+                                .as_str()
+                                .parse::<i32>()
+                                .unwrap(),
+                        )
+                        && (search.name("second").is_none()
+                            || (0..=59).contains(
+                                &search
+                                    .name("second")
+                                    .unwrap()
+                                    .as_str()
+                                    .parse::<i32>()
+                                    .unwrap(),
+                            ))
+                        && (search.name("offset_hour").is_none()
+                            || (0..=23).contains(
+                                &search
+                                    .name("offset_hour")
+                                    .unwrap()
+                                    .as_str()
+                                    .parse::<i32>()
+                                    .unwrap(),
+                            ))
+                        && (search.name("offset_minute").is_none()
+                            || (0..=59).contains(
+                                &search
+                                    .name("offset_minute")
+                                    .unwrap()
+                                    .as_str()
+                                    .parse::<i32>()
+                                    .unwrap(),
+                            ))
                 }
                 None => false,
             },
