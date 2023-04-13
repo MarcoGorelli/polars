@@ -67,6 +67,7 @@ impl StrpTimeState {
     ) -> Option<NaiveDateTime> {
         let mut offset = 0;
         let mut negative = false;
+        println!("we in here bitch");
         if val.starts_with(b"-") && fmt.starts_with(b"%Y") {
             offset = 1;
             negative = true;
@@ -104,6 +105,9 @@ impl StrpTimeState {
                     }
                     b'm' => {
                         (month, offset) = update_and_parse(2, offset, val)?;
+                        if month > 12 {
+                            return None
+                        }
                     }
                     b'b' => {
                         (month, offset) = parse_month_abbrev(val, offset)?;
@@ -162,6 +166,8 @@ impl StrpTimeState {
         }
         // all values processed
         if offset == val.len() {
+            println!("about to try parsing something crazy");
+            println!("{}, {}, {}", year, month, day);
             NaiveDate::from_ymd_opt(year, month, day)
                 .and_then(|nd| nd.and_hms_nano_opt(hour, min, sec, nano))
         }

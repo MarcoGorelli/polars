@@ -259,6 +259,9 @@ impl StrpTimeParser<i64> for DatetimeInfer<i64> {
             self.fmt_len = strptime::fmt_len(self.latest_fmt.as_bytes())?;
         }
         unsafe {
+            // if !self.pattern.is_inferable_bytes(val) {
+            //     return None;
+            // }
             self.transform_bytes
                 .parse(val, self.latest_fmt.as_bytes(), self.fmt_len)
                 .map(datetime_to_timestamp_us)
@@ -268,6 +271,7 @@ impl StrpTimeParser<i64> for DatetimeInfer<i64> {
                     if !self.pattern.is_inferable_bytes(val) {
                         return None;
                     }
+                    println!("guess we didnt return early");
                     for fmt in self.patterns {
                         if self.fmt_len == 0 {
                             self.fmt_len = strptime::fmt_len(fmt.as_bytes())?;
