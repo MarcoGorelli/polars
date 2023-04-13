@@ -144,13 +144,12 @@ impl Pattern {
         match self {
             Pattern::DateDMY => match DATE_DMY_RE.captures(val) {
                 Some(search) => {
-                    (1..=31).contains(&search.name("day").unwrap().as_str().parse::<i32>().unwrap())
-                        && (1..=12).contains(
+                        (1..=12).contains(
                             &search
                                 .name("month")
                                 .unwrap()
                                 .as_str()
-                                .parse::<i32>()
+                                .parse::<u8>()
                                 .unwrap(),
                         )
                 }
@@ -163,51 +162,21 @@ impl Pattern {
                             .name("month")
                             .unwrap()
                             .as_str()
-                            .parse::<i32>()
+                            .parse::<u8>()
                             .unwrap(),
-                    ) && (1..=31)
-                        .contains(&search.name("day").unwrap().as_str().parse::<i32>().unwrap())
-                }
+                    )                }
                 None => false,
             },
             Pattern::DatetimeDMY => match DATETIME_DMY_RE.captures(val) {
                 Some(search) => {
-                    (1..=31).contains(&search.name("day").unwrap().as_str().parse::<i32>().unwrap())
-                        && (1..=12).contains(
+                        (1..=12).contains(
                             &search
                                 .name("month")
                                 .unwrap()
                                 .as_str()
-                                .parse::<i32>()
+                                .parse::<u8>()
                                 .unwrap(),
                         )
-                        && (search.name("hour").is_none()
-                            || (0..=23).contains(
-                                &search
-                                    .name("hour")
-                                    .unwrap()
-                                    .as_str()
-                                    .parse::<i32>()
-                                    .unwrap(),
-                            ))
-                        && (search.name("minute").is_none()
-                            || (0..=59).contains(
-                                &search
-                                    .name("minute")
-                                    .unwrap()
-                                    .as_str()
-                                    .parse::<i32>()
-                                    .unwrap(),
-                            ))
-                        && (search.name("second").is_none()
-                            || (0..=59).contains(
-                                &search
-                                    .name("second")
-                                    .unwrap()
-                                    .as_str()
-                                    .parse::<i32>()
-                                    .unwrap(),
-                            ))
                 }
                 None => false,
             },
@@ -218,37 +187,9 @@ impl Pattern {
                             .name("month")
                             .unwrap()
                             .as_str()
-                            .parse::<i32>()
+                            .parse::<u8>()
                             .unwrap(),
-                    ) && (1..=31)
-                        .contains(&search.name("day").unwrap().as_str().parse::<i32>().unwrap())
-                        && (search.name("hour").is_none()
-                            || (0..=23).contains(
-                                &search
-                                    .name("hour")
-                                    .unwrap()
-                                    .as_str()
-                                    .parse::<i32>()
-                                    .unwrap(),
-                            ))
-                        && (search.name("minute").is_none()
-                            || (0..=59).contains(
-                                &search
-                                    .name("minute")
-                                    .unwrap()
-                                    .as_str()
-                                    .parse::<i32>()
-                                    .unwrap(),
-                            ))
-                        && (search.name("second").is_none()
-                            || (0..=59).contains(
-                                &search
-                                    .name("second")
-                                    .unwrap()
-                                    .as_str()
-                                    .parse::<i32>()
-                                    .unwrap(),
-                            ))
+                    )
                 }
                 None => false,
             },
@@ -259,53 +200,9 @@ impl Pattern {
                             .name("month")
                             .unwrap()
                             .as_str()
-                            .parse::<i32>()
+                            .parse::<u8>()
                             .unwrap(),
-                    ) && (1..=31)
-                        .contains(&search.name("day").unwrap().as_str().parse::<i32>().unwrap())
-                        && (0..=23).contains(
-                            &search
-                                .name("hour")
-                                .unwrap()
-                                .as_str()
-                                .parse::<i32>()
-                                .unwrap(),
-                        )
-                        && (0..=59).contains(
-                            &search
-                                .name("minute")
-                                .unwrap()
-                                .as_str()
-                                .parse::<i32>()
-                                .unwrap(),
-                        )
-                        && (search.name("second").is_none()
-                            || (0..=59).contains(
-                                &search
-                                    .name("second")
-                                    .unwrap()
-                                    .as_str()
-                                    .parse::<i32>()
-                                    .unwrap(),
-                            ))
-                        && (search.name("offset_hour").is_none()
-                            || (0..=23).contains(
-                                &search
-                                    .name("offset_hour")
-                                    .unwrap()
-                                    .as_str()
-                                    .parse::<i32>()
-                                    .unwrap(),
-                            ))
-                        && (search.name("offset_minute").is_none()
-                            || (0..=59).contains(
-                                &search
-                                    .name("offset_minute")
-                                    .unwrap()
-                                    .as_str()
-                                    .parse::<i32>()
-                                    .unwrap(),
-                            ))
+                    )
                 }
                 None => false,
             },
