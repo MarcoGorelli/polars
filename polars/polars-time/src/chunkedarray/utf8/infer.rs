@@ -1,7 +1,9 @@
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime};
+use once_cell::sync::Lazy;
 use polars_arrow::export::arrow::array::PrimitiveArray;
 use polars_core::prelude::*;
 use polars_core::utils::arrow::types::NativeType;
+use regex::Regex;
 
 use super::patterns::{self, PatternWithOffset};
 #[cfg(feature = "dtype-date")]
@@ -9,6 +11,169 @@ use crate::chunkedarray::date::naive_date_to_date;
 use crate::chunkedarray::utf8::patterns::Pattern;
 use crate::chunkedarray::utf8::strptime;
 use crate::prelude::utf8::strptime::StrpTimeState;
+
+static DATE_DMY_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r#"(?x)
+        (\d{1,2})  # day
+        [-/]       # separator
+        (\d{1,2})  # month
+        [-/]       # separator
+        (\d{4,})   # year
+    "#,
+    )
+    .unwrap()
+});
+static DATE_YMD_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r#"(?x)
+    (\d{4,})   # year
+    [-/]       # separator
+    (\d{1,2})  # month
+    [-/]       # separator
+    (\d{1,2})  # day
+    "#,
+    )
+    .unwrap()
+});
+static DATETIME_DMY_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r#"(?x)
+    (\d{1,2})  # day
+    [-/]       # separator
+    (\d{1,2})  # month
+    [-/]       # separator
+    (\d{4,})   # year
+    (?:
+        [T\ ]    # separator
+        (\d{2})  # hour
+        :?       # separator
+        (\d{2})  # minute
+        (?:
+            :?       # separator
+            (\d{2})  # seconds
+            (?:
+                # subseconds
+                \.(\d{1,9}) 
+            )?
+        )?
+    )?
+    "#,
+    )
+    .unwrap()
+});
+static DATETIME_YMD_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r#"(?x)
+    (\d{4,})   # year
+    [-/]       # separator
+    (\d{1,2})  # month
+    [-/]       # separator
+    (\d{1,2})  # day
+    (?:
+        [T\ ]    # separator
+        (\d{2})  # hour
+        :?       # separator
+        (\d{2})  # minute
+        (?:
+            :?       # separator
+            (\d{2})  # seconds
+            (?: 
+                # subseconds
+                \.(\d{1,9})
+            )?
+        )?
+    )?
+    "#,
+    )
+    .unwrap()
+});
+static DATETIME_YMDZ_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r#"(?x)
+    (\d{4,})   # year
+    [-/]       # separator
+    (\d{1,2})  # month
+    [-/]       # separator
+    (\d{1,2})  # day
+    [T\ ]      # separator
+    (\d{2})    # hour
+    :?         # separator
+    (\d{2})    # minute
+    (?:
+        :?       # separator
+        (\d{2})  # seconds
+        (?:
+            # subseconds
+            \.(\d{1,9})
+        )?
+    )?
+    (?: 
+        # offset (+01:00)
+        [+-](\d{2}):?(\d{2})
+        # or Zulu suffix
+        |Z
+    )
+    "#,
+    )
+    .unwrap()
+});
+
+impl Pattern {
+    pub fn is_inferable(&self, val: &str) -> bool {
+        match self {
+            Pattern::DateDMY => match DATE_DMY_RE.captures(val) {
+                Some(search) => {
+                    (1..=31).contains(&search[1].parse::<i32>().unwrap())
+                        && (1..=12).contains(&search[2].parse::<i32>().unwrap())
+                }
+                None => false,
+            },
+            Pattern::DateYMD => match DATE_YMD_RE.captures(val) {
+                Some(search) => {
+                    (1..=12).contains(&search[2].parse::<i32>().unwrap())
+                        && (1..=31).contains(&search[3].parse::<i32>().unwrap())
+                }
+                None => false,
+            },
+            Pattern::DatetimeDMY => match DATETIME_DMY_RE.captures(val) {
+                Some(search) => {
+                    (1..=31).contains(&search[1].parse::<i32>().unwrap())
+                        && (1..=12).contains(&search[2].parse::<i32>().unwrap())
+                }
+                None => false,
+            },
+            Pattern::DatetimeYMD => match DATETIME_YMD_RE.captures(val) {
+                Some(search) => {
+                    (1..=12).contains(&search[2].parse::<i32>().unwrap())
+                        && (1..=31).contains(&search[3].parse::<i32>().unwrap())
+                        && (search.get(4).is_none()
+                            || (0..=23).contains(&search[4].parse::<i32>().unwrap()))
+                        && (search.get(5).is_none()
+                            || (0..=59).contains(&search[5].parse::<i32>().unwrap()))
+                        && (search.get(6).is_none()
+                            || (0..=59).contains(&search[6].parse::<i32>().unwrap()))
+                }
+                None => false,
+            },
+            Pattern::DatetimeYMDZ => match DATETIME_YMDZ_RE.captures(val) {
+                Some(search) => {
+                    (1..=12).contains(&search[2].parse::<i32>().unwrap())
+                        && (1..=31).contains(&search[3].parse::<i32>().unwrap())
+                        && (0..=23).contains(&search[4].parse::<i32>().unwrap())
+                        && (0..=59).contains(&search[5].parse::<i32>().unwrap())
+                        && (search.get(6).is_none()
+                            || (0..=59).contains(&search[6].parse::<i32>().unwrap()))
+                        && (search.get(8).is_none()
+                            || (0..=23).contains(&search[8].parse::<i32>().unwrap()))
+                        && (search.get(9).is_none()
+                            || (0..=23).contains(&search[9].parse::<i32>().unwrap()))
+                }
+                None => false,
+            },
+        }
+    }
+}
 
 pub trait StrpTimeParser<T> {
     fn parse_bytes(&mut self, val: &[u8]) -> Option<T>;
@@ -27,6 +192,9 @@ impl StrpTimeParser<i64> for DatetimeInfer<i64> {
                 .or_else(|| {
                     // TODO! this will try all patterns.
                     // somehow we must early escape if value is invalid
+                    if !self.pattern.is_inferable(std::str::from_utf8(val).unwrap()) {
+                        return None;
+                    }
                     for fmt in self.patterns {
                         if self.fmt_len == 0 {
                             self.fmt_len = strptime::fmt_len(fmt.as_bytes())?;
@@ -57,8 +225,9 @@ impl StrpTimeParser<i32> for DatetimeInfer<i32> {
                 .parse(val, self.latest_fmt.as_bytes(), self.fmt_len)
                 .map(|ndt| naive_date_to_date(ndt.date()))
                 .or_else(|| {
-                    // TODO! this will try all patterns.
-                    // somehow we must early escape if value is invalid
+                    if !self.pattern.is_inferable(std::str::from_utf8(val).unwrap()) {
+                        return None;
+                    }
                     for fmt in self.patterns {
                         if self.fmt_len == 0 {
                             self.fmt_len = strptime::fmt_len(fmt.as_bytes())?;
@@ -80,6 +249,7 @@ impl StrpTimeParser<i32> for DatetimeInfer<i32> {
 
 #[derive(Clone)]
 pub struct DatetimeInfer<T> {
+    pattern: Pattern,
     patterns: &'static [&'static str],
     latest_fmt: &'static str,
     transform: fn(&str, &str, Option<FixedOffset>, bool) -> Option<T>,
@@ -96,6 +266,7 @@ impl TryFrom<Pattern> for DatetimeInfer<i64> {
     fn try_from(value: Pattern) -> PolarsResult<Self> {
         match value {
             Pattern::DatetimeDMY => Ok(DatetimeInfer {
+                pattern: Pattern::DatetimeDMY,
                 patterns: patterns::DATETIME_D_M_Y,
                 latest_fmt: patterns::DATETIME_D_M_Y[0],
                 transform: transform_datetime_us,
@@ -105,6 +276,7 @@ impl TryFrom<Pattern> for DatetimeInfer<i64> {
                 utc: false,
             }),
             Pattern::DatetimeYMD => Ok(DatetimeInfer {
+                pattern: Pattern::DatetimeYMD,
                 patterns: patterns::DATETIME_Y_M_D,
                 latest_fmt: patterns::DATETIME_Y_M_D[0],
                 transform: transform_datetime_us,
@@ -114,6 +286,7 @@ impl TryFrom<Pattern> for DatetimeInfer<i64> {
                 utc: false,
             }),
             Pattern::DatetimeYMDZ => Ok(DatetimeInfer {
+                pattern: Pattern::DatetimeYMDZ,
                 patterns: patterns::DATETIME_Y_M_D_Z,
                 latest_fmt: patterns::DATETIME_Y_M_D_Z[0],
                 transform: transform_tzaware_datetime_us,
@@ -134,6 +307,7 @@ impl TryFrom<Pattern> for DatetimeInfer<i32> {
     fn try_from(value: Pattern) -> PolarsResult<Self> {
         match value {
             Pattern::DateDMY => Ok(DatetimeInfer {
+                pattern: Pattern::DateDMY,
                 patterns: patterns::DATE_D_M_Y,
                 latest_fmt: patterns::DATE_D_M_Y[0],
                 transform: transform_date,
@@ -143,6 +317,7 @@ impl TryFrom<Pattern> for DatetimeInfer<i32> {
                 utc: false,
             }),
             Pattern::DateYMD => Ok(DatetimeInfer {
+                pattern: Pattern::DateYMD,
                 patterns: patterns::DATE_Y_M_D,
                 latest_fmt: patterns::DATE_Y_M_D[0],
                 transform: transform_date,
@@ -162,6 +337,9 @@ impl<T: NativeType> DatetimeInfer<T> {
             Some(parsed) => Some(parsed),
             // try other patterns
             None => {
+                if !self.pattern.is_inferable(val) {
+                    return None;
+                }
                 for fmt in self.patterns {
                     self.fmt_len = 0;
                     if let Some(parsed) = (self.transform)(val, fmt, offset, self.utc) {
