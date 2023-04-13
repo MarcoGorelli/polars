@@ -195,28 +195,19 @@ impl Pattern {
         match self {
             Pattern::DateDMY => match DATE_DMY_BYTES_RE.captures(val) {
                 Some(search) => (1..=12).contains(
-                    &std::str::from_utf8(&search.name("month").unwrap().as_bytes())
-                        .unwrap()
-                        .parse::<u8>()
-                        .unwrap(),
+                    &search.name("month").unwrap().as_bytes().iter().fold (0, |acc, c| acc*10 + (c - '0' as u8))
                 ),
                 None => false,
             },
             Pattern::DateYMD => match DATE_YMD_BYTES_RE.captures(val) {
                 Some(search) => (1..=12).contains(
-                    &std::str::from_utf8(&search.name("month").unwrap().as_bytes())
-                        .unwrap()
-                        .parse::<u8>()
-                        .unwrap(),
+                    &search.name("month").unwrap().as_bytes().iter().fold (0, |acc, c| acc*10 + (c - '0' as u8))
                 ),
                 None => false,
             },
             Pattern::DatetimeDMY => match DATETIME_DMY_BYTES_RE.captures(val) {
                 Some(search) => (1..=12).contains(
-                    &std::str::from_utf8(&search.name("month").unwrap().as_bytes())
-                        .unwrap()
-                        .parse::<u8>()
-                        .unwrap(),
+                    &search.name("month").unwrap().as_bytes().iter().fold (0, |acc, c| acc*10 + (c - '0' as u8))
                 ),
                 None => false,
             },
