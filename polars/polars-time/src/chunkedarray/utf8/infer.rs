@@ -15,11 +15,15 @@ use crate::prelude::utf8::strptime::StrpTimeState;
 static DATE_DMY_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
         r#"(?x)
+        ^
+        ['"]?      # quotes
         (\d{1,2})  # day
         [-/]       # separator
         (\d{1,2})  # month
         [-/]       # separator
         (\d{4,})   # year
+        ['"]?      # quotes
+        $
     "#,
     )
     .unwrap()
@@ -27,94 +31,110 @@ static DATE_DMY_RE: Lazy<Regex> = Lazy::new(|| {
 static DATE_YMD_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
         r#"(?x)
-    (\d{4,})   # year
-    [-/]       # separator
-    (\d{1,2})  # month
-    [-/]       # separator
-    (\d{1,2})  # day
-    "#,
+        ^
+        ['"]?      # quotes
+        (\d{4,})   # year
+        [-/]       # separator
+        (\d{1,2})  # month
+        [-/]       # separator
+        (\d{1,2})  # day
+        ['"]?      # quotes
+        $
+        "#,
     )
     .unwrap()
 });
 static DATETIME_DMY_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
         r#"(?x)
-    (\d{1,2})  # day
-    [-/]       # separator
-    (\d{1,2})  # month
-    [-/]       # separator
-    (\d{4,})   # year
-    (?:
-        [T\ ]    # separator
-        (\d{2})  # hour
-        :?       # separator
-        (\d{2})  # minute
+        ^
+        ['"]?      # quotes
+        (\d{1,2})  # day
+        [-/]       # separator
+        (\d{1,2})  # month
+        [-/]       # separator
+        (\d{4,})   # year
         (?:
+            [T\ ]    # separator
+            (\d{2})  # hour
             :?       # separator
-            (\d{2})  # seconds
+            (\d{2})  # minute
             (?:
-                # subseconds
-                \.(\d{1,9}) 
+                :?       # separator
+                (\d{2})  # seconds
+                (?:
+                    # subseconds
+                    \.(\d{1,9}) 
+                )?
             )?
         )?
-    )?
-    "#,
+        ['"]?      # quotes
+        $
+        "#,
     )
     .unwrap()
 });
 static DATETIME_YMD_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
         r#"(?x)
-    (\d{4,})   # year
-    [-/]       # separator
-    (\d{1,2})  # month
-    [-/]       # separator
-    (\d{1,2})  # day
-    (?:
-        [T\ ]    # separator
-        (\d{2})  # hour
-        :?       # separator
-        (\d{2})  # minute
+        ^
+        ['"]?      # quotes
+        (\d{4,})   # year
+        [-/]       # separator
+        (\d{1,2})  # month
+        [-/]       # separator
+        (\d{1,2})  # day
         (?:
+            [T\ ]    # separator
+            (\d{2})  # hour
             :?       # separator
-            (\d{2})  # seconds
-            (?: 
-                # subseconds
-                \.(\d{1,9})
+            (\d{2})  # minute
+            (?:
+                :?       # separator
+                (\d{2})  # seconds
+                (?: 
+                    # subseconds
+                    \.(\d{1,9})
+                )?
             )?
         )?
-    )?
-    "#,
+        ['"]?      # quotes
+        $
+        "#,
     )
     .unwrap()
 });
 static DATETIME_YMDZ_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
         r#"(?x)
-    (\d{4,})   # year
-    [-/]       # separator
-    (\d{1,2})  # month
-    [-/]       # separator
-    (\d{1,2})  # day
-    [T\ ]      # separator
-    (\d{2})    # hour
-    :?         # separator
-    (\d{2})    # minute
-    (?:
-        :?       # separator
-        (\d{2})  # seconds
+        ^
+        ['"]?      # quotes
+        (\d{4,})   # year
+        [-/]       # separator
+        (\d{1,2})  # month
+        [-/]       # separator
+        (\d{1,2})  # day
+        [T\ ]      # separator
+        (\d{2})    # hour
+        :?         # separator
+        (\d{2})    # minute
         (?:
-            # subseconds
-            \.(\d{1,9})
+            :?       # separator
+            (\d{2})  # seconds
+            (?:
+                # subseconds
+                \.(\d{1,9})
+            )?
         )?
-    )?
-    (?: 
-        # offset (+01:00)
-        [+-](\d{2}):?(\d{2})
-        # or Zulu suffix
-        |Z
-    )
-    "#,
+        (?: 
+            # offset (+01:00)
+            [+-](\d{2}):?(\d{2})
+            # or Zulu suffix
+            |Z
+        )
+        ['"]?      # quotes
+        $
+        "#,
     )
     .unwrap()
 });
