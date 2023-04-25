@@ -59,7 +59,20 @@ impl FunctionExpr {
                     }
                     #[cfg(feature = "timezones")]
                     TzLocalize(tz) => return mapper.map_datetime_dtype_timezone(Some(tz)),
-                    DateRange { .. } => return mapper.map_to_supertype(),
+                    DateRange{name, every, closed, tz}  => {
+                        let mut ret =  mapper.map_to_supertype()?;
+                        let ret_dtype = match &ret.dtype {
+                            DataType::Datetime(tu, None) => DataType::Datetime(*tu, tz.clone()),
+                            DataType::Datetime(tu, Some(tz)) => DataType::Datetime(*tu, Some(tz.to_string())),
+                            DataType::Date => DataType::Date,
+                            dtype => {
+                                polars_bail!(ComputeError: "expected Date or Datetime, got {}", dtype)
+                            }
+                        };
+                        ret.coerce(ret_dtype);
+                        println!("ret: {:?}", ret);
+                        return Ok(ret)
+                    }
                     Combine(tu) => match mapper.with_same_dtype().unwrap().dtype {
                         DataType::Datetime(_, tz) => DataType::Datetime(*tu, tz),
                         DataType::Date => DataType::Datetime(*tu, None),
@@ -262,6 +275,7 @@ impl<'a> FieldsMapper<'a> {
 
     /// Map the dtype to the "supertype" of all fields.
     pub(super) fn map_to_supertype(&self) -> PolarsResult<Field> {
+        println!("self.fields: {:?}", self.fields);
         let mut first = self.fields[0].clone();
         let mut st = first.data_type().clone();
         for field in &self.fields[1..] {

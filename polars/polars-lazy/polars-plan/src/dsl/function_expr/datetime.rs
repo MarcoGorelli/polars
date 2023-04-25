@@ -370,14 +370,21 @@ pub(super) fn date_range_dispatch(
         let mut start = start.to_physical_repr().cast(&DataType::Int64)?;
         let mut stop = stop.to_physical_repr().cast(&DataType::Int64)?;
 
-        let (tu, tz) = match dtype {
-            DataType::Date => {
+        let (tu, tz) = match (dtype, tz) {
+            (DataType::Date, _) => {
                 start = &start * TO_MS;
                 stop = &stop * TO_MS;
                 (TimeUnit::Milliseconds, None)
             }
-            DataType::Datetime(tu, tz) => (*tu, tz.as_ref()),
+            (DataType::Datetime(tu, Some(tz)), None) => (*tu, Some(tz.clone())),
+            (DataType::Datetime(tu, _), Some(tz)) => (*tu, Some(tz)),
             _ => unimplemented!(),
+        };
+        let dtype = match (dtype, tz.clone()) {
+            (DataType::Datetime(tu, None), Some(tz)) => DataType::Datetime(*tu, Some(tz)),
+            (DataType::Datetime(tu, Some(tz)), _) => DataType::Datetime(*tu, Some(tz.clone())),
+            (DataType::Date, _) => DataType::Date,
+            (_, _) => unreachable!()
         };
 
         let start = start.i64().unwrap();
@@ -395,7 +402,7 @@ pub(super) fn date_range_dispatch(
                     match (start, stop) {
                         (Some(start), Some(stop)) => {
                             let date_range =
-                                date_range_impl("", start, stop, every, closed, tu, tz)?;
+                                date_range_impl("", start, stop, every, closed, tu, tz.as_ref())?;
                             let date_range = date_range.cast(&DataType::Date).unwrap();
                             let date_range = date_range.to_physical_repr();
                             let date_range = date_range.i32().unwrap();
@@ -418,7 +425,7 @@ pub(super) fn date_range_dispatch(
                     match (start, stop) {
                         (Some(start), Some(stop)) => {
                             let date_range =
-                                date_range_impl("", start, stop, every, closed, tu, tz)?;
+                                date_range_impl("", start, stop, every, closed, tu, tz.as_ref())?;
                             builder.append_slice(date_range.cont_slice().unwrap())
                         }
                         _ => builder.append_null(),

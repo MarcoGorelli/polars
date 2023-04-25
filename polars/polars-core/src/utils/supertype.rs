@@ -11,6 +11,7 @@ pub fn try_get_supertype(l: &DataType, r: &DataType) -> PolarsResult<DataType> {
 /// Given two datatypes, determine the supertype that both types can safely be cast to
 #[cfg(feature = "private")]
 pub fn get_supertype(l: &DataType, r: &DataType) -> Option<DataType> {
+    println!("getting supertype of {} and {}", l, r);
     fn inner(l: &DataType, r: &DataType) -> Option<DataType> {
         use DataType::*;
         if l == r {
