@@ -60,7 +60,7 @@ impl StrpTimeState {
     // # Safety
     // Caller must ensure that fmt adheres to the fmt rules of chrono and `fmt_len` is correct.
     pub(super) unsafe fn parse(
-        &mut self,
+        &self,
         val: &[u8],
         fmt: &[u8],
         fmt_len: u16,

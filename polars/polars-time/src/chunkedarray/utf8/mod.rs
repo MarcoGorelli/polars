@@ -316,8 +316,8 @@ pub trait Utf8Methods: AsUtf8 {
 
         // we can use the fast parser
         let mut ca: Int32Chunked = if let Some(fmt_len) = strptime::fmt_len(fmt.as_bytes()) {
-            let mut strptime_cache = StrpTimeState::default();
-            let mut convert = |s: &str| {
+            let strptime_cache = StrpTimeState::default();
+            let convert = |s: &str| {
                 // Safety:
                 // fmt_len is correct, it was computed with this `fmt` str.
                 match unsafe { strptime_cache.parse(s.as_bytes(), fmt.as_bytes(), fmt_len) } {
@@ -479,8 +479,8 @@ pub trait Utf8Methods: AsUtf8 {
             let mut ca: Int64Chunked = if let Some(fmt_len) =
                 self::strptime::fmt_len(fmt.as_bytes())
             {
-                let mut strptime_cache = StrpTimeState::default();
-                let mut convert = |s: &str| {
+                let strptime_cache = StrpTimeState::default();
+                let convert = |s: &str| {
                     // Safety:
                     // fmt_len is correct, it was computed with this `fmt` str.
                     match unsafe { strptime_cache.parse(s.as_bytes(), fmt.as_bytes(), fmt_len) } {
