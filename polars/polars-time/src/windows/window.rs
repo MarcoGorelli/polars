@@ -216,73 +216,7 @@ impl<'a, T: PolarsTimeZone> BoundsIter<'a, T> {
                 TimeUnit::Milliseconds => window.get_earliest_bounds_ms(boundary.start, tz)?,
             },
             _ => {
-                {
-                    #[allow(clippy::type_complexity)]
-                    let (from, to, offset): (
-                        fn(i64) -> NaiveDateTime,
-                        fn(NaiveDateTime) -> i64,
-                        fn(&Duration, i64, Option<&'a T>) -> PolarsResult<i64>,
-                    ) = match tu {
-                        TimeUnit::Nanoseconds => (
-                            timestamp_ns_to_datetime,
-                            datetime_to_timestamp_ns,
-                            Duration::add_ns,
-                        ),
-                        TimeUnit::Microseconds => (
-                            timestamp_us_to_datetime,
-                            datetime_to_timestamp_us,
-                            Duration::add_us,
-                        ),
-                        TimeUnit::Milliseconds => (
-                            timestamp_ms_to_datetime,
-                            datetime_to_timestamp_ms,
-                            Duration::add_ms,
-                        ),
-                    };
-                    // find beginning of the week.
-                    let mut boundary = boundary;
-                    let dt = from(boundary.start);
-                    (boundary.start, boundary.stop) = match tz {
-                        #[cfg(feature = "timezones")]
-                        Some(tz) => {
-                            let dt = tz.from_utc_datetime(&dt);
-                            let dt = dt.beginning_of_week();
-                            let dt = dt.naive_utc();
-                            let start = to(dt);
-                            // adjust start of the week based on given day of the week
-                            let start = offset(
-                                &Duration::parse(&format!("{}d", start_by.weekday().unwrap())),
-                                start,
-                                Some(tz),
-                            )?;
-                            // apply the 'offset'
-                            let start = offset(&window.offset, start, Some(tz))?;
-                            // and compute the end of the window defined by the 'period'
-                            let stop = offset(&window.period, start, Some(tz))?;
-                            (start, stop)
-                        }
-                        _ => {
-                            let tz = chrono::Utc;
-                            let dt = dt.and_local_timezone(tz).unwrap();
-                            let dt = dt.beginning_of_week();
-                            let dt = dt.naive_utc();
-                            let start = to(dt);
-                            // adjust start of the week based on given day of the week
-                            let start = offset(
-                                &Duration::parse(&format!("{}d", start_by.weekday().unwrap())),
-                                start,
-                                None::<&T>,
-                            )
-                            .unwrap();
-                            // apply the 'offset'
-                            let start = offset(&window.offset, start, None::<&T>).unwrap();
-                            // and compute the end of the window defined by the 'period'
-                            let stop = offset(&window.period, start, None::<&T>).unwrap();
-                            (start, stop)
-                        }
-                    };
-                    boundary
-                }
+                start_by_weekday(window, boundary, tu, tz, start_by)
             }
         };
         Ok(Self {
@@ -293,6 +227,81 @@ impl<'a, T: PolarsTimeZone> BoundsIter<'a, T> {
             tz,
         })
     }
+}
+
+fn start_by_weekday<T: PolarsTimeZone>(
+    window: Window,
+    boundary: Bounds,
+    tu: TimeUnit,
+    tz: Option<&T>,
+    start_by: StartBy,
+) -> Bounds
+ {
+    #[allow(clippy::type_complexity)]
+    let (from, to, offset): (
+        fn(i64) -> NaiveDateTime,
+        fn(NaiveDateTime) -> i64,
+        fn(&Duration, i64, Option<&'a T>) -> PolarsResult<i64>,
+    ) = match tu {
+        TimeUnit::Nanoseconds => (
+            timestamp_ns_to_datetime,
+            datetime_to_timestamp_ns,
+            Duration::add_ns,
+        ),
+        TimeUnit::Microseconds => (
+            timestamp_us_to_datetime,
+            datetime_to_timestamp_us,
+            Duration::add_us,
+        ),
+        TimeUnit::Milliseconds => (
+            timestamp_ms_to_datetime,
+            datetime_to_timestamp_ms,
+            Duration::add_ms,
+        ),
+    };
+    // find beginning of the week.
+    let mut boundary = boundary;
+    let dt = from(boundary.start);
+    (boundary.start, boundary.stop) = match tz {
+        #[cfg(feature = "timezones")]
+        Some(tz) => {
+            let dt = tz.from_utc_datetime(&dt);
+            let dt = dt.beginning_of_week();
+            let dt = dt.naive_utc();
+            let start = to(dt);
+            // adjust start of the week based on given day of the week
+            let start = offset(
+                &Duration::parse(&format!("{}d", start_by.weekday().unwrap())),
+                start,
+                Some(tz),
+            )?;
+            // apply the 'offset'
+            let start = offset(&window.offset, start, Some(tz))?;
+            // and compute the end of the window defined by the 'period'
+            let stop = offset(&window.period, start, Some(tz))?;
+            (start, stop)
+        }
+        _ => {
+            let tz = chrono::Utc;
+            let dt = dt.and_local_timezone(tz).unwrap();
+            let dt = dt.beginning_of_week();
+            let dt = dt.naive_utc();
+            let start = to(dt);
+            // adjust start of the week based on given day of the week
+            let start = offset(
+                &Duration::parse(&format!("{}d", start_by.weekday().unwrap())),
+                start,
+                None::<&T>,
+            )
+            .unwrap();
+            // apply the 'offset'
+            let start = offset(&window.offset, start, None::<&T>).unwrap();
+            // and compute the end of the window defined by the 'period'
+            let stop = offset(&window.period, start, None::<&T>).unwrap();
+            (start, stop)
+        }
+    };
+    boundary
 }
 
 impl<'a, T: PolarsTimeZone> Iterator for BoundsIter<'a, T> {
