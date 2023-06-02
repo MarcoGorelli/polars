@@ -572,7 +572,7 @@ def test_window_size_validation() -> None:
 
     with pytest.raises(ValueError, match=r"'window_size' should be positive"):
         df.with_columns(
-            trailing_min=pl.col("x").rolling_min(window_size=-3, closed="right")
+            trailing_min=pl.col("x").rolling_min(window_size=-3, closed="left")
         )
 
 

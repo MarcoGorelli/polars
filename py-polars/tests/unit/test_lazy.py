@@ -703,17 +703,17 @@ def test_rolling(fruits_cars: pl.DataFrame) -> None:
     ldf = fruits_cars.lazy()
     out = ldf.select(
         [
-            pl.col("A").rolling_min(3, min_periods=1, closed="right").alias("1"),
-            pl.col("A").rolling_min(3, closed="right").alias("1b"),
-            pl.col("A").rolling_mean(3, min_periods=1, closed="right").alias("2"),
-            pl.col("A").rolling_mean(3, closed="right").alias("2b"),
-            pl.col("A").rolling_max(3, min_periods=1, closed="right").alias("3"),
-            pl.col("A").rolling_max(3, closed="right").alias("3b"),
-            pl.col("A").rolling_sum(3, min_periods=1, closed="right").alias("4"),
-            pl.col("A").rolling_sum(3, closed="right").alias("4b"),
+            pl.col("A").rolling_min(3, min_periods=1, closed="left").alias("1"),
+            pl.col("A").rolling_min(3, closed="left").alias("1b"),
+            pl.col("A").rolling_mean(3, min_periods=1, closed="left").alias("2"),
+            pl.col("A").rolling_mean(3, closed="left").alias("2b"),
+            pl.col("A").rolling_max(3, min_periods=1, closed="left").alias("3"),
+            pl.col("A").rolling_max(3, closed="left").alias("3b"),
+            pl.col("A").rolling_sum(3, min_periods=1, closed="left").alias("4"),
+            pl.col("A").rolling_sum(3, closed="left").alias("4b"),
             # below we use .round purely for the ability to do assert frame equality
-            pl.col("A").rolling_std(3, closed="right").round(1).alias("std"),
-            pl.col("A").rolling_var(3, closed="right").round(1).alias("var"),
+            pl.col("A").rolling_std(3, closed="left").round(1).alias("std"),
+            pl.col("A").rolling_var(3, closed="left").round(1).alias("var"),
         ]
     )
 

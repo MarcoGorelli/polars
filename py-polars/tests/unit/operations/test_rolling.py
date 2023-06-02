@@ -154,7 +154,7 @@ def test_rolling_extrema() -> None:
         ]
     )
 
-    assert df.select([pl.all().rolling_min(3, closed="right")]).to_dict(False) == {
+    assert df.select([pl.all().rolling_min(3, closed="left")]).to_dict(False) == {
         "col1": [None, None, 0, 1, 2, 3, 4],
         "col2": [None, None, 4, 3, 2, 1, 0],
         "col1_nulls": [None, None, None, None, 2, 3, 4],
@@ -170,7 +170,7 @@ def test_rolling_extrema() -> None:
 
     # shuffled data triggers other kernels
     df = df.select([pl.all().shuffle(0)])
-    assert df.select([pl.all().rolling_min(3, closed="right")]).to_dict(False) == {
+    assert df.select([pl.all().rolling_min(3, closed="left")]).to_dict(False) == {
         "col1": [None, None, 0, 0, 1, 2, 2],
         "col2": [None, None, 0, 2, 1, 1, 1],
         "col1_nulls": [None, None, None, None, None, 2, 2],
