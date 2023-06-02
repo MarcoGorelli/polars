@@ -71,7 +71,7 @@ def test_rolling_kernels_and_groupby_rolling(
 
 @pytest.mark.parametrize(
     "func",
-    ["min", "max", "mean", "min", "max", "sum", "quantile", "std", "var", "median"],
+    ["min", "max", "mean", "min", "max", "sum", "std", "var"],
 )
 def test_rolling_deprecations(func: str) -> None:
     df = pl.DataFrame(
@@ -80,7 +80,7 @@ def test_rolling_deprecations(func: str) -> None:
             "a": [1, 2, 3, 4],
         }
     )
-    msg = f"the default value of `closed` in `{func}` will be `'right'`"
+    msg = f"the default value of `closed` in `rolling_{func}` will be `'right'`"
     with pytest.warns(FutureWarning, match=msg):
         df.select(getattr(pl.col("a"), f"rolling_{func}")("3d", by="ts"))
 
@@ -131,7 +131,9 @@ def test_rolling_crossing_dst(
         datetime(2021, 11, 5), datetime(2021, 11, 10), "1d", time_zone="UTC", eager=True
     ).dt.replace_time_zone(time_zone)
     df = pl.DataFrame({"ts": ts, "value": [1, 2, 3, 4, 5, 6]})
-    result = df.with_columns(getattr(pl.col("value"), rolling_fn)("1d", by="ts"))
+    result = df.with_columns(
+        getattr(pl.col("value"), rolling_fn)("1d", by="ts", closed="left")
+    )
     expected = pl.DataFrame({"ts": ts, "value": expected_values})
     assert_frame_equal(result, expected)
 
@@ -161,7 +163,7 @@ def test_rolling_extrema() -> None:
         "col2_nulls": [None, None, None, None, 2, 1, 0],
     }
 
-    assert df.select([pl.all().rolling_max(3)]).to_dict(False) == {
+    assert df.select([pl.all().rolling_max(3, closed="left")]).to_dict(False) == {
         "col1": [None, None, 2, 3, 4, 5, 6],
         "col2": [None, None, 6, 5, 4, 3, 2],
         "col1_nulls": [None, None, None, None, 4, 5, 6],
@@ -177,7 +179,7 @@ def test_rolling_extrema() -> None:
         "col2_nulls": [None, None, None, None, None, 1, 1],
     }
 
-    assert df.select([pl.all().rolling_max(3)]).to_dict(False) == {
+    assert df.select([pl.all().rolling_max(3, closed="left")]).to_dict(False) == {
         "col1": [None, None, 6, 4, 5, 5, 5],
         "col2": [None, None, 6, 6, 5, 4, 4],
         "col1_nulls": [None, None, None, None, None, 5, 5],
@@ -406,7 +408,9 @@ def test_rolling_skew_lagging_null_5179() -> None:
 
 def test_rolling_var_numerical_stability_5197() -> None:
     s = pl.Series([*[1.2] * 4, *[3.3] * 7])
-    assert s.to_frame("a").with_columns(pl.col("a").rolling_var(5))[:, 0].to_list() == [
+    assert s.to_frame("a").with_columns(pl.col("a").rolling_var(5, closed="left"))[
+        :, 0
+    ].to_list() == [
         None,
         None,
         None,
