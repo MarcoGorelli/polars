@@ -4738,7 +4738,7 @@ class Expr:
                 "`groupby_rolling`.\n"
                 "Please pass:\n"
                 "- ``closed='right'`` to opt in to the future default behaviour,\n"
-                "- ``closed='left'`` to retain in to the current default behaviour,",
+                "- ``closed='left'`` to retain the current default behaviour.",
                 FutureWarning,
                 stacklevel=find_stacklevel(),
             )
@@ -4850,7 +4850,7 @@ class Expr:
                 "`groupby_rolling`.\n"
                 "Please pass:\n"
                 "- ``closed='right'`` to opt in to the future default behaviour,\n"
-                "- ``closed='left'`` to retain in to the current default behaviour,",
+                "- ``closed='left'`` to retain the current default behaviour.",
                 FutureWarning,
                 stacklevel=find_stacklevel(),
             )
@@ -4962,7 +4962,7 @@ class Expr:
                 "`groupby_rolling`.\n"
                 "Please pass:\n"
                 "- ``closed='right'`` to opt in to the future default behaviour,\n"
-                "- ``closed='left'`` to retain in to the current default behaviour,",
+                "- ``closed='left'`` to retain the current default behaviour.",
                 FutureWarning,
                 stacklevel=find_stacklevel(),
             )
@@ -5074,7 +5074,7 @@ class Expr:
                 "`groupby_rolling`.\n"
                 "Please pass:\n"
                 "- ``closed='right'`` to opt in to the future default behaviour,\n"
-                "- ``closed='left'`` to retain in to the current default behaviour,",
+                "- ``closed='left'`` to retain the current default behaviour.",
                 FutureWarning,
                 stacklevel=find_stacklevel(),
             )
@@ -5186,7 +5186,7 @@ class Expr:
                 "`groupby_rolling`.\n"
                 "Please pass:\n"
                 "- ``closed='right'`` to opt in to the future default behaviour,\n"
-                "- ``closed='left'`` to retain in to the current default behaviour,",
+                "- ``closed='left'`` to retain the current default behaviour.",
                 FutureWarning,
                 stacklevel=find_stacklevel(),
             )
@@ -5298,7 +5298,7 @@ class Expr:
                 "`groupby_rolling`.\n"
                 "Please pass:\n"
                 "- ``closed='right'`` to opt in to the future default behaviour,\n"
-                "- ``closed='left'`` to retain in to the current default behaviour,",
+                "- ``closed='left'`` to retain the current default behaviour.",
                 FutureWarning,
                 stacklevel=find_stacklevel(),
             )
@@ -5406,7 +5406,7 @@ class Expr:
                 "`groupby_rolling`.\n"
                 "Please pass:\n"
                 "- ``closed='right'`` to opt in to the future default behaviour,\n"
-                "- ``closed='left'`` to retain in to the current default behaviour,",
+                "- ``closed='left'`` to retain the current default behaviour.",
                 FutureWarning,
                 stacklevel=find_stacklevel(),
             )
@@ -5520,7 +5520,7 @@ class Expr:
                 "`groupby_rolling`.\n"
                 "Please pass:\n"
                 "- ``closed='right'`` to opt in to the future default behaviour,\n"
-                "- ``closed='left'`` to retain in to the current default behaviour,",
+                "- ``closed='left'`` to retain the current default behaviour.",
                 FutureWarning,
                 stacklevel=find_stacklevel(),
             )
