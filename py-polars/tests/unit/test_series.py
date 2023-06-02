@@ -1056,8 +1056,8 @@ def test_rolling() -> None:
     df = pl.DataFrame({"val": [1.0, 2.0, 3.0, np.NaN, 5.0, 6.0, 7.0]})
 
     for e in [
-        pl.col("val").rolling_min(window_size=3),
-        pl.col("val").rolling_max(window_size=3),
+        pl.col("val").rolling_min(window_size=3, closed="right"),
+        pl.col("val").rolling_max(window_size=3, closed="right"),
     ]:
         out = df.with_columns(e).to_series()
         assert out.null_count() == 2

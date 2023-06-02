@@ -5,6 +5,7 @@ import math
 import operator
 import os
 import random
+import warnings
 from datetime import timedelta
 from functools import partial, reduce
 from typing import (
@@ -49,7 +50,7 @@ from polars.utils._parse_expr_input import (
 from polars.utils.convert import _timedelta_to_pl_duration
 from polars.utils.decorators import deprecated_alias
 from polars.utils.meta import threadpool_size
-from polars.utils.various import sphinx_accessor
+from polars.utils.various import find_stacklevel, sphinx_accessor
 
 with contextlib.suppress(ImportError):  # Module not available when building docs
     from polars.polars import arg_where as py_arg_where
@@ -4730,6 +4731,18 @@ class Expr:
         └──────┘
 
         """
+        if closed is None:
+            warnings.warn(
+                "In a future version of polars, the default value of `closed` "
+                "in `rolling_min` will be `'right'`, for compatibility with "
+                "`groupby_rolling`.\n"
+                "Please pass:\n"
+                "- ``closed='right'`` to opt in to the future default behaviour,\n"
+                "- ``closed='left'`` to retain in to the current default behaviour,",
+                FutureWarning,
+                stacklevel=find_stacklevel(),
+            )
+            closed = "left"
         window_size, min_periods = _prepare_rolling_window_args(
             window_size, min_periods
         )
@@ -4830,6 +4843,18 @@ class Expr:
         └──────┘
 
         """
+        if closed is None:
+            warnings.warn(
+                "In a future version of polars, the default value of `closed` "
+                "in `rolling_max` will be `'right'`, for compatibility with "
+                "`groupby_rolling`.\n"
+                "Please pass:\n"
+                "- ``closed='right'`` to opt in to the future default behaviour,\n"
+                "- ``closed='left'`` to retain in to the current default behaviour,",
+                FutureWarning,
+                stacklevel=find_stacklevel(),
+            )
+            closed = "left"
         window_size, min_periods = _prepare_rolling_window_args(
             window_size, min_periods
         )
@@ -4847,7 +4872,7 @@ class Expr:
         *,
         center: bool = False,
         by: str | None = None,
-        closed: ClosedInterval = "left",
+        closed: ClosedInterval | None = None,
     ) -> Self:
         """
         Apply a rolling mean (moving mean) over the values in this array.
@@ -4930,6 +4955,18 @@ class Expr:
         └──────┘
 
         """
+        if closed is None:
+            warnings.warn(
+                "In a future version of polars, the default value of `closed` "
+                "in `rolling_mean` will be `'right'`, for compatibility with "
+                "`groupby_rolling`.\n"
+                "Please pass:\n"
+                "- ``closed='right'`` to opt in to the future default behaviour,\n"
+                "- ``closed='left'`` to retain in to the current default behaviour,",
+                FutureWarning,
+                stacklevel=find_stacklevel(),
+            )
+            closed = "left"
         window_size, min_periods = _prepare_rolling_window_args(
             window_size, min_periods
         )
@@ -5030,6 +5067,18 @@ class Expr:
         └──────┘
 
         """
+        if closed is None:
+            warnings.warn(
+                "In a future version of polars, the default value of `closed` "
+                "in `rolling_sum` will be `'right'`, for compatibility with "
+                "`groupby_rolling`.\n"
+                "Please pass:\n"
+                "- ``closed='right'`` to opt in to the future default behaviour,\n"
+                "- ``closed='left'`` to retain in to the current default behaviour,",
+                FutureWarning,
+                stacklevel=find_stacklevel(),
+            )
+            closed = "left"
         window_size, min_periods = _prepare_rolling_window_args(
             window_size, min_periods
         )
@@ -5130,6 +5179,18 @@ class Expr:
         └──────────┘
 
         """
+        if closed is None:
+            warnings.warn(
+                "In a future version of polars, the default value of `closed` "
+                "in `rolling_std` will be `'right'`, for compatibility with "
+                "`groupby_rolling`.\n"
+                "Please pass:\n"
+                "- ``closed='right'`` to opt in to the future default behaviour,\n"
+                "- ``closed='left'`` to retain in to the current default behaviour,",
+                FutureWarning,
+                stacklevel=find_stacklevel(),
+            )
+            closed = "left"
         window_size, min_periods = _prepare_rolling_window_args(
             window_size, min_periods
         )
@@ -5230,6 +5291,18 @@ class Expr:
         └──────────┘
 
         """
+        if closed is None:
+            warnings.warn(
+                "In a future version of polars, the default value of `closed` "
+                "in `rolling_var` will be `'right'`, for compatibility with "
+                "`groupby_rolling`.\n"
+                "Please pass:\n"
+                "- ``closed='right'`` to opt in to the future default behaviour,\n"
+                "- ``closed='left'`` to retain in to the current default behaviour,",
+                FutureWarning,
+                stacklevel=find_stacklevel(),
+            )
+            closed = "left"
         window_size, min_periods = _prepare_rolling_window_args(
             window_size, min_periods
         )
@@ -5326,6 +5399,18 @@ class Expr:
         └──────┘
 
         """
+        if closed is None:
+            warnings.warn(
+                "In a future version of polars, the default value of `closed` "
+                "in `rolling_median` will be `'right'`, for compatibility with "
+                "`groupby_rolling`.\n"
+                "Please pass:\n"
+                "- ``closed='right'`` to opt in to the future default behaviour,\n"
+                "- ``closed='left'`` to retain in to the current default behaviour,",
+                FutureWarning,
+                stacklevel=find_stacklevel(),
+            )
+            closed = "left"
         window_size, min_periods = _prepare_rolling_window_args(
             window_size, min_periods
         )
@@ -5428,6 +5513,18 @@ class Expr:
         └──────┘
 
         """
+        if closed is None:
+            warnings.warn(
+                "In a future version of polars, the default value of `closed` "
+                "in `rolling_quantile` will be `'right'`, for compatibility with "
+                "`groupby_rolling`.\n"
+                "Please pass:\n"
+                "- ``closed='right'`` to opt in to the future default behaviour,\n"
+                "- ``closed='left'`` to retain in to the current default behaviour,",
+                FutureWarning,
+                stacklevel=find_stacklevel(),
+            )
+            closed = "left"
         window_size, min_periods = _prepare_rolling_window_args(
             window_size, min_periods
         )

@@ -69,6 +69,22 @@ def test_rolling_kernels_and_groupby_rolling(
     assert_frame_equal(out1, out2)
 
 
+@pytest.mark.parametrize(
+    "func",
+    ["min", "max", "mean", "min", "max", "sum", "quantile", "std", "var", "median"],
+)
+def test_rolling_deprecations(func: str) -> None:
+    df = pl.DataFrame(
+        {
+            "ts": pl.date_range(datetime(2020, 1, 1), datetime(2020, 1, 4), eager=True),
+            "a": [1, 2, 3, 4],
+        }
+    )
+    msg = f"the default value of `closed` in `{func}` will be `'right'`"
+    with pytest.warns(FutureWarning, match=msg):
+        df.select(getattr(pl.col("a"), f"rolling_{func}")("3d", by="ts"))
+
+
 def test_rolling_skew() -> None:
     s = pl.Series([1, 2, 3, 3, 2, 10, 8])
     assert s.rolling_skew(window_size=4, bias=True).to_list() == pytest.approx(
@@ -138,7 +154,7 @@ def test_rolling_extrema() -> None:
         ]
     )
 
-    assert df.select([pl.all().rolling_min(3)]).to_dict(False) == {
+    assert df.select([pl.all().rolling_min(3, closed="right")]).to_dict(False) == {
         "col1": [None, None, 0, 1, 2, 3, 4],
         "col2": [None, None, 4, 3, 2, 1, 0],
         "col1_nulls": [None, None, None, None, 2, 3, 4],
@@ -154,7 +170,7 @@ def test_rolling_extrema() -> None:
 
     # shuffled data triggers other kernels
     df = df.select([pl.all().shuffle(0)])
-    assert df.select([pl.all().rolling_min(3)]).to_dict(False) == {
+    assert df.select([pl.all().rolling_min(3, closed="right")]).to_dict(False) == {
         "col1": [None, None, 0, 0, 1, 2, 2],
         "col2": [None, None, 0, 2, 1, 1, 1],
         "col1_nulls": [None, None, None, None, None, 2, 2],
