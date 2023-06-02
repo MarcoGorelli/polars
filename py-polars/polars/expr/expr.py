@@ -4648,7 +4648,7 @@ class Expr:
         *,
         center: bool = False,
         by: str | None = None,
-        closed: ClosedInterval = "left",
+        closed: ClosedInterval | None = None,
     ) -> Self:
         """
         Apply a rolling min (moving min) over the values in this array.
@@ -4760,7 +4760,7 @@ class Expr:
         *,
         center: bool = False,
         by: str | None = None,
-        closed: ClosedInterval = "left",
+        closed: ClosedInterval | None = None,
     ) -> Self:
         """
         Apply a rolling max (moving max) over the values in this array.
@@ -4984,7 +4984,7 @@ class Expr:
         *,
         center: bool = False,
         by: str | None = None,
-        closed: ClosedInterval = "left",
+        closed: ClosedInterval | None = None,
     ) -> Self:
         """
         Apply a rolling sum (moving sum) over the values in this array.
@@ -5096,7 +5096,7 @@ class Expr:
         *,
         center: bool = False,
         by: str | None = None,
-        closed: ClosedInterval = "left",
+        closed: ClosedInterval | None = None,
     ) -> Self:
         """
         Compute a rolling standard deviation.
@@ -5208,7 +5208,7 @@ class Expr:
         *,
         center: bool = False,
         by: str | None = None,
-        closed: ClosedInterval = "left",
+        closed: ClosedInterval | None = None,
     ) -> Self:
         """
         Compute a rolling variance.
@@ -5320,7 +5320,7 @@ class Expr:
         *,
         center: bool = False,
         by: str | None = None,
-        closed: ClosedInterval = "left",
+        closed: ClosedInterval | None = None,
     ) -> Self:
         """
         Compute a rolling median.
@@ -5430,7 +5430,7 @@ class Expr:
         *,
         center: bool = False,
         by: str | None = None,
-        closed: ClosedInterval = "left",
+        closed: ClosedInterval | None = None,
     ) -> Self:
         """
         Compute a rolling quantile.
