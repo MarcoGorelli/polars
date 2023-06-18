@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import polars as pl
+from polars.exceptions import PolarsPanicError
 from polars.testing import assert_frame_equal, assert_frame_equal_local_categoricals
 
 if TYPE_CHECKING:
@@ -88,6 +89,16 @@ def test_write_ndjson_with_trailing_newline() -> None:
 
     expected = pl.DataFrame({"Column1": ["Value1"]})
     assert_frame_equal(df, expected)
+
+
+def test_write_ndjson_non_microsecond_9427() -> None:
+    with pytest.raises(PolarsPanicError, match="attempt to multiply with overflow"):
+        (
+            pl.Series(["1600-01-01T00:00:00.123456789"])
+            .str.to_datetime(time_unit="ns")
+            .to_frame()
+            .write_ndjson()
+        )
 
 
 def test_read_ndjson_empty_array() -> None:

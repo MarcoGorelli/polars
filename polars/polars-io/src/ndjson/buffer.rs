@@ -97,14 +97,14 @@ impl Buffer<'_> {
                 Ok(())
             }
             #[cfg(feature = "dtype-datetime")]
-            Datetime(buf, _, _) => {
-                let v = deserialize_datetime::<Int64Type>(value);
+            Datetime(buf, time_unit, _) => {
+                let v = deserialize_datetime::<Int64Type>(value, Some(*time_unit));
                 buf.append_option(v);
                 Ok(())
             }
             #[cfg(feature = "dtype-date")]
             Date(buf) => {
-                let v = deserialize_datetime::<Int32Type>(value);
+                let v = deserialize_datetime::<Int32Type>(value, None);
                 buf.append_option(v);
                 Ok(())
             }
@@ -145,7 +145,7 @@ fn deserialize_number<T: NativeType + NumCast>(value: &Value) -> Option<T> {
 }
 
 #[cfg(feature = "dtype-datetime")]
-fn deserialize_datetime<T>(value: &Value) -> Option<T::Native>
+fn deserialize_datetime<T>(value: &Value, time_unit: Option<TimeUnit>) -> Option<T::Native>
 where
     T: PolarsNumericType,
     DatetimeInfer<T::Native>: TryFromWithUnit<Pattern>,
@@ -155,8 +155,7 @@ where
         _ => return None,
     };
     infer_pattern_single(val).and_then(|pattern| {
-        match DatetimeInfer::<T::Native>::try_from_with_unit(pattern, Some(TimeUnit::Microseconds))
-        {
+        match DatetimeInfer::<T::Native>::try_from_with_unit(pattern, time_unit) {
             Ok(mut infer) => infer.parse(val),
             Err(_) => None,
         }
