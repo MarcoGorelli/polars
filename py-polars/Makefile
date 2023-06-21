@@ -36,9 +36,10 @@ fmt: .venv  ## Run autoformatting and linting
 	$(VENV_BIN)/ruff .
 	$(VENV_BIN)/typos ..
 	$(VENV_BIN)/python scripts/check_stacklevels.py
+	$(VENV_BIN)/python scripts/check_docstring_examples_render.py
 	cargo fmt --all
 	-dprint fmt
-	-$(VENV_BIN)/mypy
+	$(VENV_BIN)/mypy
 
 .PHONY: clippy
 clippy:  ## Run clippy
