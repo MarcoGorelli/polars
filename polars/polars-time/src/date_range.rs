@@ -40,7 +40,8 @@ pub fn date_range_impl(
                 )
                 .into_datetime(tu, _tz.cloned())
             }
-            Err(_) => polars_bail!(ComputeError: "unable to parse time zone: '{}'", tz),
+            Err(_) => polars_bail!(ComputeError: "unable to parse time zone: '{}'.  \
+            Please check the Time Zone Database for a list of available time zones", tz),
         },
         _ => Int64Chunked::new_vec(
             name,

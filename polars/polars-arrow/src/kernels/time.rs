@@ -100,8 +100,10 @@ pub fn replace_timezone(
     Ok(match from.parse::<chrono_tz::Tz>() {
         Ok(from_tz) => match to.parse::<chrono_tz::Tz>() {
             Ok(to_tz) => convert_to_timestamp(from_tz, to_tz, arr, tu, use_earliest)?,
-            Err(_) => polars_bail!(ComputeError: "unable to parse time zone: '{}'", to),
+            Err(_) => polars_bail!(ComputeError: "unable to parse time zone: '{}'. \
+            Please check the Time Zone Database for a list of available time zones", to),
         },
-        Err(_) => polars_bail!(ComputeError: "unable to parse time zone: '{}'", from),
+        Err(_) => polars_bail!(ComputeError: "unable to parse time zone: '{}'. \
+        Please check the Time Zone Database for a list of available time zones", from),
     })
 }
