@@ -1808,7 +1808,7 @@ class ExprDateTimeNameSpace:
         """
         return wrap_expr(self._pyexpr.duration_nanoseconds())
 
-    def offset_by(self, by: str) -> Expr:
+    def offset_by(self, by: str | Expr) -> Expr:
         """
         Offset this date by a relative time offset.
 
@@ -1898,6 +1898,7 @@ class ExprDateTimeNameSpace:
         │ 2005-01-31 00:00:00 │
         └─────────────────────┘
         """
+        by = parse_as_expression(by, str_as_lit=True)
         return wrap_expr(self._pyexpr.dt_offset_by(by))
 
     def month_start(self) -> Expr:

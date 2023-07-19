@@ -7,18 +7,22 @@ use polars_time::prelude::*;
 use super::*;
 
 #[cfg(feature = "date_offset")]
-pub(super) fn date_offset(s: Series, offset: Duration) -> PolarsResult<Series> {
+pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
+    let sa = &s[0];
+    let sb = &s[1];
+
     let preserve_sortedness: bool;
-    let out = match s.dtype().clone() {
+    let out = match sa.dtype().clone() {
         DataType::Date => {
-            let s = s
+            let sa = sa
                 .cast(&DataType::Datetime(TimeUnit::Milliseconds, None))
                 .unwrap();
             preserve_sortedness = true;
-            date_offset(s, offset).and_then(|s| s.cast(&DataType::Date))
+            date_offset(&[sa, sb.clone()]).and_then(|s| s.cast(&DataType::Date))
         }
         DataType::Datetime(tu, tz) => {
-            let ca = s.datetime().unwrap();
+            let ca = sa.datetime().unwrap();
+            let offsets = sb.utf8().unwrap();
 
             fn offset_fn(tu: TimeUnit) -> fn(&Duration, i64, Option<&Tz>) -> PolarsResult<i64> {
                 match tu {
@@ -28,22 +32,36 @@ pub(super) fn date_offset(s: Series, offset: Duration) -> PolarsResult<Series> {
                 }
             }
 
-            let out = match tz {
+            let offset_fn = offset_fn(tu);
+
+            let tz_args = match tz {
                 #[cfg(feature = "timezones")]
-                Some(ref tz) => {
-                    let offset_fn = offset_fn(tu);
-                    ca.0.try_apply(|v| offset_fn(&offset, v, tz.parse::<Tz>().ok().as_ref()))
+                Some(ref tz) => tz.parse::<Tz>().ok(),
+                _ => None,
+            };
+
+            let out = match offsets.len() {
+                1 => {
+                    let offset = match offsets.get(0) {
+                        Some(offset) => Duration::parse(offset),
+                        _ => Duration::parse("0"),
+                    };
+                    ca.0.try_apply(|v| offset_fn(&offset, v, tz_args.as_ref()))
                 }
-                _ => {
-                    let offset_fn = offset_fn(tu);
-                    ca.0.try_apply(|v| offset_fn(&offset, v, None))
-                }
+                _ => Ok(ca.0.apply_with_idx(|(idx, v)| {
+                    let offset = match offsets.get(idx) {
+                        Some(offset) => Duration::parse(offset),
+                        _ => Duration::parse("0"),
+                    };
+                    offset_fn(&offset, v, tz_args.as_ref()).unwrap()
+                })),
             }?;
             // Sortedness may not be preserved when crossing daylight savings time boundaries
             // for calendar-aware durations.
             // Constant durations (e.g. 2 hours) always preserve sortedness.
             preserve_sortedness =
-                tz.is_none() || tz.as_deref() == Some("UTC") || offset.is_constant_duration();
+                //tz.is_none() || tz.as_deref() == Some("UTC") || offset.is_constant_duration();
+                tz.is_none() || tz.as_deref() == Some("UTC");
             out.cast(&DataType::Datetime(tu, tz))
         }
         dt => polars_bail!(
@@ -52,7 +70,7 @@ pub(super) fn date_offset(s: Series, offset: Duration) -> PolarsResult<Series> {
     };
     if preserve_sortedness {
         out.map(|mut out| {
-            out.set_sorted_flag(s.is_sorted_flag());
+            out.set_sorted_flag(sa.is_sorted_flag());
             out
         })
     } else {
