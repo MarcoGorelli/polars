@@ -689,6 +689,7 @@ def test_offset_by_truncate_sorted_flag() -> None:
     s2 = s1.dt.truncate("1mo")
     assert s2.flags["SORTED_ASC"]
 
+
 def test_offset_by_expressions() -> None:
     df = pl.DataFrame(
         {
@@ -752,6 +753,7 @@ def test_offset_by_expressions() -> None:
         )
         == expected
     )
+
 
 @pytest.mark.parametrize(
     ("duration", "input_date", "expected"),
