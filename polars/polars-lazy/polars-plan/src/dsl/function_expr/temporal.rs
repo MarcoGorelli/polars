@@ -24,15 +24,11 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
             let ca = sa.datetime().unwrap();
             let offsets = sb.utf8().unwrap();
 
-            fn offset_fn(tu: TimeUnit) -> fn(&Duration, i64, Option<&Tz>) -> PolarsResult<i64> {
-                match tu {
-                    TimeUnit::Nanoseconds => Duration::add_ns,
-                    TimeUnit::Microseconds => Duration::add_us,
-                    TimeUnit::Milliseconds => Duration::add_ms,
-                }
-            }
-
-            let offset_fn = offset_fn(tu);
+            let offset_fn = match tu {
+                TimeUnit::Nanoseconds => Duration::add_ns,
+                TimeUnit::Microseconds => Duration::add_us,
+                TimeUnit::Milliseconds => Duration::add_ms,
+            };
 
             let tz_args = match tz {
                 #[cfg(feature = "timezones")]
@@ -48,13 +44,20 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
                     };
                     ca.0.try_apply(|v| offset_fn(&offset, v, tz_args.as_ref()))
                 }
-                _ => Ok(ca.0.apply_with_idx(|(idx, v)| {
-                    let offset = match offsets.get(idx) {
-                        Some(offset) => Duration::parse(offset),
-                        _ => Duration::parse("0"),
-                    };
-                    offset_fn(&offset, v, tz_args.as_ref()).unwrap()
-                })),
+                _ => {
+                    let out = ca
+                        .into_iter()
+                        .zip(offsets.into_iter())
+                        .map(|(v, offset)| {
+                            let offset = match offset {
+                                Some(offset) => Duration::parse(offset),
+                                _ => Duration::parse("0"),
+                            };
+                            offset_fn(&offset, v.unwrap(), tz_args.as_ref()).unwrap()
+                        })
+                        .collect::<Vec<_>>();
+                    Ok(Int64Chunked::from_vec("", out))
+                }
             }?;
             // Sortedness may not be preserved when crossing daylight savings time boundaries
             // for calendar-aware durations.
