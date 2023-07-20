@@ -62,9 +62,16 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
             // Sortedness may not be preserved when crossing daylight savings time boundaries
             // for calendar-aware durations.
             // Constant durations (e.g. 2 hours) always preserve sortedness.
-            preserve_sortedness =
-                //tz.is_none() || tz.as_deref() == Some("UTC") || offset.is_constant_duration();
-                tz.is_none() || tz.as_deref() == Some("UTC");
+            preserve_sortedness = match offsets.len() {
+                1 => {
+                    let offset = match offsets.get(0) {
+                        Some(offset) => Duration::parse(offset),
+                        _ => Duration::parse("0"),
+                    };
+                    tz.is_none() || tz.as_deref() == Some("UTC") || offset.is_constant_duration()
+                }
+                _ => tz.is_none() || tz.as_deref() == Some("UTC"),
+            };
             out.cast(&DataType::Datetime(tu, tz))
         }
         dt => polars_bail!(
