@@ -70,7 +70,7 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
                     };
                     tz.is_none() || tz.as_deref() == Some("UTC") || offset.is_constant_duration()
                 }
-                _ => tz.is_none() || tz.as_deref() == Some("UTC"),
+                _ => false,
             };
             out.cast(&DataType::Datetime(tu, tz))
         }
