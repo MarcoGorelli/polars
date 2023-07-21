@@ -40,7 +40,7 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
                 1 => {
                     let offset = match offsets.get(0) {
                         Some(offset) => Duration::parse(offset),
-                        _ => Duration::parse("0"),
+                        _ => Duration::new(0),
                     };
                     ca.0.try_apply(|v| offset_fn(&offset, v, tz_args.as_ref()))
                 }
@@ -51,7 +51,7 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
                         .map(|(v, offset)| {
                             let offset = match offset {
                                 Some(offset) => Duration::parse(offset),
-                                _ => Duration::parse("0"),
+                                _ => Duration::new(0),
                             };
                             offset_fn(&offset, v.unwrap(), tz_args.as_ref()).unwrap()
                         })
@@ -66,7 +66,7 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
                 1 => {
                     let offset = match offsets.get(0) {
                         Some(offset) => Duration::parse(offset),
-                        _ => Duration::parse("0"),
+                        _ => Duration::new(0),
                     };
                     tz.is_none() || tz.as_deref() == Some("UTC") || offset.is_constant_duration()
                 }
