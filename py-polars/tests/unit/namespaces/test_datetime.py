@@ -754,6 +754,26 @@ def test_offset_by_expressions() -> None:
         == expected
     )
 
+    # test sorted flags from single offset
+    df = df.sort("DATE_COL")
+    assert (
+        df.with_columns(NEW_DATE_COL=pl.col("DATE_COL").dt.offset_by("10d"))
+        .get_column("NEW_DATE_COL")
+        .flags["SORTED_ASC"]
+    )
+
+    # test sorted flags from multiple offsets
+    assert (
+        df.with_columns(
+            NEW_DATE_COL=pl.col("DATE_COL").dt.offset_by(
+                pl.format("{}mo", "ADD_MONTHS")
+            )
+        )
+        .get_column("NEW_DATE_COL")
+        .flags["SORTED_ASC"]
+        is False
+    )
+
 
 @pytest.mark.parametrize(
     ("duration", "input_date", "expected"),
