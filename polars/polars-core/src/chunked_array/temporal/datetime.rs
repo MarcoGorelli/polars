@@ -94,7 +94,7 @@ impl DatetimeChunked {
         }
     }
 
-    #[cfg(feature = "timezones")]
+    // #[cfg(feature = "timezones")]
     pub fn replace_time_zone(
         &self,
         time_zone: Option<&str>,

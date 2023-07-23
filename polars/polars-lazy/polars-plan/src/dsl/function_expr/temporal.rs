@@ -6,7 +6,7 @@ use polars_time::prelude::*;
 
 use super::*;
 
-#[cfg(feature = "date_offset")]
+// #[cfg(feature = "date_offset")]
 pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
     let ts = &s[0];
     let offsets = &s[1].utf8().unwrap();
@@ -62,14 +62,15 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
                         .into_iter()
                         .zip(offsets.into_iter())
                         .map(|(v, offset)| {
-                            let offset = match offset {
-                                Some(offset) => Duration::parse(offset),
-                                _ => Duration::new(0),
-                            };
-                            offset_fn(&offset, v.unwrap(), tz_args.as_ref()).unwrap()
-                        })
-                        .collect::<Vec<_>>();
-                    Ok(Int64Chunked::from_vec("", out))
+                            match (v, offset) {
+                                (Some(v), Some(offset)) => {
+                                    let offset = Duration::parse(offset);
+                                    Ok(Some(offset_fn(&offset, v, tz_args.as_ref()).unwrap()))
+                                }
+                                _ => Ok(None)
+                            }
+                        }).collect::<PolarsResult<Vec<_>>>()?;
+                    Ok(Int64Chunked::from_iter_options("", out.iter().map(|x| *x)))
                 }
             }?;
             // Sortedness may not be preserved when crossing daylight savings time boundaries
