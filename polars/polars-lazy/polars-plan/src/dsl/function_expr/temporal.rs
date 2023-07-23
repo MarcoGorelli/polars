@@ -1,6 +1,6 @@
 #[cfg(feature = "date_offset")]
 use polars_arrow::time_zone::Tz;
-use polars_core::utils::arrow::temporal_conversions::SECONDS_IN_DAY;
+use polars_core::utils::arrow::temporal_conversions::{MILLISECONDS, SECONDS_IN_DAY};
 #[cfg(feature = "date_offset")]
 use polars_time::prelude::*;
 
@@ -8,21 +8,34 @@ use super::*;
 
 #[cfg(feature = "date_offset")]
 pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
-    let sa = &s[0];
-    let sb = &s[1];
+    let ts = &s[0];
+    let offsets = &s[1].utf8().unwrap();
 
     let preserve_sortedness: bool;
-    let out = match sa.dtype().clone() {
+    let out = match ts.dtype().clone() {
         DataType::Date => {
-            let sa = sa
-                .cast(&DataType::Datetime(TimeUnit::Milliseconds, None))
-                .unwrap();
-            preserve_sortedness = true;
-            date_offset(&[sa, sb.clone()]).and_then(|s| s.cast(&DataType::Date))
+            const MSECS_IN_DAY: i64 = MILLISECONDS * SECONDS_IN_DAY;
+            let date = ts.date().unwrap();
+            let out = match offsets.len() {
+                1 => {
+                    let offset = match offsets.get(0) {
+                        Some(offset) => Duration::parse(offset),
+                        _ => Duration::new(0),
+                    };
+                    date.0.try_apply(|v| {
+                        Ok(
+                            (Duration::add_ms(&offset, MSECS_IN_DAY * v as i64, None)? / MSECS_IN_DAY)
+                                as i32,
+                        )
+                    })
+                }
+                _ => unreachable!(),
+            }?;
+            preserve_sortedness = offsets.len() == 1;
+            out.cast(&DataType::Date)
         }
         DataType::Datetime(tu, tz) => {
-            let ca = sa.datetime().unwrap();
-            let offsets = sb.utf8().unwrap();
+            let datetime = ts.datetime().unwrap();
 
             let offset_fn = match tu {
                 TimeUnit::Nanoseconds => Duration::add_ns,
@@ -42,10 +55,10 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
                         Some(offset) => Duration::parse(offset),
                         _ => Duration::new(0),
                     };
-                    ca.0.try_apply(|v| offset_fn(&offset, v, tz_args.as_ref()))
+                    datetime.0.try_apply(|v| offset_fn(&offset, v, tz_args.as_ref()))
                 }
                 _ => {
-                    let out = ca
+                    let out = datetime
                         .into_iter()
                         .zip(offsets.into_iter())
                         .map(|(v, offset)| {
@@ -80,7 +93,7 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
     };
     if preserve_sortedness {
         out.map(|mut out| {
-            out.set_sorted_flag(sa.is_sorted_flag());
+            out.set_sorted_flag(ts.is_sorted_flag());
             out
         })
     } else {
