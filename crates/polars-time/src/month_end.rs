@@ -10,12 +10,12 @@ use crate::month_start::roll_backward;
 use crate::windows::duration::Duration;
 
 // roll forward to the last day of the month
-fn roll_forward<'a, 'b>(
+fn roll_forward<'a>(
     t: i64,
-    time_zone: Option<&'b Tz>,
+    time_zone: Option<&'a Tz>,
     timestamp_to_datetime: fn(i64) -> NaiveDateTime,
     datetime_to_timestamp: fn(NaiveDateTime) -> i64,
-    offset_fn: fn(&Duration<'a>, i64, Option<&'b Tz>) -> PolarsResult<i64>,
+    offset_fn: fn(&Duration<'a>, i64, Option<&'a Tz>) -> PolarsResult<i64>,
 ) -> PolarsResult<i64> {
     let t = roll_backward(t, time_zone, timestamp_to_datetime, datetime_to_timestamp)?;
     let t = offset_fn(&Duration::parse("1mo"), t, time_zone)?;

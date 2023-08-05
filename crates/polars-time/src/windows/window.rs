@@ -153,12 +153,12 @@ pub struct BoundsIter<'a> {
     tu: TimeUnit,
     tz: Option<&'a Tz>,
 }
-impl<'b> BoundsIter<'b> {
+impl<'a> BoundsIter<'a> {
     fn new(
-        window: Window<'b>,
+        window: Window<'a>,
         boundary: Bounds,
         tu: TimeUnit,
-        tz: Option<&'b Tz>,
+        tz: Option<&'a Tz>,
         start_by: StartBy,
     ) -> PolarsResult<Self> {
         let bi = match start_by {

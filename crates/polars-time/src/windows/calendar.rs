@@ -36,16 +36,16 @@ pub const NS_DAY: i64 = 24 * NS_HOUR;
 pub const NS_WEEK: i64 = 7 * NS_DAY;
 
 /// vector of i64 representing temporal values
-pub fn temporal_range<'a, 'b>(
+pub fn temporal_range<'a>(
     start: i64,
     stop: i64,
     every: Duration<'a>,
     closed: ClosedWindow,
     tu: TimeUnit,
-    tz: Option<&'b Tz>,
+    tz: Option<&'a Tz>,
 ) -> PolarsResult<Vec<i64>> {
     let size: usize;
-    let offset_fn: fn(&Duration<'a>, i64, Option<&'b Tz>) -> PolarsResult<i64>;
+    let offset_fn: fn(&Duration<'a>, i64, Option<&'a Tz>) -> PolarsResult<i64>;
 
     match tu {
         TimeUnit::Nanoseconds => {
