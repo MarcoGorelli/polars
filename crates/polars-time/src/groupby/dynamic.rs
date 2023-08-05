@@ -19,15 +19,15 @@ struct Wrap<T>(pub T);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct DynamicGroupOptions {
+pub struct DynamicGroupOptions<'a> {
     /// Time or index column
     pub index_column: SmartString,
     /// start a window at this interval
-    pub every: Duration,
+    pub every: Duration<'a>,
     /// window duration
-    pub period: Duration,
+    pub period: Duration<'a>,
     /// offset window boundaries
-    pub offset: Duration,
+    pub offset: Duration<'a>,
     /// truncate the time column values to the window
     pub truncate: bool,
     /// add the boundaries to the dataframe
@@ -40,7 +40,7 @@ pub struct DynamicGroupOptions {
     pub check_sorted: bool,
 }
 
-impl Default for DynamicGroupOptions {
+impl Default for DynamicGroupOptions<'_> {
     fn default() -> Self {
         Self {
             index_column: "".into(),
@@ -58,12 +58,12 @@ impl Default for DynamicGroupOptions {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct RollingGroupOptions {
+pub struct RollingGroupOptions<'a> {
     /// Time or index column
     pub index_column: SmartString,
     /// window duration
-    pub period: Duration,
-    pub offset: Duration,
+    pub period: Duration<'a>,
+    pub offset: Duration<'a>,
     pub closed_window: ClosedWindow,
     /// In cases sortedness cannot be checked by
     /// the sorted flag, traverse the data to
@@ -71,7 +71,7 @@ pub struct RollingGroupOptions {
     pub check_sorted: bool,
 }
 
-impl Default for RollingGroupOptions {
+impl Default for RollingGroupOptions<'_> {
     fn default() -> Self {
         Self {
             index_column: "".into(),

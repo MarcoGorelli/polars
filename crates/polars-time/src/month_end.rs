@@ -10,12 +10,12 @@ use crate::month_start::roll_backward;
 use crate::windows::duration::Duration;
 
 // roll forward to the last day of the month
-fn roll_forward(
+fn roll_forward<'a, 'b>(
     t: i64,
-    time_zone: Option<&Tz>,
+    time_zone: Option<&'b Tz>,
     timestamp_to_datetime: fn(i64) -> NaiveDateTime,
     datetime_to_timestamp: fn(NaiveDateTime) -> i64,
-    offset_fn: fn(&Duration, i64, Option<&Tz>) -> PolarsResult<i64>,
+    offset_fn: fn(&Duration<'a>, i64, Option<&'b Tz>) -> PolarsResult<i64>,
 ) -> PolarsResult<i64> {
     let t = roll_backward(t, time_zone, timestamp_to_datetime, datetime_to_timestamp)?;
     let t = offset_fn(&Duration::parse("1mo"), t, time_zone)?;
@@ -32,22 +32,22 @@ impl PolarsMonthEnd for DatetimeChunked {
     fn month_end(&self, time_zone: Option<&Tz>) -> PolarsResult<Self> {
         let timestamp_to_datetime: fn(i64) -> NaiveDateTime;
         let datetime_to_timestamp: fn(NaiveDateTime) -> i64;
-        let offset_fn: fn(&Duration, i64, Option<&Tz>) -> PolarsResult<i64>;
+        let offset_fn = Duration::add_us;
         match self.time_unit() {
             TimeUnit::Nanoseconds => {
                 timestamp_to_datetime = timestamp_ns_to_datetime;
                 datetime_to_timestamp = datetime_to_timestamp_ns;
-                offset_fn = Duration::add_ns;
+                // offset_fn = Duration::add_ns;
             }
             TimeUnit::Microseconds => {
                 timestamp_to_datetime = timestamp_us_to_datetime;
                 datetime_to_timestamp = datetime_to_timestamp_us;
-                offset_fn = Duration::add_us;
+                // offset_fn = Duration::add_us;
             }
             TimeUnit::Milliseconds => {
                 timestamp_to_datetime = timestamp_ms_to_datetime;
                 datetime_to_timestamp = datetime_to_timestamp_ms;
-                offset_fn = Duration::add_ms;
+                // offset_fn = Duration::add_ms;
             }
         };
         Ok(self

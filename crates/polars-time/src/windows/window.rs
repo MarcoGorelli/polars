@@ -11,17 +11,17 @@ use crate::prelude::*;
 
 /// Represents a window in time
 #[derive(Copy, Clone)]
-pub struct Window {
+pub struct Window<'a> {
     // The ith window start is expressed via this equation:
     //   window_start_i = zero + every * i
     //   window_stop_i = zero + every * i + period
-    every: Duration,
-    period: Duration,
-    pub offset: Duration,
+    every: Duration<'a>,
+    period: Duration<'a>,
+    pub offset: Duration<'a>,
 }
 
-impl Window {
-    pub fn new(every: Duration, period: Duration, offset: Duration) -> Self {
+impl <'a>Window <'a>{
+    pub fn new(every: Duration<'a>, period: Duration<'a>, offset: Duration<'a>) -> Self {
         debug_assert!(!every.negative);
         Self {
             every,
@@ -133,7 +133,7 @@ impl Window {
             + self.period.duration_ms() / self.every.duration_ms()) as usize
     }
 
-    pub fn get_overlapping_bounds_iter<'a>(
+    pub fn get_overlapping_bounds_iter(
         &'a self,
         boundary: Bounds,
         tu: TimeUnit,
@@ -145,7 +145,7 @@ impl Window {
 }
 
 pub struct BoundsIter<'a> {
-    window: Window,
+    window: Window<'a>,
     // wrapping boundary
     boundary: Bounds,
     // boundary per window iterator
@@ -153,12 +153,12 @@ pub struct BoundsIter<'a> {
     tu: TimeUnit,
     tz: Option<&'a Tz>,
 }
-impl<'a> BoundsIter<'a> {
+impl<'b> BoundsIter<'b> {
     fn new(
-        window: Window,
+        window: Window<'b>,
         boundary: Bounds,
         tu: TimeUnit,
-        tz: Option<&'a Tz>,
+        tz: Option<&'b Tz>,
         start_by: StartBy,
     ) -> PolarsResult<Self> {
         let bi = match start_by {
@@ -180,27 +180,28 @@ impl<'a> BoundsIter<'a> {
             _ => {
                 {
                     #[allow(clippy::type_complexity)]
-                    let (from, to, offset): (
+                    let (from, to): (
                         fn(i64) -> NaiveDateTime,
                         fn(NaiveDateTime) -> i64,
-                        fn(&Duration, i64, Option<&Tz>) -> PolarsResult<i64>,
+                        // for <'b, 'c> fn(&Duration<'b>, i64, Option<&'c Tz>) -> PolarsResult<i64>,
                     ) = match tu {
                         TimeUnit::Nanoseconds => (
                             timestamp_ns_to_datetime,
                             datetime_to_timestamp_ns,
-                            Duration::add_ns,
+                            // Duration::add_ns,
                         ),
                         TimeUnit::Microseconds => (
                             timestamp_us_to_datetime,
                             datetime_to_timestamp_us,
-                            Duration::add_us,
+                            // Duration::add_us,
                         ),
                         TimeUnit::Milliseconds => (
                             timestamp_ms_to_datetime,
                             datetime_to_timestamp_ms,
-                            Duration::add_ms,
+                            // Duration::add_ms,
                         ),
                     };
+                    let offset = Duration::add_us;
                     // find beginning of the week.
                     let mut boundary = boundary;
                     let dt = from(boundary.start);

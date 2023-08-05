@@ -25,7 +25,7 @@ use crate::windows::calendar::{is_leap_year, last_day_of_month};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Duration {
+pub struct Duration<'a> {
     // the number of months for the duration
     months: i64,
     // the number of weeks for the duration
@@ -41,21 +41,23 @@ pub struct Duration {
     // indicates if an offset to a non-existent date (e.g. 2022-02-29)
     // should saturate (to 2022-02-28) as opposed to erroring
     pub(crate) saturating: bool,
+
+    pub(crate) duration: &'a str,
 }
 
-impl PartialOrd<Self> for Duration {
+impl PartialOrd<Self> for Duration<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for Duration {
+impl Ord for Duration<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.duration_ns().cmp(&other.duration_ns())
     }
 }
 
-impl Duration {
+impl Duration<'_> {
     /// Create a new integer size `Duration`
     pub fn new(fixed_slots: i64) -> Self {
         Duration {
@@ -66,6 +68,7 @@ impl Duration {
             negative: fixed_slots < 0,
             parsed_int: true,
             saturating: false,
+            duration:"",
         }
     }
 
@@ -197,6 +200,7 @@ impl Duration {
             negative,
             parsed_int,
             saturating,
+            duration: duration,
         }
     }
 
@@ -264,6 +268,7 @@ impl Duration {
             negative,
             parsed_int: false,
             saturating: false,
+            duration:"",
         }
     }
 
@@ -278,6 +283,7 @@ impl Duration {
             negative,
             parsed_int: false,
             saturating: false,
+            duration:"",
         }
     }
 
@@ -292,6 +298,7 @@ impl Duration {
             negative,
             parsed_int: false,
             saturating: false,
+            duration:"",
         }
     }
 
@@ -306,6 +313,7 @@ impl Duration {
             negative,
             parsed_int: false,
             saturating: false,
+            duration:"",
         }
     }
 
@@ -717,7 +725,7 @@ impl Duration {
     }
 }
 
-impl Mul<i64> for Duration {
+impl Mul<i64> for Duration<'_> {
     type Output = Self;
 
     fn mul(mut self, mut rhs: i64) -> Self {

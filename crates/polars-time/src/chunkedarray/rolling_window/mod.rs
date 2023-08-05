@@ -22,9 +22,9 @@ use crate::series::WrapFloat;
 
 #[derive(Clone)]
 #[cfg(feature = "rolling_window")]
-pub struct RollingOptions {
+pub struct RollingOptions<'a> {
     /// The length of the window.
-    pub window_size: Duration,
+    pub window_size: Duration<'a>,
     /// Amount of elements in the window that should be filled before computing a result.
     pub min_periods: usize,
     /// An optional slice with the same length as the window that will be multiplied
@@ -41,7 +41,7 @@ pub struct RollingOptions {
 }
 
 #[cfg(feature = "rolling_window")]
-impl Default for RollingOptions {
+impl <'a> Default for RollingOptions<'a> {
     fn default() -> Self {
         RollingOptions {
             window_size: Duration::parse("3i"),
@@ -59,7 +59,7 @@ impl Default for RollingOptions {
 #[cfg(feature = "rolling_window")]
 pub struct RollingOptionsImpl<'a> {
     /// The length of the window.
-    pub window_size: Duration,
+    pub window_size: Duration<'a>,
     /// Amount of elements in the window that should be filled before computing a result.
     pub min_periods: usize,
     /// An optional slice with the same length as the window that will be multiplied
@@ -75,7 +75,7 @@ pub struct RollingOptionsImpl<'a> {
 }
 
 #[cfg(feature = "rolling_window")]
-impl From<RollingOptions> for RollingOptionsImpl<'static> {
+impl From<RollingOptions<'_>> for RollingOptionsImpl<'static> {
     fn from(options: RollingOptions) -> Self {
         let window_size = options.window_size;
         assert!(
@@ -98,7 +98,7 @@ impl From<RollingOptions> for RollingOptionsImpl<'static> {
 }
 
 #[cfg(feature = "rolling_window")]
-impl From<RollingOptions> for RollingOptionsFixedWindow {
+impl From<RollingOptions<'_>> for RollingOptionsFixedWindow {
     fn from(options: RollingOptions) -> Self {
         let window_size = options.window_size;
         assert!(

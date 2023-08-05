@@ -56,8 +56,8 @@ impl StartBy {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn update_groups_and_bounds(
-    bounds_iter: BoundsIter<'_>,
+fn update_groups_and_bounds<'a>(
+    bounds_iter: BoundsIter<'a>,
     mut start_offset: usize,
     time: &[i64],
     closed_window: ClosedWindow,
@@ -224,15 +224,15 @@ pub fn groupby_windows(
 }
 
 // this assumes that the given time point is the right endpoint of the window
-pub(crate) fn groupby_values_iter_lookbehind(
-    period: Duration,
-    offset: Duration,
-    time: &[i64],
+pub(crate) fn groupby_values_iter_lookbehind<'a>(
+    period: Duration<'a>,
+    offset: Duration<'a>,
+    time: &'a [i64],
     closed_window: ClosedWindow,
     tu: TimeUnit,
     tz: Option<Tz>,
     start_offset: usize,
-) -> impl Iterator<Item = PolarsResult<(IdxSize, IdxSize)>> + TrustedLen + '_ {
+) -> impl Iterator<Item = PolarsResult<(IdxSize, IdxSize)>> + TrustedLen + 'a {
     debug_assert!(offset.duration_ns() == period.duration_ns());
     debug_assert!(offset.negative);
     let add = match tu {
@@ -281,14 +281,14 @@ pub(crate) fn groupby_values_iter_lookbehind(
 }
 
 // this one is correct for all lookbehind/lookaheads, but is slower
-pub(crate) fn groupby_values_iter_window_behind_t(
-    period: Duration,
-    offset: Duration,
-    time: &[i64],
+pub(crate) fn groupby_values_iter_window_behind_t<'a>(
+    period: Duration<'a>,
+    offset: Duration<'a>,
+    time: &'a[i64],
     closed_window: ClosedWindow,
     tu: TimeUnit,
     tz: Option<Tz>,
-) -> impl Iterator<Item = PolarsResult<(IdxSize, IdxSize)>> + TrustedLen + '_ {
+) -> impl Iterator<Item = PolarsResult<(IdxSize, IdxSize)>> + TrustedLen + 'a {
     let add = match tu {
         TimeUnit::Nanoseconds => Duration::add_ns,
         TimeUnit::Microseconds => Duration::add_us,
@@ -331,14 +331,14 @@ pub(crate) fn groupby_values_iter_window_behind_t(
 }
 
 // this one is correct for all lookbehind/lookaheads, but is slower
-pub(crate) fn groupby_values_iter_partial_lookbehind(
-    period: Duration,
-    offset: Duration,
-    time: &[i64],
+pub(crate) fn groupby_values_iter_partial_lookbehind<'a>(
+    period: Duration<'a>,
+    offset: Duration<'a>,
+    time: &'a [i64],
     closed_window: ClosedWindow,
     tu: TimeUnit,
     tz: Option<Tz>,
-) -> impl Iterator<Item = PolarsResult<(IdxSize, IdxSize)>> + TrustedLen + '_ {
+) -> impl Iterator<Item = PolarsResult<(IdxSize, IdxSize)>> + TrustedLen + 'a {
     let add = match tu {
         TimeUnit::Nanoseconds => Duration::add_ns,
         TimeUnit::Microseconds => Duration::add_us,
@@ -369,16 +369,16 @@ pub(crate) fn groupby_values_iter_partial_lookbehind(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn groupby_values_iter_partial_lookahead(
-    period: Duration,
-    offset: Duration,
-    time: &[i64],
+pub(crate) fn groupby_values_iter_partial_lookahead<'a>(
+    period: Duration<'a>,
+    offset: Duration<'a>,
+    time: &'a [i64],
     closed_window: ClosedWindow,
     tu: TimeUnit,
     tz: Option<Tz>,
     start_offset: usize,
     upper_bound: Option<usize>,
-) -> impl Iterator<Item = PolarsResult<(IdxSize, IdxSize)>> + TrustedLen + '_ {
+) -> impl Iterator<Item = PolarsResult<(IdxSize, IdxSize)>> + TrustedLen + 'a {
     let upper_bound = upper_bound.unwrap_or(time.len());
     debug_assert!(!offset.negative);
 
@@ -406,16 +406,16 @@ pub(crate) fn groupby_values_iter_partial_lookahead(
         })
 }
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn groupby_values_iter_full_lookahead(
-    period: Duration,
-    offset: Duration,
-    time: &[i64],
+pub(crate) fn groupby_values_iter_full_lookahead<'a>(
+    period: Duration<'a>,
+    offset: Duration<'a>,
+    time: &'a[i64],
     closed_window: ClosedWindow,
     tu: TimeUnit,
     tz: Option<Tz>,
     start_offset: usize,
     upper_bound: Option<usize>,
-) -> impl Iterator<Item = PolarsResult<(IdxSize, IdxSize)>> + TrustedLen + '_ {
+) -> impl Iterator<Item = PolarsResult<(IdxSize, IdxSize)>> + TrustedLen + 'a {
     let upper_bound = upper_bound.unwrap_or(time.len());
     debug_assert!(!offset.negative);
 
@@ -455,7 +455,7 @@ pub(crate) fn groupby_values_iter_full_lookahead(
 
 #[cfg(feature = "rolling_window")]
 pub(crate) fn groupby_values_iter<'a>(
-    period: Duration,
+    period: Duration<'a>,
     time: &'a [i64],
     closed_window: ClosedWindow,
     tu: TimeUnit,
