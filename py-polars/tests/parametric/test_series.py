@@ -226,9 +226,7 @@ def test_pow(left_data, left_dtype, right_data, right_dtype, data: st.DrawFn):
     except PolarsPanicError as exc:
         assert 'attempt to multiply with overflow' in str(exc)
         reject()
-    try:
+    with np.testing.suppress_warnings() as sup:
+        sup.filter(RuntimeWarning, "divide by zero")
         expected = left.to_numpy().astype('float64') ** right.to_numpy().astype('float64')
-    except RuntimeWarning as exc:
-        assert 'divide by zero encountered in power' in str(exc)
-        reject()
     np.testing.assert_allclose(result, expected)
