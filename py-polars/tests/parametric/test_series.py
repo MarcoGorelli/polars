@@ -14,6 +14,7 @@ import polars as pl
 from polars.expr.expr import _prepare_alpha
 from polars.testing import assert_series_equal
 from polars.testing.parametric import series
+from polars.exceptions import PolarsPanicError
 
 
 def alpha_guard(**decay_param: float) -> bool:
@@ -203,3 +204,31 @@ def test_series_to_numpy(
     }
     np_array = np.array(s.to_list(), dtype=dtype.get(s.dtype))  # type: ignore[call-overload]
     assert_array_equal(np_array, s.to_numpy())
+
+import hypothesis.strategies as st
+from hypothesis import reject
+@given(
+    left_data=st.lists(st.integers(min_value=-12, max_value=12), min_size=1),
+    left_dtype=st.sampled_from([i for i  in pl.NUMERIC_DTYPES if i not in (pl.Decimal, pl.Boolean)]),
+    right_data=st.lists(st.integers(min_value=-12, max_value=12), min_size=1),
+    right_dtype=st.sampled_from([i for i  in pl.NUMERIC_DTYPES if i not in (pl.Decimal, pl.Boolean)]),
+    data=st.data(),
+)
+def test_pow(left_data, left_dtype, right_data, right_dtype, data: st.DrawFn):
+    right_data = data.draw(st.lists(st.integers(min_value=-12, max_value=12), min_size=len(left_data), max_size=len(left_data)))
+    try:
+        left = pl.Series(left_data, dtype=left_dtype)
+        right = pl.Series(right_data, dtype=right_dtype)
+    except OverflowError:
+        reject()
+    try:
+        result = (left ** right).to_numpy()
+    except PolarsPanicError as exc:
+        assert 'attempt to multiply with overflow' in str(exc)
+        reject()
+    try:
+        expected = left.to_numpy().astype('float64') ** right.to_numpy().astype('float64')
+    except RuntimeWarning as exc:
+        assert 'divide by zero encountered in power' in str(exc)
+        reject()
+    np.testing.assert_allclose(result, expected)
