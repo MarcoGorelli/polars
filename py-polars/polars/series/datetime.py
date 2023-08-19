@@ -6,7 +6,6 @@ from polars.datatypes import Date
 from polars.series.utils import expr_dispatch
 from polars.utils._wrap import wrap_s
 from polars.utils.convert import _to_python_date, _to_python_datetime
-from polars.utils.decorators import deprecated_alias
 
 if TYPE_CHECKING:
     import datetime as dt
@@ -105,7 +104,7 @@ class DateTimeNameSpace:
             if s.dtype == Date:
                 return _to_python_date(int(out))
             else:
-                return _to_python_datetime(int(out), s._s.time_unit())
+                return _to_python_datetime(int(out), s.dtype.time_unit)  # type: ignore[union-attr]
         return None
 
     def mean(self) -> dt.date | dt.datetime | None:
@@ -136,7 +135,7 @@ class DateTimeNameSpace:
             if s.dtype == Date:
                 return _to_python_date(int(out))
             else:
-                return _to_python_datetime(int(out), s._s.time_unit())
+                return _to_python_datetime(int(out), s.dtype.time_unit)  # type: ignore[union-attr]
         return None
 
     def to_string(self, format: str) -> Series:
@@ -171,7 +170,6 @@ class DateTimeNameSpace:
 
         """
 
-    @deprecated_alias(fmt="format")
     def strftime(self, format: str) -> Series:
         """
         Convert a Date/Time/Datetime column into a Utf8 column with the given format.
@@ -221,7 +219,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Year part as Int32
+        Series
+            Series of data type :class:`Int32`.
 
         Examples
         --------
@@ -254,7 +253,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Leap year info as Boolean
+        Series
+            Series of data type :class:`Boolean`.
 
         Examples
         --------
@@ -292,7 +292,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        ISO year as Int32
+        Series
+            Series of data type :class:`Int32`.
 
         Examples
         --------
@@ -317,7 +318,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Quarter as UInt32
+        Series
+            Series of data type :class:`UInt32`.
 
         Examples
         --------
@@ -357,7 +359,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Month part as UInt32
+        Series
+            Series of data type :class:`UInt32`.
 
         Examples
         --------
@@ -397,7 +400,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Week number as UInt32
+        Series
+            Series of data type :class:`UInt32`.
 
         Examples
         --------
@@ -436,7 +440,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Weekday as UInt32
+        Series
+            Series of data type :class:`UInt32`.
 
         Examples
         --------
@@ -482,7 +487,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Day part as UInt32
+        Series
+            Series of data type :class:`UInt32`.
 
         Examples
         --------
@@ -524,7 +530,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Ordinal day as UInt32
+        Series
+            Series of data type :class:`UInt32`.
 
         Examples
         --------
@@ -559,7 +566,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Time Series
+        Series
+            Series of data type :class:`Time`.
 
         Examples
         --------
@@ -589,7 +597,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Date Series
+        Series
+            Series of data type :class:`Date`.
 
         Examples
         --------
@@ -619,7 +628,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Datetime Series
+        Series
+            Series of data type :class:`Datetime`.
 
         Examples
         --------
@@ -651,7 +661,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Hour part as UInt32
+        Series
+            Series of data type :class:`UInt32`.
 
         Examples
         --------
@@ -690,7 +701,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Minute part as UInt32
+        Series
+            Series of data type :class:`UInt32`.
 
         Examples
         --------
@@ -734,7 +746,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Second part as UInt32 (or Float64)
+        Series
+            Series of data type :class:`UInt32` or :class:`Float64`.
 
         Examples
         --------
@@ -795,7 +808,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Millisecond part as UInt32
+        Series
+            Series of data type :class:`UInt32`.
 
         Examples
         --------
@@ -842,7 +856,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Microsecond part as UInt32
+        Series
+            Series of data type :class:`UInt32`.
 
         Examples
         --------
@@ -889,7 +904,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Nanosecond part as UInt32
+        Series
+            Series of data type :class:`UInt32`.
 
         Examples
         --------
@@ -1140,9 +1156,10 @@ class DateTimeNameSpace:
             Time zone for the `Datetime` Series. Pass `None` to unset time zone.
         use_earliest
             Determine how to deal with ambiguous datetimes:
-            - None (default): raise;
-            - True: use the earliest datetime;
-            - False: use the latest datetime.
+
+            - ``None`` (default): raise
+            - ``True``: use the earliest datetime
+            - ``False``: use the latest datetime
 
         Examples
         --------
@@ -1228,7 +1245,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        A series of dtype Int64
+        Series
+            Series of data type :class:`Int64`.
 
         Examples
         --------
@@ -1261,7 +1279,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        A series of dtype Int64
+        Series
+            Series of data type :class:`Int64`.
 
         Examples
         --------
@@ -1296,7 +1315,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        A series of dtype Int64
+        Series
+            Series of data type :class:`Int64`.
 
         Examples
         --------
@@ -1331,7 +1351,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        A series of dtype Int64
+        Series
+            Series of data type :class:`Int64`.
 
         Examples
         --------
@@ -1368,7 +1389,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        A series of dtype Int64
+        Series
+            Series of data type :class:`Int64`.
 
         Examples
         --------
@@ -1404,7 +1426,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        A series of dtype Int64
+        Series
+            Series of data type :class:`Int64`.
 
         Examples
         --------
@@ -1440,7 +1463,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        A series of dtype Int64
+        Series
+            Series of data type :class:`Int64`.
 
         Examples
         --------
@@ -1507,7 +1531,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Date/Datetime expression
+        Series
+            Series of data type :class:`Date` or :class:`Datetime`.
 
         Examples
         --------
@@ -1585,9 +1610,10 @@ class DateTimeNameSpace:
             Offset the window
         use_earliest
             Determine how to deal with ambiguous datetimes:
-            - None (default): raise;
-            - True: use the earliest datetime;
-            - False: use the latest datetime.
+
+            - ``None`` (default): raise
+            - ``True``: use the earliest datetime
+            - ``False``: use the latest datetime
 
         Notes
         -----
@@ -1620,7 +1646,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Date/Datetime series
+        Series
+            Series of data type :class:`Date` or :class:`Datetime`.
 
         Examples
         --------
@@ -1778,7 +1805,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Date/Datetime series
+        Series
+            Series of data type :class:`Date` or :class:`Datetime`.
 
         Warnings
         --------
@@ -1877,7 +1905,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Date/Datetime series
+        Series
+            Series of data type :class:`Date` or :class:`Datetime`.
 
         Notes
         -----
@@ -1907,7 +1936,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Date/Datetime series.
+        Series
+            Series of data type :class:`Date` or :class:`Datetime`.
 
         Notes
         -----
@@ -1941,7 +1971,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Duration Series
+        Series
+            Series of data type :class:`Duration`.
 
         See Also
         --------
@@ -1979,7 +2010,8 @@ class DateTimeNameSpace:
 
         Returns
         -------
-        Duration Series
+        Series
+            Series of data type :class:`Duration`.
 
         See Also
         --------

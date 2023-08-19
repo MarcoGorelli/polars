@@ -161,6 +161,16 @@ pub fn cov(a: PyExpr, b: PyExpr) -> PyExpr {
 }
 
 #[pyfunction]
+pub fn arctan2(y: PyExpr, x: PyExpr) -> PyExpr {
+    y.inner.arctan2(x.inner).into()
+}
+
+#[pyfunction]
+pub fn arctan2d(y: PyExpr, x: PyExpr) -> PyExpr {
+    y.inner.arctan2(x.inner).degrees().into()
+}
+
+#[pyfunction]
 pub fn cumfold(acc: PyExpr, lambda: PyObject, exprs: Vec<PyExpr>, include_init: bool) -> PyExpr {
     let exprs = exprs.to_exprs();
 
@@ -176,7 +186,9 @@ pub fn cumreduce(lambda: PyObject, exprs: Vec<PyExpr>) -> PyExpr {
     dsl::cumreduce_exprs(func, exprs).into()
 }
 
+#[allow(clippy::too_many_arguments)]
 #[pyfunction]
+#[pyo3(signature = (year, month, day, hour=None, minute=None, second=None, microsecond=None, time_unit=Wrap(TimeUnit::Microseconds), time_zone=None, use_earliest=None))]
 pub fn datetime(
     year: PyExpr,
     month: PyExpr,
@@ -185,12 +197,15 @@ pub fn datetime(
     minute: Option<PyExpr>,
     second: Option<PyExpr>,
     microsecond: Option<PyExpr>,
+    time_unit: Wrap<TimeUnit>,
+    time_zone: Option<TimeZone>,
+    use_earliest: Option<bool>,
 ) -> PyExpr {
     let year = year.inner;
     let month = month.inner;
     let day = day.inner;
-
     set_unwrapped_or_0!(hour, minute, second, microsecond);
+    let time_unit = time_unit.0;
 
     let args = DatetimeArgs {
         year,
@@ -200,6 +215,9 @@ pub fn datetime(
         minute,
         second,
         microsecond,
+        time_unit,
+        time_zone,
+        use_earliest,
     };
     dsl::datetime(args).into()
 }
@@ -298,11 +316,11 @@ pub fn lit(value: &PyAny, allow_object: bool) -> PyResult<PyExpr> {
                 } else {
                     Ok(dsl::lit(val).into())
                 }
-            }
+            },
             _ => {
                 let val = int.extract::<u64>().unwrap();
                 Ok(dsl::lit(val).into())
-            }
+            },
         }
     } else if let Ok(float) = value.downcast::<PyFloat>() {
         let val = float.extract::<f64>().unwrap();

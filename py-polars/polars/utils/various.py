@@ -123,17 +123,17 @@ def handle_projection_columns(
         elif not is_str_sequence(columns):
             raise ValueError(
                 "'columns' arg should contain a list of all integers or all strings"
-                " values."
+                " values"
             )
         else:
             new_columns = columns
         if columns and len(set(columns)) != len(columns):
             raise ValueError(
-                f"'columns' arg should only have unique values. Got '{columns}'."
+                f"`columns` arg should only have unique values. Got {columns!r}"
             )
         if projection and len(set(projection)) != len(projection):
             raise ValueError(
-                f"'columns' arg should only have unique values. Got '{projection}'."
+                f"`columns` arg should only have unique values. Got {projection!r}"
             )
     return projection, new_columns
 
@@ -183,10 +183,15 @@ def can_create_dicts_with_pyarrow(dtypes: Sequence[PolarsDataType]) -> bool:
 
 def normalise_filepath(path: str | Path, check_not_directory: bool = True) -> str:
     """Create a string path, expanding the home directory if present."""
-    path = Path(path).expanduser()
-    if check_not_directory and path.exists() and path.is_dir():
-        raise IsADirectoryError(f"Expected a file path; {path!r} is a directory")
-    return str(path)
+    # don't use pathlib here as it modifies slashes (s3:// -> s3:/)
+    path = os.path.expanduser(path)  # noqa: PTH111
+    if (
+        check_not_directory
+        and os.path.exists(path)  # noqa: PTH110
+        and os.path.isdir(path)  # noqa: PTH112
+    ):
+        raise IsADirectoryError(f"expected a file path; {path!r} is a directory")
+    return path
 
 
 def parse_version(version: Sequence[str | int]) -> tuple[int, ...]:
@@ -245,7 +250,7 @@ def _cast_repr_strings_with_schema(
         for tp in df.schema.values():
             if tp != Utf8:
                 raise TypeError(
-                    f"DataFrame should contain only Utf8 string repr data; found {tp}"
+                    f"DataFrame should contain only Utf8 string repr data; found {tp!r}"
                 )
 
     # duration string scaling
@@ -353,20 +358,19 @@ NoDefault = Literal[_NoDefault.no_default]
 
 def find_stacklevel() -> int:
     """
-    Find the first place in the stack that is not inside polars (tests notwithstanding).
+    Find the first place in the stack that is not inside polars.
 
     Taken from:
     https://github.com/pandas-dev/pandas/blob/ab89c53f48df67709a533b6a95ce3d911871a0a8/pandas/util/_exceptions.py#L30-L51
     """
     pkg_dir = Path(pl.__file__).parent
-    test_dir = pkg_dir / "tests"
 
     # https://stackoverflow.com/questions/17407119/python-inspect-stack-is-slow
     frame = inspect.currentframe()
     n = 0
     while frame:
         fname = inspect.getfile(frame)
-        if fname.startswith(str(pkg_dir)) and not fname.startswith(str(test_dir)):
+        if fname.startswith(str(pkg_dir)):
             frame = frame.f_back
             n += 1
         else:
@@ -449,3 +453,26 @@ def in_terminal_that_supports_colour() -> bool:
             )
         ) or os.environ.get("PYCHARM_HOSTED") == "1"
     return False
+
+
+def parse_percentiles(percentiles: Sequence[float] | float | None) -> Sequence[float]:
+    """
+    Transforms raw percentiles into our preferred format, adding the 50th percentile.
+
+    Raises a ValueError if the percentile sequence is invalid
+    (e.g. outside the range [0, 1])
+    """
+    if isinstance(percentiles, float):
+        percentiles = [percentiles]
+    elif percentiles is None:
+        percentiles = []
+    if not all((0 <= p <= 1) for p in percentiles):
+        raise ValueError("percentiles must all be in the range [0, 1]")
+
+    sub_50_percentiles = sorted(p for p in percentiles if p < 0.5)
+    at_or_above_50_percentiles = sorted(p for p in percentiles if p >= 0.5)
+
+    if not at_or_above_50_percentiles or at_or_above_50_percentiles[0] != 0.5:
+        at_or_above_50_percentiles = [0.5, *at_or_above_50_percentiles]
+
+    return [*sub_50_percentiles, *at_or_above_50_percentiles]
