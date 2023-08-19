@@ -113,6 +113,53 @@ pub(super) fn datetime(
     Ok(s)
 }
 
+
+use polars_core::utils::{align_chunks_binary, combine_validities_or, combine_validities_and};
+use polars_core::export::arrow::compute::arity::binary;
+use arrow::types::NativeType;
+use arrow::array::{PrimitiveArray, Int64Array, Utf8Array};
+use arrow::offset::Offset;
+
+pub fn my_binary(
+    lhs: &Int64Array,
+    rhs: &Utf8Array<i64>,
+    data_type: ArrowDataType,
+) -> Int64Array
+where
+{
+    // check_same_len(lhs, rhs).unwrap();
+
+    let validity = combine_validities_and(lhs.validity(), rhs.validity());
+
+    let values = lhs
+        .values()
+        .iter()
+        .zip(rhs.values().iter())
+        .map(|(l, r)| {
+            println!("***");
+            println!("r is: {:?}", r);
+            println!("***");
+            let offset = Duration::parse("1d");
+            Duration::add_us(&offset, *l, None).unwrap()
+        })
+        .collect::<Vec<_>>()
+        .into();
+
+    Int64Array::new(data_type, values, validity)
+}
+
+// kernel goes here
+fn compute_kernel2(arr_1: &Int64Array, arr_2: &Utf8Array<i64>) -> Int64Array
+where
+{
+    my_binary(
+        arr_1,
+        arr_2,
+        arr_1.data_type().clone(),
+    )
+}
+use polars_core::chunked_array::ops::arity::try_binary_elementwise_values;
+
 #[cfg(feature = "date_offset")]
 pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
     let sa = &s[0];
@@ -152,18 +199,34 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
                     ca.0.try_apply(|v| offset_fn(&offset, v, tz_args.as_ref()))
                 }
                 _ => {
-                    let out = ca
-                        .into_iter()
-                        .zip(offsets.into_iter())
-                        .map(|(v, offset)| {
-                            let offset = match offset {
-                                Some(offset) => Duration::parse(offset),
-                                _ => Duration::new(0),
-                            };
-                            offset_fn(&offset, v.unwrap(), tz_args.as_ref()).unwrap()
-                        })
-                        .collect::<Vec<_>>();
-                    Ok(Int64Chunked::from_vec("", out))
+                    let (ca_1, ca_2) = align_chunks_binary(ca, offsets);
+                    fn my_fn(left: &i64, right: &str) -> PolarsResult<i64> {
+                        let offset = Duration::parse(right);
+                        Duration::add_us(&offset, *left, None)
+                    }
+                    let res = try_binary_elementwise_values(
+                        &ca_1,
+                        &ca_2,
+                        my_fn
+                    );
+                    res
+                    // let chunks = ca_1
+                    //     .downcast_iter()
+                    //     .zip(ca_2.downcast_iter())
+                    //     .map(|(arr_1, arr_2)| compute_kernel2(arr_1, arr_2));
+                    // Ok(ChunkedArray::from_chunk_iter(ca_1.name(), chunks))
+                    // let out = ca
+                    //     .into_iter()
+                    //     .zip(offsets.into_iter())
+                    //     .map(|(v, offset)| {
+                    //         let offset = match offset {
+                    //             Some(offset) => Duration::parse(offset),
+                    //             _ => Duration::new(0),
+                    //         };
+                    //         offset_fn(&offset, v.unwrap(), tz_args.as_ref()).unwrap()
+                    //     })
+                    //     .collect::<Vec<_>>();
+                    // Ok(Int64Chunked::from_vec("", out))
                 }
             }?;
             // Sortedness may not be preserved when crossing daylight savings time boundaries
