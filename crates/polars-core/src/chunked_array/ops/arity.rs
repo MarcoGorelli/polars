@@ -100,8 +100,9 @@ where
             let iter = lhs_arr
                 .values_iter()
                 .zip(rhs_arr.values_iter())
-                .map(|(lhs_val, rhs_val)| op(lhs_val, rhs_val).unwrap());
-            collect_array(iter, validity)
+                .map(|(lhs_val, rhs_val)| op(lhs_val, rhs_val))
+                .collect();
+            Ok(iter?)
         });
     Ok(ChunkedArray::from_chunk_iter(lhs.name(), iter))
 }
