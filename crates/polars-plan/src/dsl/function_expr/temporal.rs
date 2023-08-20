@@ -144,9 +144,7 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
     let out = match ts.dtype().clone() {
         DataType::Date => {
             let ts = ts.cast(&DataType::Datetime(TimeUnit::Milliseconds, None)).unwrap();
-            println!("ts: {:?}", ts);
             let date = ts.datetime().unwrap();
-            println!("date: {:?}", date.0);
             let out = match offsets.len() {
                 1 => {
                     let offset = match offsets.get(0) {
