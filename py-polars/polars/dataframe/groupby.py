@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Callable, Iterable, Iterator
 import polars._reexport as pl
 from polars import functions as F
 from polars.utils.convert import _timedelta_to_pl_duration
+from polars.utils.deprecation import deprecate_renamed_methods
 
 if TYPE_CHECKING:
     import sys
@@ -25,6 +26,12 @@ if TYPE_CHECKING:
         from typing_extensions import Self
 
 
+@deprecate_renamed_methods(
+    mapping={
+       "apply": "map_dataframe",
+        },
+    versions={"apply": "0.19.0"},
+ )
 class GroupBy:
     """Starts a new GroupBy operation."""
 
@@ -242,7 +249,7 @@ class GroupBy:
             .collect(no_optimization=True)
         )
 
-    def apply(self, function: Callable[[DataFrame], DataFrame]) -> DataFrame:
+    def map_dataframe(self, function: Callable[[DataFrame], DataFrame]) -> DataFrame:
         """
         Apply a custom/user-defined function (UDF) over the groups as a sub-DataFrame.
 
@@ -962,6 +969,12 @@ class RollingGroupBy:
         )
 
 
+@deprecate_renamed_methods(
+    mapping={
+       "apply": "map_dataframe",
+        },
+    versions={"apply": "0.19.0"},
+ )
 class DynamicGroupBy:
     """
     A dynamic grouper.
@@ -1084,7 +1097,7 @@ class DynamicGroupBy:
             .collect(no_optimization=True)
         )
 
-    def apply(
+    def map_dataframe(
         self,
         function: Callable[[DataFrame], DataFrame],
         schema: SchemaDict | None,

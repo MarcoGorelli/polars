@@ -1019,7 +1019,8 @@ def map(
     )
 
 
-def apply(
+@deprecate_renamed_function("apply", version="0.19.0")
+def map_series_sequence(
     exprs: Sequence[str | Expr],
     function: Callable[[Sequence[Series]], Series | Any],
     return_dtype: PolarsDataType | None = None,
