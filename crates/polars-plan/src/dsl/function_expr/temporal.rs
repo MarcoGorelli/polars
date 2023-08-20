@@ -1,6 +1,6 @@
 #[cfg(feature = "date_offset")]
 use polars_arrow::time_zone::Tz;
-use polars_core::utils::arrow::temporal_conversions::SECONDS_IN_DAY;
+use polars_core::utils::arrow::temporal_conversions::{SECONDS_IN_DAY, MILLISECONDS};
 #[cfg(feature = "date_offset")]
 use polars_time::prelude::*;
 use polars_core::utils::{align_chunks_binary, combine_validities_and};
@@ -117,7 +117,7 @@ pub(super) fn datetime(
 
 
 
-fn compute_kernel2(arr_1: &Int64Array, arr_2: &Utf8Array<i64>) -> PolarsResult<Int64Array>
+fn compute_kernel2(arr_1: &Int64Array, arr_2: &Utf8Array<i64>, offset_fn: fn(&Duration, i64, Option<&Tz>) -> PolarsResult<i64>, time_zone: Option<&Tz>) -> PolarsResult<Int64Array>
 where
 {
     let validity = combine_validities_and(arr_1.validity(), arr_2.validity());
@@ -127,7 +127,7 @@ where
         .zip(arr_2.values_iter())
         .map(|(l, r)| {
             let offset = Duration::parse(r);
-            Duration::add_us(&offset, *l, None)
+            offset_fn(&offset, *l, time_zone)
         })
         .collect::<PolarsResult<Vec<_>>>()?
         .into();
@@ -140,14 +140,42 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
     let sa = &s[0];
     let sb = &s[1];
 
+    let ts = &s[0];
+    let offsets = &s[1].utf8().unwrap();
+
     let preserve_sortedness: bool;
     let out = match sa.dtype().clone() {
         DataType::Date => {
-            let sa = sa
-                .cast(&DataType::Datetime(TimeUnit::Milliseconds, None))
-                .unwrap();
-            preserve_sortedness = true;
-            date_offset(&[sa, sb.clone()]).and_then(|s| s.cast(&DataType::Date))
+            const MSECS_IN_DAY: i64 = MILLISECONDS * SECONDS_IN_DAY;
+            let ts = ts.cast(&DataType::Datetime(TimeUnit::Milliseconds, None)).unwrap();
+            let date = ts.datetime().unwrap();
+            let out = match offsets.len() {
+                1 => {
+                    let offset = match offsets.get(0) {
+                        Some(offset) => Duration::parse(offset),
+                        _ => Duration::new(0),
+                    };
+                    date.0.try_apply(|v| {
+                        Ok(
+                            Duration::add_ms(&offset, MSECS_IN_DAY * v, None)?,
+                        )
+                    })
+                }
+                _ => {
+                    let (ca_1, ca_2) = align_chunks_binary(date, offsets);
+                    let chunks = ca_1
+                        .downcast_iter()
+                        .zip(ca_2.downcast_iter())
+                        .map(|
+                            (arr_1, arr_2)|
+                            compute_kernel2(arr_1, arr_2, Duration::add_ms, None)
+                        );
+                    ChunkedArray::try_from_chunk_iter(ca_1.name(), chunks)
+                }
+            }?;
+            preserve_sortedness = offsets.len() == 1;
+            out.cast(&DataType::Date)
+
         }
         DataType::Datetime(tu, tz) => {
             let ca = sa.datetime().unwrap();
@@ -159,7 +187,7 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
                 TimeUnit::Milliseconds => Duration::add_ms,
             };
 
-            let tz_args = match tz {
+            let parsed_time_zone = match tz {
                 #[cfg(feature = "timezones")]
                 Some(ref tz) => tz.parse::<Tz>().ok(),
                 _ => None,
@@ -171,49 +199,18 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
                         Some(offset) => Duration::parse(offset),
                         _ => Duration::new(0),
                     };
-                    ca.0.try_apply(|v| offset_fn(&offset, v, tz_args.as_ref()))
+                    ca.0.try_apply(|v| offset_fn(&offset, v, parsed_time_zone.as_ref()))
                 }
                 _ => {
                     let (ca_1, ca_2) = align_chunks_binary(ca, offsets);
-                    fn my_fn(left: &i64, right: &str) -> PolarsResult<i64> {
-                        let offset = Duration::parse(right);
-                        Duration::add_us(&offset, *left, None)
-                    }
-                    // let res = try_binary_elementwise_values(
-                    //     &ca_1,
-                    //     &ca_2,
-                    //     my_fn
-                    // );
-                    // res
                     let chunks = ca_1
                         .downcast_iter()
                         .zip(ca_2.downcast_iter())
                         .map(|
                             (arr_1, arr_2)|
-                            compute_kernel2(arr_1, arr_2)
+                            compute_kernel2(arr_1, arr_2, offset_fn, parsed_time_zone.as_ref())
                         );
                     ChunkedArray::try_from_chunk_iter(ca_1.name(), chunks)
-                    // let out = ca
-                    //     .into_iter()
-                    //     .zip(offsets.into_iter())
-                    //     .map(|(v, offset)| {
-                    //         let offset = match offset {
-                    //             Some(offset) => Duration::parse(offset),
-                    //             _ => Duration::new(0),
-                    //         };
-                    //         offset_fn(&offset, v.unwrap(), tz_args.as_ref()).unwrap()
-                    //     })
-                    //     .collect::<Vec<_>>();
-                    // Ok(Int64Chunked::from_vec("", out))
-
-                    // let values = lhs
-                    //     .values_iter()
-                    //     .zip(rhs.values_iter())
-                    //     .map(|(l, r)| my_fn(*l, *r))
-                    //     .collect::<Result<Vec<_>>>()?
-                    //     .into();
-
-                    // Ok(PrimitiveArray::<i64>::new(data_type, values, validity))
                 }
             }?;
             // Sortedness may not be preserved when crossing daylight savings time boundaries
