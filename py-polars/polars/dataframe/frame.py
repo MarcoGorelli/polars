@@ -177,8 +177,11 @@ if TYPE_CHECKING:
 
 
 @deprecate_renamed_methods(
-    mapping={"approx_unique": "approx_n_unique"},
-    versions={"approx_unique": "0.18.12"},
+    mapping={
+        "approx_unique": "approx_n_unique",
+        "apply": "map_rows"
+        },
+    versions={"approx_unique": "0.18.12", "apply": "0.19.0"},
 )
 class DataFrame:
     """
