@@ -3,6 +3,8 @@ use polars_arrow::time_zone::Tz;
 use polars_core::utils::arrow::temporal_conversions::SECONDS_IN_DAY;
 #[cfg(feature = "date_offset")]
 use polars_time::prelude::*;
+use polars_core::utils::{align_chunks_binary, combine_validities_and};
+use arrow::array::{Int64Array, Utf8Array};
 
 use super::*;
 
@@ -114,44 +116,23 @@ pub(super) fn datetime(
 }
 
 
-use polars_core::utils::{align_chunks_binary, combine_validities_or, combine_validities_and};
-use polars_core::export::arrow::compute::arity::binary;
-use arrow::types::NativeType;
-use arrow::array::{PrimitiveArray, Int64Array, Utf8Array};
-use arrow::offset::Offset;
 
-pub fn my_binary(
-    lhs: &Int64Array,
-    rhs: &Utf8Array<i64>,
-    data_type: ArrowDataType,
-) -> Int64Array
+fn compute_kernel2(arr_1: &Int64Array, arr_2: &Utf8Array<i64>) -> PolarsResult<Int64Array>
 where
 {
-    // check_same_len(lhs, rhs).unwrap();
+    let validity = combine_validities_and(arr_1.validity(), arr_2.validity());
 
-    let validity = combine_validities_and(lhs.validity(), rhs.validity());
-
-    let values = lhs
+    let values = arr_1
         .values_iter()
-        .zip(rhs.values_iter())
+        .zip(arr_2.values_iter())
         .map(|(l, r)| {
             let offset = Duration::parse(r);
-            Duration::add_us(&offset, *l, None).unwrap()
+            Duration::add_us(&offset, *l, None)
         })
-        .collect::<Vec<_>>()
+        .collect::<PolarsResult<Vec<_>>>()?
         .into();
 
-    Int64Array::new(data_type, values, validity)
-}
-
-fn compute_kernel2(arr_1: &Int64Array, arr_2: &Utf8Array<i64>) -> Int64Array
-where
-{
-    my_binary(
-        arr_1,
-        arr_2,
-        arr_1.data_type().clone(),
-    )
+    Ok(Int64Array::new(arr_1.data_type().clone(), values, validity))
 }
 
 #[cfg(feature = "date_offset")]
@@ -207,8 +188,11 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
                     let chunks = ca_1
                         .downcast_iter()
                         .zip(ca_2.downcast_iter())
-                        .map(|(arr_1, arr_2)| compute_kernel2(arr_1, arr_2));
-                    Ok(ChunkedArray::from_chunk_iter(ca_1.name(), chunks))
+                        .map(|
+                            (arr_1, arr_2)|
+                            compute_kernel2(arr_1, arr_2)
+                        );
+                    ChunkedArray::try_from_chunk_iter(ca_1.name(), chunks)
                     // let out = ca
                     //     .into_iter()
                     //     .zip(offsets.into_iter())
