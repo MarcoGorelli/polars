@@ -12,20 +12,20 @@ where
     F: Fn(T::Native, T::Native) -> T::Native,
 {
     let mut ca = match (lhs.len(), rhs.len()) {
-        (a, b) if a == b => arity::binary_mut(lhs, rhs, |lhs, rhs| kernel(lhs, rhs)),
+        (a, b) if a == b => arity::binary(lhs, rhs, |lhs, rhs| kernel(lhs, rhs)),
         // broadcast right path
         (_, 1) => {
             let opt_rhs = rhs.get(0);
             match opt_rhs {
                 None => ChunkedArray::full_null(lhs.name(), lhs.len()),
-                Some(rhs) => lhs.apply(|lhs| operation(lhs, rhs)),
+                Some(rhs) => lhs.apply_values(|lhs| operation(lhs, rhs)),
             }
         },
         (1, _) => {
             let opt_lhs = lhs.get(0);
             match opt_lhs {
                 None => ChunkedArray::full_null(lhs.name(), rhs.len()),
-                Some(lhs) => rhs.apply(|rhs| operation(lhs, rhs)),
+                Some(lhs) => rhs.apply_values(|rhs| operation(lhs, rhs)),
             }
         },
         _ => panic!("Cannot apply operation on arrays of different lengths"),
@@ -253,7 +253,7 @@ where
 
     fn add(self, rhs: N) -> Self::Output {
         let adder: T::Native = NumCast::from(rhs).unwrap();
-        let mut out = self.apply(|val| val + adder);
+        let mut out = self.apply_values(|val| val + adder);
         out.set_sorted_flag(self.is_sorted_flag());
         out
     }
@@ -268,7 +268,7 @@ where
 
     fn sub(self, rhs: N) -> Self::Output {
         let subber: T::Native = NumCast::from(rhs).unwrap();
-        let mut out = self.apply(|val| val - subber);
+        let mut out = self.apply_values(|val| val - subber);
         out.set_sorted_flag(self.is_sorted_flag());
         out
     }
