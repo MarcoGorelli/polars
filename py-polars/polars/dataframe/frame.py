@@ -5950,7 +5950,7 @@ class DataFrame:
             .collect(no_optimization=True)
         )
 
-    def apply(
+    def map_rows(
         self,
         function: Callable[[tuple[Any, ...]], Any],
         return_dtype: PolarsDataType | None = None,
