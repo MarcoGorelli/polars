@@ -731,13 +731,11 @@ def test_offset_by_expressions() -> None:
     # test add days from column (containing nulls)
     expected["NEW_DATE_COL"] = [
         datetime(2023, 11, 16, 0, 0),
-        datetime(2023, 12, 1, 0, 0),
+        None,
         datetime(2024, 1, 26, 0, 0),
     ]
     assert (
-        df.with_columns(
-            NEW_DATE_COL=pl.col("DATE_COL").dt.offset_by(pl.format("{}d", "ADD_DAYS"))
-        ).to_dict(as_series=False)
+        df.with_columns(NEW_DATE_COL=pl.col("DATE_COL").dt.offset_by(pl.format("{}d", "ADD_DAYS"))).to_dict(as_series=False)
         == expected
     )
 

@@ -137,18 +137,16 @@ where
 
 #[cfg(feature = "date_offset")]
 pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
-    let sa = &s[0];
-    let sb = &s[1];
-
     let ts = &s[0];
     let offsets = &s[1].utf8().unwrap();
 
     let preserve_sortedness: bool;
-    let out = match sa.dtype().clone() {
+    let out = match ts.dtype().clone() {
         DataType::Date => {
-            const MSECS_IN_DAY: i64 = MILLISECONDS * SECONDS_IN_DAY;
             let ts = ts.cast(&DataType::Datetime(TimeUnit::Milliseconds, None)).unwrap();
+            println!("ts: {:?}", ts);
             let date = ts.datetime().unwrap();
+            println!("date: {:?}", date.0);
             let out = match offsets.len() {
                 1 => {
                     let offset = match offsets.get(0) {
@@ -156,9 +154,7 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
                         _ => Duration::new(0),
                     };
                     date.0.try_apply(|v| {
-                        Ok(
-                            Duration::add_ms(&offset, MSECS_IN_DAY * v, None)?,
-                        )
+                        Duration::add_ms(&offset, v, None)
                     })
                 }
                 _ => {
@@ -174,12 +170,10 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
                 }
             }?;
             preserve_sortedness = offsets.len() == 1;
-            out.cast(&DataType::Date)
-
+            out.cast(&DataType::Datetime(TimeUnit::Milliseconds, None)).unwrap().cast(&DataType::Date)
         }
         DataType::Datetime(tu, tz) => {
-            let ca = sa.datetime().unwrap();
-            let offsets = sb.utf8().unwrap();
+            let ca = ts.datetime().unwrap();
 
             let offset_fn = match tu {
                 TimeUnit::Nanoseconds => Duration::add_ns,
@@ -234,7 +228,7 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
     };
     if preserve_sortedness {
         out.map(|mut out| {
-            out.set_sorted_flag(sa.is_sorted_flag());
+            out.set_sorted_flag(ts.is_sorted_flag());
             out
         })
     } else {
