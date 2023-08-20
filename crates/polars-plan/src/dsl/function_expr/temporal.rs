@@ -1,10 +1,8 @@
 #[cfg(feature = "date_offset")]
-use arrow::array::{Int64Array, Utf8Array};
-#[cfg(feature = "date_offset")]
 use polars_arrow::time_zone::Tz;
-use polars_core::utils::arrow::temporal_conversions::SECONDS_IN_DAY;
 #[cfg(feature = "date_offset")]
-use polars_core::utils::{align_chunks_binary, combine_validities_and};
+use polars_core::chunked_array::ops::arity::try_binary_elementwise_values;
+use polars_core::utils::arrow::temporal_conversions::SECONDS_IN_DAY;
 #[cfg(feature = "date_offset")]
 use polars_time::prelude::*;
 
@@ -118,30 +116,6 @@ pub(super) fn datetime(
 }
 
 #[cfg(feature = "date_offset")]
-fn compute_kernel2(
-    arr_1: &Int64Array,
-    arr_2: &Utf8Array<i64>,
-    offset_fn: fn(&Duration, i64, Option<&Tz>) -> PolarsResult<i64>,
-    time_zone: Option<&Tz>,
-) -> PolarsResult<Int64Array>
-where
-{
-    let validity = combine_validities_and(arr_1.validity(), arr_2.validity());
-
-    let values = arr_1
-        .values_iter()
-        .zip(arr_2.values_iter())
-        .map(|(l, r)| {
-            let offset = Duration::parse(r);
-            offset_fn(&offset, *l, time_zone)
-        })
-        .collect::<PolarsResult<Vec<_>>>()?
-        .into();
-
-    Ok(Int64Array::new(arr_1.data_type().clone(), values, validity))
-}
-
-#[cfg(feature = "date_offset")]
 fn apply_offsets_to_datetime(
     datetime: &Logical<DatetimeType, Int64Type>,
     offsets: &Utf8Chunked,
@@ -156,14 +130,10 @@ fn apply_offsets_to_datetime(
             };
             datetime.0.try_apply(|v| offset_fn(&offset, v, time_zone))
         },
-        _ => {
-            let (ca_1, ca_2) = align_chunks_binary(datetime, offsets);
-            let chunks = ca_1
-                .downcast_iter()
-                .zip(ca_2.downcast_iter())
-                .map(|(arr_1, arr_2)| compute_kernel2(arr_1, arr_2, offset_fn, time_zone));
-            ChunkedArray::try_from_chunk_iter(ca_1.name(), chunks)
-        },
+        _ => try_binary_elementwise_values(datetime, offsets, |lhs: i64, rhs: &str| {
+            let offset = Duration::parse(rhs);
+            offset_fn(&offset, lhs, time_zone)
+        }),
     }
 }
 
