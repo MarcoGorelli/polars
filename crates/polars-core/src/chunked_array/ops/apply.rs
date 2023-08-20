@@ -20,12 +20,6 @@ pub(super) fn collect_array<T: NativeType, I: TrustedLen<Item = T>>(
     PrimitiveArray::from_trusted_len_values_iter(iter).with_validity(validity)
 }
 
-pub(super) fn try_collect_array<T: NativeType, I: TrustedLen<Item = PolarsResult<T>>>(
-    iter: I,
-    validity: Option<Bitmap>,
-) -> PolarsResult<PrimitiveArray<T>> {
-    PrimitiveArray::from_trusted_len_values_iter(iter).with_validity(validity)
-}
 
 macro_rules! try_apply {
     ($self:expr, $f:expr) => {{
