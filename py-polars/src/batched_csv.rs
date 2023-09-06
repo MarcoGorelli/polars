@@ -30,7 +30,7 @@ impl PyBatchedCsv {
         infer_schema_length, chunk_size, has_header, ignore_errors, n_rows, skip_rows,
         projection, separator, rechunk, columns, encoding, n_threads, path, overwrite_dtype,
         overwrite_dtype_slice, low_memory, comment_char, quote_char, null_values,
-        missing_utf8_is_empty_string, try_parse_dates, skip_rows_after_header, row_count,
+        missing_utf8_is_empty_string, try_parse_dates, date_format, skip_rows_after_header, row_count,
         sample_size, eol_char, raise_if_empty, truncate_ragged_lines)
     )]
     fn new(
@@ -55,6 +55,7 @@ impl PyBatchedCsv {
         null_values: Option<Wrap<NullValues>>,
         missing_utf8_is_empty_string: bool,
         try_parse_dates: bool,
+        date_format: Option<String>,
         skip_rows_after_header: usize,
         row_count: Option<(String, IdxSize)>,
         sample_size: usize,

@@ -213,6 +213,7 @@ impl<'a> CoreReader<'a> {
         skip_rows_after_header: usize,
         row_count: Option<RowCount>,
         try_parse_dates: bool,
+        date_format: Option<String>,
         raise_if_empty: bool,
         truncate_ragged_lines: bool,
     ) -> PolarsResult<CoreReader<'a>> {
@@ -257,6 +258,7 @@ impl<'a> CoreReader<'a> {
                         eol_char,
                         null_values.as_ref(),
                         try_parse_dates,
+                        date_format,
                         raise_if_empty,
                     )?;
                     Arc::new(inferred_schema)

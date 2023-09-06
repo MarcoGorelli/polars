@@ -33,6 +33,7 @@ pub struct LazyCsvReader<'a> {
     encoding: CsvEncoding,
     row_count: Option<RowCount>,
     try_parse_dates: bool,
+    date_format: Option<String>,
     raise_if_empty: bool,
 }
 
@@ -61,6 +62,7 @@ impl<'a> LazyCsvReader<'a> {
             encoding: CsvEncoding::Utf8,
             row_count: None,
             try_parse_dates: false,
+            date_format: None,
             raise_if_empty: true,
             truncate_ragged_lines: false,
         }
@@ -203,6 +205,14 @@ impl<'a> LazyCsvReader<'a> {
         self
     }
 
+    /// Format to use parsing dates/datetimes.
+    /// If parsing fails, columns remain of dtype `[DataType::Utf8]`.
+    #[cfg(feature = "temporal")]
+    pub fn with_date_format(mut self, date_format: Option<String>) -> Self {
+        self.date_format = date_format;
+        self
+    }
+
     /// Raise an error if CSV is empty (otherwise return an empty frame)
     #[must_use]
     pub fn raise_if_empty(mut self, toggle: bool) -> Self {
@@ -250,6 +260,7 @@ impl<'a> LazyCsvReader<'a> {
             self.eol_char,
             None,
             self.try_parse_dates,
+            self.date_format.clone(),
             self.raise_if_empty,
         )?;
         let mut schema = f(schema)?;
@@ -288,6 +299,7 @@ impl LazyFileListReader for LazyCsvReader<'_> {
             self.encoding,
             self.row_count,
             self.try_parse_dates,
+            self.date_format,
             self.raise_if_empty,
             self.truncate_ragged_lines,
         )?

@@ -393,6 +393,7 @@ impl ParsedBuffer for BooleanChunkedBuilder {
 #[cfg(any(feature = "dtype-datetime", feature = "dtype-date"))]
 pub(crate) struct DatetimeField<T: PolarsNumericType> {
     compiled: Option<DatetimeInfer<T>>,
+    date_format: Option<String>,
     builder: PrimitiveChunkedBuilder<T>,
 }
 
@@ -402,6 +403,7 @@ impl<T: PolarsNumericType> DatetimeField<T> {
         let builder = PrimitiveChunkedBuilder::<T>::new(name, capacity);
         Self {
             compiled: None,
+            date_format: None,
             builder,
         }
     }

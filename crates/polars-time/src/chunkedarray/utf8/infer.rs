@@ -354,6 +354,58 @@ impl TryFromWithUnit<Pattern> for DatetimeInfer<Int32Type> {
     }
 }
 
+pub trait FromDateFormat<T>: Sized {
+    type Error;
+    fn from_date_format(pattern: T, unit: Option<TimeUnit>) -> PolarsResult<Self>;
+}
+
+#[cfg(feature = "dtype-datetime")]
+impl FromDateFormat<Pattern> for DatetimeInfer<Int64Type> {
+    type Error = PolarsError;
+
+    fn from_date_format(value: Pattern, time_unit: Option<TimeUnit>) -> Self {
+        let time_unit = time_unit.expect("time_unit must be provided for datetime");
+        DatetimeInfer {
+            pattern: Pattern::DatetimeDMY,  // placeholder, unused
+            patterns: vec![value],
+            latest_fmt: value,
+            transform: transform_datetime_us,
+            transform_bytes: StrpTimeState::default(),
+            fmt_len: 0,
+            logical_type: DataType::Datetime(TimeUnit::Microseconds, None),
+        }
+    }
+}
+
+#[cfg(feature = "dtype-date")]
+impl TryFromWithUnit<Pattern> for DatetimeInfer<Int32Type> {
+    type Error = PolarsError;
+
+    fn try_from_with_unit(value: Pattern, _time_unit: Option<TimeUnit>) -> PolarsResult<Self> {
+        match value {
+            Pattern::DateDMY => Ok(DatetimeInfer {
+                pattern: Pattern::DateDMY,
+                patterns: patterns::DATE_D_M_Y,
+                latest_fmt: patterns::DATE_D_M_Y[0],
+                transform: transform_date,
+                transform_bytes: StrpTimeState::default(),
+                fmt_len: 0,
+                logical_type: DataType::Date,
+            }),
+            Pattern::DateYMD => Ok(DatetimeInfer {
+                pattern: Pattern::DateYMD,
+                patterns: patterns::DATE_Y_M_D,
+                latest_fmt: patterns::DATE_Y_M_D[0],
+                transform: transform_date,
+                transform_bytes: StrpTimeState::default(),
+                fmt_len: 0,
+                logical_type: DataType::Date,
+            }),
+            _ => polars_bail!(ComputeError: "could not convert pattern"),
+        }
+    }
+}
+
 impl<T: PolarsNumericType> DatetimeInfer<T> {
     pub fn parse(&mut self, val: &str) -> Option<T::Native> {
         match (self.transform)(val, self.latest_fmt) {

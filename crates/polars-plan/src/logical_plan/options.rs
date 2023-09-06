@@ -36,6 +36,7 @@ pub struct CsvParserOptions {
     pub null_values: Option<NullValues>,
     pub encoding: CsvEncoding,
     pub try_parse_dates: bool,
+    pub date_format: Option<String>,
     pub raise_if_empty: bool,
     pub truncate_ragged_lines: bool,
 }

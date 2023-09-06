@@ -251,6 +251,7 @@ impl LogicalPlanBuilder {
         encoding: CsvEncoding,
         row_count: Option<RowCount>,
         try_parse_dates: bool,
+        date_format: Option<String>,
         raise_if_empty: bool,
         truncate_ragged_lines: bool,
     ) -> PolarsResult<Self> {
@@ -292,6 +293,7 @@ impl LogicalPlanBuilder {
             eol_char,
             null_values.as_ref(),
             try_parse_dates,
+            date_format.clone(),
             raise_if_empty,
         )?;
 
@@ -346,6 +348,7 @@ impl LogicalPlanBuilder {
                     null_values,
                     encoding,
                     try_parse_dates,
+                    date_format:date_format.clone(),
                     raise_if_empty,
                     truncate_ragged_lines,
                 },

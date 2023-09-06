@@ -191,6 +191,7 @@ pub fn infer_file_schema_inner(
     eol_char: u8,
     null_values: Option<&NullValues>,
     try_parse_dates: bool,
+    date_format: Option<String>,
     recursion_count: u8,
     raise_if_empty: bool,
 ) -> PolarsResult<(Schema, usize, usize)> {
@@ -303,6 +304,7 @@ pub fn infer_file_schema_inner(
             eol_char,
             null_values,
             try_parse_dates,
+            date_format,
             recursion_count + 1,
             raise_if_empty,
         );
@@ -489,6 +491,7 @@ pub fn infer_file_schema_inner(
             eol_char,
             null_values,
             try_parse_dates,
+            date_format,
             recursion_count + 1,
             raise_if_empty,
         );
@@ -522,6 +525,7 @@ pub fn infer_file_schema(
     eol_char: u8,
     null_values: Option<&NullValues>,
     try_parse_dates: bool,
+    date_format: Option<String>,
     raise_if_empty: bool,
 ) -> PolarsResult<(Schema, usize, usize)> {
     infer_file_schema_inner(
@@ -537,6 +541,7 @@ pub fn infer_file_schema(
         eol_char,
         null_values,
         try_parse_dates,
+        date_format,
         0,
         raise_if_empty,
     )

@@ -138,7 +138,7 @@ impl PyDataFrame {
         py_f, infer_schema_length, chunk_size, has_header, ignore_errors, n_rows,
         skip_rows, projection, separator, rechunk, columns, encoding, n_threads, path,
         overwrite_dtype, overwrite_dtype_slice, low_memory, comment_char, quote_char,
-        null_values, missing_utf8_is_empty_string, try_parse_dates, skip_rows_after_header,
+        null_values, missing_utf8_is_empty_string, try_parse_dates, date_format, skip_rows_after_header,
         row_count, sample_size, eol_char, raise_if_empty, truncate_ragged_lines, schema)
     )]
     pub fn read_csv(
@@ -164,6 +164,7 @@ impl PyDataFrame {
         null_values: Option<Wrap<NullValues>>,
         missing_utf8_is_empty_string: bool,
         try_parse_dates: bool,
+        date_format: Option<String>,
         skip_rows_after_header: usize,
         row_count: Option<(String, IdxSize)>,
         sample_size: usize,
@@ -218,6 +219,7 @@ impl PyDataFrame {
             .with_missing_is_null(!missing_utf8_is_empty_string)
             .with_comment_char(comment_char)
             .with_try_parse_dates(try_parse_dates)
+            .with_date_format(date_format)
             .with_quote_char(quote_char)
             .with_end_of_line_char(eol_char)
             .with_skip_rows_after_header(skip_rows_after_header)

@@ -124,6 +124,7 @@ where
     quote_char: Option<u8>,
     skip_rows_after_header: usize,
     try_parse_dates: bool,
+    date_format: Option<String>,
     row_count: Option<RowCount>,
     /// Aggregates chunk afterwards to a single chunk.
     rechunk: bool,
@@ -321,6 +322,14 @@ where
         self
     }
 
+    /// Format to use parsing dates/datetimes.
+    /// If parsing fails, columns remain of dtype `[DataType::Utf8]`.
+    #[cfg(feature = "temporal")]
+    pub fn with_date_format(mut self, date_format: Option<String>) -> Self {
+        self.date_format = date_format;
+        self
+    }
+
     pub fn with_predicate(mut self, predicate: Option<Arc<dyn PhysicalIoExpr>>) -> Self {
         self.predicate = predicate;
         self
@@ -380,6 +389,7 @@ impl<'a, R: MmapBytesReader + 'a> CsvReader<'a, R> {
             self.skip_rows_after_header,
             std::mem::take(&mut self.row_count),
             self.try_parse_dates,
+            self.date_format.clone(),
             self.raise_if_empty,
             self.truncate_ragged_lines,
         )
@@ -492,6 +502,7 @@ impl<'a> CsvReader<'a, Box<dyn MmapBytesReader>> {
                     self.eol_char,
                     self.null_values.as_ref(),
                     self.try_parse_dates,
+                    self.date_format.clone(),
                     self.raise_if_empty,
                 )?;
                 let schema = Arc::new(inferred_schema);
@@ -521,6 +532,7 @@ impl<'a> CsvReader<'a, Box<dyn MmapBytesReader>> {
                     self.eol_char,
                     self.null_values.as_ref(),
                     self.try_parse_dates,
+                    self.date_format.clone(),
                     self.raise_if_empty,
                 )?;
                 let schema = Arc::new(inferred_schema);
@@ -564,6 +576,7 @@ where
             quote_char: Some(b'"'),
             skip_rows_after_header: 0,
             try_parse_dates: false,
+            date_format: None,
             row_count: None,
             raise_if_empty: true,
             truncate_ragged_lines: false,
