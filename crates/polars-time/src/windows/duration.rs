@@ -30,8 +30,10 @@ pub struct Duration {
     months: i64,
     // the number of weeks for the duration
     weeks: i64,
-    // the number of nanoseconds for the duration
+    // the number of days for the duration
     days: i64,
+    // the number of business days for the duration
+    business_days: i64,
     // the number of nanoseconds for the duration
     nsecs: i64,
     // indicates if the duration is negative
@@ -62,6 +64,7 @@ impl Duration {
             months: 0,
             weeks: 0,
             days: 0,
+            business_days: 0,
             nsecs: fixed_slots.abs(),
             negative: fixed_slots < 0,
             parsed_int: true,
@@ -119,6 +122,7 @@ impl Duration {
         let mut nsecs = 0;
         let mut weeks = 0;
         let mut days = 0;
+        let mut business_days = 0;
         let mut months = 0;
         let negative = duration.starts_with('-');
         let (saturating, mut iter) = match duration.ends_with("_saturating") {
@@ -173,6 +177,7 @@ impl Duration {
                     "m" => nsecs += n * NS_MINUTE,
                     "h" => nsecs += n * NS_HOUR,
                     "d" => days += n,
+                    "bd" => business_days += n,
                     "w" => weeks += n,
                     "mo" => {
                         months += n
@@ -192,6 +197,7 @@ impl Duration {
         Duration {
             nsecs: nsecs.abs(),
             days: days.abs(),
+            business_days: business_days.abs(),
             weeks: weeks.abs(),
             months: months.abs(),
             negative,
@@ -260,6 +266,7 @@ impl Duration {
             months: 0,
             weeks: 0,
             days: 0,
+            business_days: 0,
             nsecs,
             negative,
             parsed_int: false,
@@ -274,6 +281,7 @@ impl Duration {
             months,
             weeks: 0,
             days: 0,
+            business_days: 0,
             nsecs: 0,
             negative,
             parsed_int: false,
@@ -288,6 +296,7 @@ impl Duration {
             months: 0,
             weeks,
             days: 0,
+            business_days: 0,
             nsecs: 0,
             negative,
             parsed_int: false,
@@ -302,6 +311,7 @@ impl Duration {
             months: 0,
             weeks: 0,
             days,
+            business_days: 0,
             nsecs: 0,
             negative,
             parsed_int: false,
@@ -311,11 +321,11 @@ impl Duration {
 
     /// `true` if zero duration.
     pub fn is_zero(&self) -> bool {
-        self.months == 0 && self.weeks == 0 && self.days == 0 && self.nsecs == 0
+        self.months == 0 && self.weeks == 0 && self.days == 0 && self.business_days == 0 && self.nsecs == 0
     }
 
     pub fn months_only(&self) -> bool {
-        self.months != 0 && self.weeks == 0 && self.days == 0 && self.nsecs == 0
+        self.months != 0 && self.weeks == 0 && self.days == 0 && self.business_days == 0 && self.nsecs == 0
     }
 
     pub fn months(&self) -> i64 {
@@ -323,7 +333,7 @@ impl Duration {
     }
 
     pub fn weeks_only(&self) -> bool {
-        self.months == 0 && self.weeks != 0 && self.days == 0 && self.nsecs == 0
+        self.months == 0 && self.weeks != 0 && self.days == 0 && self.business_days == 0 && self.nsecs == 0
     }
 
     pub fn weeks(&self) -> i64 {
@@ -331,7 +341,7 @@ impl Duration {
     }
 
     pub fn days_only(&self) -> bool {
-        self.months == 0 && self.weeks == 0 && self.days != 0 && self.nsecs == 0
+        self.months == 0 && self.weeks == 0 && self.days != 0 && self.business_days == 0 && self.nsecs == 0
     }
 
     pub fn days(&self) -> i64 {
@@ -347,7 +357,7 @@ impl Duration {
     }
 
     pub fn is_constant_duration(&self) -> bool {
-        self.months == 0 && self.weeks == 0 && self.days == 0
+        self.months == 0 && self.weeks == 0 && self.days == 0 && self.business_days == 0
     }
 
     /// Returns the nanoseconds from the `Duration` without the weeks or months part.
@@ -361,19 +371,20 @@ impl Duration {
         self.months * 28 * 24 * 3600 * NANOSECONDS
             + self.weeks * NS_WEEK
             + self.days * NS_DAY
+            + self.business_days * NS_DAY * 5/7
             + self.nsecs
     }
 
     #[doc(hidden)]
     pub const fn duration_us(&self) -> i64 {
         self.months * 28 * 24 * 3600 * MICROSECONDS
-            + (self.weeks * NS_WEEK + self.nsecs + self.days * NS_DAY) / 1000
+            + (self.weeks * NS_WEEK + self.nsecs + self.days * NS_DAY + self.business_days*NS_DAY*5/7) / 1000
     }
 
     #[doc(hidden)]
     pub const fn duration_ms(&self) -> i64 {
         self.months * 28 * 24 * 3600 * MILLISECONDS
-            + (self.weeks * NS_WEEK + self.nsecs + self.days * NS_DAY) / 1_000_000
+            + (self.weeks * NS_WEEK + self.nsecs + self.days * NS_DAY + self.business_days*NS_DAY*5/7) / 1_000_000
     }
 
     #[doc(hidden)]
@@ -649,6 +660,35 @@ impl Duration {
 
         if d.days > 0 {
             let t_days = nsecs_to_unit(self.days * NS_DAY);
+            match tz {
+                #[cfg(feature = "timezones")]
+                Some(tz) => {
+                    new_t =
+                        datetime_to_timestamp(unlocalize_datetime(timestamp_to_datetime(t), tz));
+                    new_t += if d.negative { -t_days } else { t_days };
+                    new_t = datetime_to_timestamp(localize_datetime(
+                        timestamp_to_datetime(new_t),
+                        tz,
+                        "raise",
+                    )?);
+                },
+                _ => new_t += if d.negative { -t_days } else { t_days },
+            };
+        }
+
+        if d.business_days > 0 {
+            let dt = timestamp_to_datetime(t);
+            let weekday = dt.weekday() as i64;
+            let mut n_days;
+            if weekday == 6 {
+                n_days = d.business_days + (d.business_days + weekday-1) / 5 * 2;
+            } else {
+                n_days = d.business_days + (d.business_days + weekday) / 5 * 2;
+            }
+            if weekday == 6 {
+                n_days = n_days - 1;
+            };
+            let t_days = nsecs_to_unit(n_days * NS_DAY);
             match tz {
                 #[cfg(feature = "timezones")]
                 Some(tz) => {
