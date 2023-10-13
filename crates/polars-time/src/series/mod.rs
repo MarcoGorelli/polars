@@ -88,7 +88,23 @@ pub trait TemporalMethods: AsSeries {
             #[cfg(feature = "dtype-date")]
             DataType::Date => s.date().map(|ca| ca.weekday()),
             #[cfg(feature = "dtype-datetime")]
-            DataType::Datetime(_, _) => s.datetime().map(|ca| ca.weekday()),
+            #[cfg(feature = "timezones")]
+            DataType::Datetime(_, Some(_)) => polars_ops::prelude::replace_time_zone(
+                s.datetime().unwrap(),
+                None,
+                &Utf8Chunked::from_iter(std::iter::once("raise")),
+            )
+            .unwrap()
+            .cast(&DataType::Date)
+            .unwrap()
+            .date()
+            .map(|ca| ca.weekday()),
+            #[cfg(feature = "dtype-datetime")]
+            DataType::Datetime(_, None) => s
+                .cast(&DataType::Date)
+                .unwrap()
+                .date()
+                .map(|ca| ca.weekday()),
             dt => polars_bail!(opq = weekday, dt),
         }
     }

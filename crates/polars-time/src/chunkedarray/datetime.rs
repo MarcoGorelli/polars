@@ -73,12 +73,6 @@ pub trait DatetimeMethods: AsDatetime {
         cast_and_apply(self.as_datetime(), temporal::month)
     }
 
-    /// Extract ISO weekday from underlying NaiveDateTime representation.
-    /// Returns the weekday number where monday = 1 and sunday = 7
-    fn weekday(&self) -> UInt32Chunked {
-        cast_and_apply(self.as_datetime(), temporal::weekday)
-    }
-
     /// Returns the ISO week number starting from 1.
     /// The return value ranges from 1 to 53. (The last week of year differs by years.)
     fn week(&self) -> UInt32Chunked {

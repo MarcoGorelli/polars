@@ -26,17 +26,6 @@ use crate::datatypes::*;
 use crate::temporal_conversions::*;
 use crate::types::NativeType;
 
-// Create and implement a trait that converts chrono's `Weekday`
-// type into `u32`
-trait U32Weekday: Datelike {
-    fn u32_weekday(&self) -> u32 {
-        self.weekday().number_from_monday()
-    }
-}
-
-impl U32Weekday for chrono::NaiveDateTime {}
-impl<T: chrono::TimeZone> U32Weekday for chrono::DateTime<T> {}
-
 // Create and implement a trait that converts chrono's `IsoWeek`
 // type into `u32`
 trait U32IsoWeek: Datelike {
@@ -88,13 +77,6 @@ pub fn month(array: &dyn Array) -> PolarsResult<PrimitiveArray<u32>> {
 /// Use [`can_day`] to check if this operation is supported for the target [`DataType`].
 pub fn day(array: &dyn Array) -> PolarsResult<PrimitiveArray<u32>> {
     date_like!(day, array, DataType::UInt32)
-}
-
-/// Extracts weekday of a temporal array as [`PrimitiveArray<u32>`].
-/// Monday is 1, Tuesday is 2, ..., Sunday is 7.
-/// Use [`can_weekday`] to check if this operation is supported for the target [`DataType`]
-pub fn weekday(array: &dyn Array) -> PolarsResult<PrimitiveArray<u32>> {
-    date_like!(u32_weekday, array, DataType::UInt32)
 }
 
 /// Extracts ISO week of a temporal array as [`PrimitiveArray<u32>`]

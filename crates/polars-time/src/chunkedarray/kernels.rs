@@ -103,14 +103,13 @@ to_temporal_unit!(
     ArrowDataType::Int32
 );
 #[cfg(feature = "dtype-date")]
-to_temporal_unit!(
-    date_to_iso_weekday,
-    p_weekday,
-    date32_to_datetime_opt,
-    i32,
-    u32,
-    ArrowDataType::UInt32
-);
+pub(crate) fn date_to_iso_weekday(arr: &PrimitiveArray<i32>) -> ArrayRef {
+    Box::new(unary(
+        arr,
+        |value| (((value - 4) % 7 + 7) % 7 + 1) as u32,
+        ArrowDataType::UInt32,
+    )) as ArrayRef
+}
 #[cfg(feature = "dtype-date")]
 to_temporal_unit!(
     date_to_year,
