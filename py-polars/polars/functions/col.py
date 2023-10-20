@@ -80,6 +80,10 @@ class Column(Protocol):
 # handle attribute lookup on the metaclass (we use the factory uninstantiated)
 class ColumnFactoryMeta(type):
     def __getattr__(self, name: str) -> Expr:
+        if name == '__wrapped__':
+            # Please keep this to ensure that IPython autocomplete works for
+            # accessors (e.g. pl.col('a').list.<tab>)
+            raise AttributeError("`__wrapped__` is not a valid column name")
         return _create_col(name)
 
 
