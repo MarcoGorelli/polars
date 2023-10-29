@@ -19,11 +19,10 @@ print(df)
 
 # --8<-- [start:castnum]
 out = df.select(
-    pl.col("integers").cast(pl.Float32).alias("integers_as_floats"),
-    pl.col("floats").cast(pl.Int32).alias("floats_as_integers"),
-    pl.col("floats_with_decimal")
-    .cast(pl.Int32)
-    .alias("floats_with_decimal_as_integers"),
+    integers_as_floats=pl.col("integers").cast(pl.Float32),
+    floats_as_integers=pl.col("floats").cast(pl.Int32),
+    floats_with_decimal_as_integers=pl.col("floats_with_decimal")
+    .cast(pl.Int32),
 )
 print(out)
 # --8<-- [end:castnum]
@@ -31,8 +30,8 @@ print(out)
 
 # --8<-- [start:downcast]
 out = df.select(
-    pl.col("integers").cast(pl.Int16).alias("integers_smallfootprint"),
-    pl.col("floats").cast(pl.Float32).alias("floats_smallfootprint"),
+    integers_smallfootprint=pl.col("integers").cast(pl.Int16),
+    floats_smallfootprint=pl.col("floats").cast(pl.Float32),
 )
 print(out)
 # --8<-- [end:downcast]

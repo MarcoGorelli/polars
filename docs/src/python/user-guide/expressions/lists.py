@@ -33,9 +33,9 @@ print(out)
 
 # --8<-- [start:list_ops]
 out = weather.with_columns(pl.col("temperatures").str.split(" ")).with_columns(
-    pl.col("temperatures").list.head(3).alias("top3"),
-    pl.col("temperatures").list.slice(-3, 3).alias("bottom_3"),
-    pl.col("temperatures").list.len().alias("obs"),
+    top3=pl.col("temperatures").list.head(3),
+    bottom_3=pl.col("temperatures").list.slice(-3, 3),
+    obs=pl.col("temperatures").list.len(),
 )
 print(out)
 # --8<-- [end:list_ops]
@@ -43,22 +43,20 @@ print(out)
 
 # --8<-- [start:count_errors]
 out = weather.with_columns(
-    pl.col("temperatures")
+    errors=pl.col("temperatures")
     .str.split(" ")
     .list.eval(pl.element().cast(pl.Int64, strict=False).is_null())
     .list.sum()
-    .alias("errors")
 )
 print(out)
 # --8<-- [end:count_errors]
 
 # --8<-- [start:count_errors_regex]
 out = weather.with_columns(
-    pl.col("temperatures")
+    errors=pl.col("temperatures")
     .str.split(" ")
     .list.eval(pl.element().str.contains("(?i)[a-z]"))
     .list.sum()
-    .alias("errors")
 )
 print(out)
 # --8<-- [end:count_errors_regex]
@@ -80,12 +78,12 @@ rank_pct = (pl.element().rank(descending=True) / pl.col("*").count()).round(2)
 
 out = weather_by_day.with_columns(
     # create the list of homogeneous data
-    pl.concat_list(pl.all().exclude("station")).alias("all_temps")
+    all_temps=pl.concat_list(pl.all().exclude("station"))
 ).select(
     # select all columns except the intermediate list
     pl.all().exclude("all_temps"),
     # compute the rank by calling `list.eval`
-    pl.col("all_temps").list.eval(rank_pct, parallel=True).alias("temps_rank"),
+    temps_rank=pl.col("all_temps").list.eval(rank_pct, parallel=True),
 )
 
 print(out)
