@@ -74,7 +74,7 @@ def test_apply() -> None:
     )
     expected = ldf.clone().with_columns((pl.col("a") * 2).alias("foo"))
     assert_frame_equal(new, expected)
-    assert_frame_equal(new.collect(), expected.collect())
+    assert_frame_equal(new, expected)
 
     with pytest.warns(
         PolarsInefficientMapWarning, match="In this case, you can replace"
@@ -87,7 +87,7 @@ def test_apply() -> None:
                 .alias("foo")
             )
             expected = ldf.clone().with_columns((pl.col("a") * 2).alias("foo"))
-            assert_frame_equal(new.collect(), expected.collect())
+            assert_frame_equal(new, expected)
 
 
 def test_add_eager_column() -> None:
@@ -161,6 +161,7 @@ def test_filter_str() -> None:
     assert_frame_equal(result, expected)
 
     # last row based on a filter
+    ldf._collected_context.was_collected = False
     result = ldf.filter("bools").select(pl.last("*")).collect()
     assert_frame_equal(result, expected)
 
@@ -181,15 +182,18 @@ def test_filter_multiple_predicates() -> None:
         ldf.filter(pl.col("a") == 1, pl.col("b") <= 2),  # positional/splat
         ldf.filter([pl.col("a") == 1, pl.col("b") <= 2]),  # as list
     ):
+        out._collected_context.was_collected = False
         assert_frame_equal(out.collect(), expected)
 
     # multiple kwargs
+    ldf._collected_context.was_collected = False
     assert_frame_equal(
         ldf.filter(a=1, b=2).collect(),
         pl.DataFrame({"a": [1], "b": [2], "c": [2]}),
     )
 
     # both positional and keyword args
+    ldf._collected_context.was_collected = False
     assert_frame_equal(
         ldf.filter(pl.col("c") < 4, a=2, b=2).collect(),
         pl.DataFrame({"a": [2], "b": [2], "c": [3]}),
@@ -197,6 +201,7 @@ def test_filter_multiple_predicates() -> None:
 
     # check 'predicate' keyword deprecation:
     # note: can disambiguate new/old usage - only expect warning on old-style usage
+    ldf._collected_context.was_collected = False
     with pytest.warns(
         DeprecationWarning,
         match="`filter` no longer takes a 'predicate' parameter",

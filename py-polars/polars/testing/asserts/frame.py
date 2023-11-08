@@ -106,6 +106,12 @@ def assert_frame_equal(
     lazy = _assert_correct_input_type(left, right)
     objects = "LazyFrames" if lazy else "DataFrames"
 
+    if lazy:
+        left._collected_context.was_collected = False
+        left = left.collect()
+        right._collected_context.was_collected = False
+        right = right.collect()
+
     _assert_frame_schema_equal(
         left,
         right,
@@ -114,8 +120,6 @@ def assert_frame_equal(
         objects=objects,
     )
 
-    if lazy:
-        left, right = left.collect(), right.collect()  # type: ignore[union-attr]
     left, right = cast(DataFrame, left), cast(DataFrame, right)
 
     if left.height != right.height:
