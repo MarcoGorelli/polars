@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from polars.utils.various import CollectedContext
 from typing import TYPE_CHECKING, Callable, Iterable
 
 from polars import functions as F
@@ -143,7 +144,7 @@ class LazyGroupBy:
             )
 
         pyexprs = parse_as_list_of_expressions(*aggs, **named_aggs)
-        return wrap_ldf(self.lgb.agg(pyexprs))
+        return wrap_ldf(self.lgb.agg(pyexprs), collected_context=CollectedContext())
 
     def map_groups(
         self,

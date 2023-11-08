@@ -1,4 +1,5 @@
 from __future__ import annotations
+from polars.utils.various import CollectedContext
 
 import contextlib
 from functools import reduce
@@ -205,7 +206,8 @@ def concat(
                     rechunk=rechunk,
                     parallel=parallel,
                     to_supertypes=how.endswith("relaxed"),
-                )
+                ),
+                collected_context=CollectedContext(),
             )
         elif how in ("diagonal", "diagonal_relaxed"):
             return wrap_ldf(

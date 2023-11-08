@@ -9,6 +9,7 @@ from collections.abc import MappingView, Sized
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generator, Iterable, Literal, Sequence, TypeVar
+from dataclasses import dataclass
 
 import polars as pl
 from polars import functions as F
@@ -47,6 +48,9 @@ if sys.version_info >= (3, 11):
     _views: list[Reversible[Any]] = [{}.keys(), {}.values(), {}.items()]
     _reverse_mapping_views = tuple(type(reversed(view)) for view in _views)
 
+@dataclass
+class CollectedContext:
+    was_collected: bool = False
 
 def _process_null_values(
     null_values: None | str | Sequence[str] | dict[str, str] = None,

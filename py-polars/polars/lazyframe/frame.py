@@ -125,6 +125,7 @@ if TYPE_CHECKING:
     T = TypeVar("T")
     P = ParamSpec("P")
 
+from polars.utils.various import CollectedContext
 
 class LazyFrame:
     """
@@ -290,6 +291,8 @@ class LazyFrame:
     ):
         from polars.dataframe import DataFrame
 
+        self._collected_context = CollectedContext()
+
         self._ldf = (
             DataFrame(
                 data=data,
@@ -304,9 +307,10 @@ class LazyFrame:
         )
 
     @classmethod
-    def _from_pyldf(cls, ldf: PyLazyFrame) -> Self:
+    def _from_pyldf(cls, ldf: PyLazyFrame, collected_context: CollectedContext) -> Self:
         self = cls.__new__(cls)
         self._ldf = ldf
+        self._collected_context = collected_context
         return self
 
     def __getstate__(self) -> bytes:
@@ -670,7 +674,7 @@ class LazyFrame:
         elif isinstance(source, (str, Path)):
             source = normalize_filepath(source)
 
-        return cls._from_pyldf(PyLazyFrame.deserialize(source))
+        return cls._from_pyldf(PyLazyFrame.deserialize(source), collected_context=CollectedContext())
 
     @property
     def columns(self) -> list[str]:
@@ -1325,7 +1329,8 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         # Fast path for sorting by a single existing column
         if isinstance(by, str) and not more_by:
             return self._from_pyldf(
-                self._ldf.sort(by, descending, nulls_last, maintain_order)
+                self._ldf.sort(by, descending, nulls_last, maintain_order),
+                collected_context=self._collected_context,
             )
 
         by = parse_as_list_of_expressions(by, *more_by)
@@ -1338,7 +1343,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
             )
         return self._from_pyldf(
             self._ldf.sort_by_exprs(by, descending, nulls_last, maintain_order)
-        )
+        , collected_context=self._collected_context)
 
     def top_k(
         self,
@@ -1424,7 +1429,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
             )
         return self._from_pyldf(
             self._ldf.top_k(k, by, descending, nulls_last, maintain_order)
-        )
+        , collected_context=self._collected_context)
 
     def bottom_k(
         self,
@@ -1506,7 +1511,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
             descending = [descending]
         return self._from_pyldf(
             self._ldf.bottom_k(k, by, descending, nulls_last, maintain_order)
-        )
+        , collected_context=self._collected_context)
 
     @deprecate_renamed_parameter(
         "common_subplan_elimination", "comm_subplan_elim", version="0.18.9"
@@ -1785,6 +1790,9 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
             streaming,
             _eager,
         )
+        if self._collected_context.was_collected:
+            raise RuntimeError("Cannot collect a LazyFrame twice!")
+        self._collected_context.was_collected = True
         return wrap_df(ldf.collect())
 
     @overload
@@ -2395,7 +2403,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
 
     def cache(self) -> Self:
         """Cache the result once the execution of the physical plan hits this node."""
-        return self._from_pyldf(self._ldf.cache())
+        return self._from_pyldf(self._ldf.cache(), collected_context=self._collected_context)
 
     def cast(
         self,
@@ -2464,7 +2472,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
 
         """
         if not isinstance(dtypes, Mapping):
-            return self._from_pyldf(self._ldf.cast_all(dtypes, strict))
+            return self._from_pyldf(self._ldf.cast_all(dtypes, strict), collected_context=self._collected_context)
 
         cast_map = {}
         for c, dtype in dtypes.items():
@@ -2475,7 +2483,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
                 else {x: dtype for x in expand_selector(self, c)}
             )
 
-        return self._from_pyldf(self._ldf.cast(cast_map, strict))
+        return self._from_pyldf(self._ldf.cast(cast_map, strict), collected_context=self._collected_context)
 
     def clear(self, n: int = 0) -> LazyFrame:
         """
@@ -2548,7 +2556,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         <LazyFrame [3 cols, {"a": Int64 … "c": Boolean}] at ...>
 
         """
-        return self._from_pyldf(self._ldf.clone())
+        return self._from_pyldf(self._ldf.clone(), collected_context=self._collected_context)
 
     def filter(
         self,
@@ -2727,7 +2735,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         )
         return self._from_pyldf(
             ldf if combined_predicate is None else ldf.filter(combined_predicate)
-        )
+        , collected_context=self._collected_context)
 
     def select(
         self, *exprs: IntoExpr | Iterable[IntoExpr], **named_exprs: IntoExpr
@@ -2838,7 +2846,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         pyexprs = parse_as_list_of_expressions(
             *exprs, **named_exprs, __structify=structify
         )
-        return self._from_pyldf(self._ldf.select(pyexprs))
+        return self._from_pyldf(self._ldf.select(pyexprs), collected_context=self._collected_context)
 
     def select_seq(
         self, *exprs: IntoExpr | Iterable[IntoExpr], **named_exprs: IntoExpr
@@ -2869,7 +2877,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         pyexprs = parse_as_list_of_expressions(
             *exprs, **named_exprs, __structify=structify
         )
-        return self._from_pyldf(self._ldf.select_seq(pyexprs))
+        return self._from_pyldf(self._ldf.select_seq(pyexprs), collected_context=self._collected_context)
 
     def group_by(
         self,
@@ -3663,7 +3671,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
                 tolerance_num,
                 tolerance_str,
             )
-        )
+        , collected_context=self._collected_context)
 
     def join(
         self,
@@ -3812,7 +3820,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
                     suffix,
                     validate,
                 )
-            )
+            , collected_context=self._collected_context)
 
         if on is not None:
             pyexprs = parse_as_list_of_expressions(on)
@@ -3835,7 +3843,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
                 suffix,
                 validate,
             )
-        )
+        , collected_context=self._collected_context)
 
     def with_columns(
         self,
@@ -3990,7 +3998,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         pyexprs = parse_as_list_of_expressions(
             *exprs, **named_exprs, __structify=structify
         )
-        return self._from_pyldf(self._ldf.with_columns(pyexprs))
+        return self._from_pyldf(self._ldf.with_columns(pyexprs), collected_context=self._collected_context)
 
     def with_columns_seq(
         self,
@@ -4030,7 +4038,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         pyexprs = parse_as_list_of_expressions(
             *exprs, **named_exprs, __structify=structify
         )
-        return self._from_pyldf(self._ldf.with_columns_seq(pyexprs))
+        return self._from_pyldf(self._ldf.with_columns_seq(pyexprs), collected_context=self._collected_context)
 
     def with_context(self, other: Self | list[Self]) -> Self:
         """
@@ -4090,7 +4098,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         if not isinstance(other, list):
             other = [other]
 
-        return self._from_pyldf(self._ldf.with_context([lf._ldf for lf in other]))
+        return self._from_pyldf(self._ldf.with_context([lf._ldf for lf in other]), collected_context=self._collected_context)
 
     def drop(
         self,
@@ -4161,7 +4169,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
 
         """
         drop_cols = _expand_selectors(self, columns, *more_columns)
-        return self._from_pyldf(self._ldf.drop(drop_cols))
+        return self._from_pyldf(self._ldf.drop(drop_cols), collected_context=self._collected_context)
 
     def rename(self, mapping: dict[str, str]) -> Self:
         """
@@ -4201,7 +4209,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         """
         existing = list(mapping.keys())
         new = list(mapping.values())
-        return self._from_pyldf(self._ldf.rename(existing, new))
+        return self._from_pyldf(self._ldf.rename(existing, new), collected_context=self._collected_context)
 
     def reverse(self) -> Self:
         """
@@ -4228,7 +4236,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         └─────┴─────┘
 
         """
-        return self._from_pyldf(self._ldf.reverse())
+        return self._from_pyldf(self._ldf.reverse(), collected_context=self._collected_context)
 
     @deprecate_renamed_parameter("periods", "n", version="0.19.11")
     def shift(
@@ -4308,7 +4316,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         if fill_value is not None:
             fill_value = parse_as_expression(fill_value, str_as_lit=True)
         n = parse_as_expression(n)
-        return self._from_pyldf(self._ldf.shift(n, fill_value))
+        return self._from_pyldf(self._ldf.shift(n, fill_value), collected_context=self._collected_context)
 
     def slice(self, offset: int, length: int | None = None) -> Self:
         """
@@ -4347,7 +4355,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
             raise ValueError(
                 f"negative slice lengths ({length!r}) are invalid for LazyFrame"
             )
-        return self._from_pyldf(self._ldf.slice(offset, length))
+        return self._from_pyldf(self._ldf.slice(offset, length), collected_context=self._collected_context)
 
     def limit(self, n: int = 5) -> Self:
         """
@@ -4493,7 +4501,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         └─────┴─────┘
 
         """
-        return self._from_pyldf(self._ldf.tail(n))
+        return self._from_pyldf(self._ldf.tail(n), collected_context=self._collected_context)
 
     def last(self) -> Self:
         """
@@ -4620,7 +4628,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         └────────┴─────┴─────┘
 
         """
-        return self._from_pyldf(self._ldf.with_row_count(name, offset))
+        return self._from_pyldf(self._ldf.with_row_count(name, offset), collected_context=self._collected_context)
 
     def take_every(self, n: int) -> Self:
         """
@@ -4815,7 +4823,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         """
         if not isinstance(value, pl.Expr):
             value = F.lit(value)
-        return self._from_pyldf(self._ldf.fill_nan(value._pyexpr))
+        return self._from_pyldf(self._ldf.fill_nan(value._pyexpr), collected_context=self._collected_context)
 
     def std(self, ddof: int = 1) -> Self:
         """
@@ -4856,7 +4864,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         └──────────┴──────────┘
 
         """
-        return self._from_pyldf(self._ldf.std(ddof))
+        return self._from_pyldf(self._ldf.std(ddof), collected_context=self._collected_context)
 
     def var(self, ddof: int = 1) -> Self:
         """
@@ -4897,7 +4905,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         └──────┴────────┘
 
         """
-        return self._from_pyldf(self._ldf.var(ddof))
+        return self._from_pyldf(self._ldf.var(ddof), collected_context=self._collected_context)
 
     def max(self) -> Self:
         """
@@ -4922,7 +4930,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         └─────┴─────┘
 
         """
-        return self._from_pyldf(self._ldf.max())
+        return self._from_pyldf(self._ldf.max(), collected_context=self._collected_context)
 
     def min(self) -> Self:
         """
@@ -4947,7 +4955,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         └─────┴─────┘
 
         """
-        return self._from_pyldf(self._ldf.min())
+        return self._from_pyldf(self._ldf.min(), collected_context=self._collected_context)
 
     def sum(self) -> Self:
         """
@@ -4972,7 +4980,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         └─────┴─────┘
 
         """
-        return self._from_pyldf(self._ldf.sum())
+        return self._from_pyldf(self._ldf.sum(), collected_context=self._collected_context)
 
     def mean(self) -> Self:
         """
@@ -4997,7 +5005,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         └─────┴──────┘
 
         """
-        return self._from_pyldf(self._ldf.mean())
+        return self._from_pyldf(self._ldf.mean(), collected_context=self._collected_context)
 
     def median(self) -> Self:
         """
@@ -5022,7 +5030,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         └─────┴─────┘
 
         """
-        return self._from_pyldf(self._ldf.median())
+        return self._from_pyldf(self._ldf.median(), collected_context=self._collected_context)
 
     def null_count(self) -> Self:
         """
@@ -5048,7 +5056,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         └─────┴─────┴─────┘
 
         """
-        return self._from_pyldf(self._ldf.null_count())
+        return self._from_pyldf(self._ldf.null_count(), collected_context=self._collected_context)
 
     def quantile(
         self,
@@ -5085,7 +5093,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
 
         """
         quantile = parse_as_expression(quantile)
-        return self._from_pyldf(self._ldf.quantile(quantile, interpolation))
+        return self._from_pyldf(self._ldf.quantile(quantile, interpolation), collected_context=self._collected_context)
 
     def explode(
         self,
@@ -5132,7 +5140,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         columns = parse_as_list_of_expressions(
             *_expand_selectors(self, columns, *more_columns)
         )
-        return self._from_pyldf(self._ldf.explode(columns))
+        return self._from_pyldf(self._ldf.explode(columns), collected_context=self._collected_context)
 
     def unique(
         self,
@@ -5217,7 +5225,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         """
         if subset is not None:
             subset = _expand_selectors(self, subset)
-        return self._from_pyldf(self._ldf.unique(maintain_order, subset, keep))
+        return self._from_pyldf(self._ldf.unique(maintain_order, subset, keep), collected_context=self._collected_context)
 
     def drop_nulls(
         self,
@@ -5315,7 +5323,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         """
         if subset is not None:
             subset = _expand_selectors(self, subset)
-        return self._from_pyldf(self._ldf.drop_nulls(subset))
+        return self._from_pyldf(self._ldf.drop_nulls(subset), collected_context=self._collected_context)
 
     def melt(
         self,
@@ -5383,7 +5391,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
 
         return self._from_pyldf(
             self._ldf.melt(id_vars, value_vars, value_name, variable_name, streamable)
-        )
+        , collected_context=self._collected_context)
 
     def map_batches(
         self,
@@ -5482,7 +5490,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
                 schema=schema,
                 validate_output=validate_output_schema,
             )
-        )
+        , collected_context=self._collected_context)
 
     def interpolate(self) -> Self:
         """
@@ -5566,7 +5574,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
 
         """
         columns = _expand_selectors(self, columns, *more_columns)
-        return self._from_pyldf(self._ldf.unnest(columns))
+        return self._from_pyldf(self._ldf.unnest(columns), collected_context=self._collected_context)
 
     def merge_sorted(self, other: LazyFrame, key: str) -> Self:
         """
@@ -5632,7 +5640,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         │ elise  ┆ 44  │
         └────────┴─────┘
         """
-        return self._from_pyldf(self._ldf.merge_sorted(other._ldf, key))
+        return self._from_pyldf(self._ldf.merge_sorted(other._ldf, key), collected_context=self._collected_context)
 
     def set_sorted(
         self,
@@ -5873,7 +5881,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         if row_count_used:
             result = result.drop(row_count_name)
 
-        return self._from_pyldf(result._ldf)
+        return self._from_pyldf(result._ldf, collected_context=self._collected_context)
 
     @deprecate_renamed_function("group_by", version="0.19.0")
     def groupby(

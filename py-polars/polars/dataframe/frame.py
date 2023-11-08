@@ -7668,7 +7668,8 @@ class DataFrame:
         <LazyFrame [3 cols, {"a": Int64 … "c": Boolean}] at ...>
 
         """
-        return wrap_ldf(self._df.lazy())
+        from polars.utils.various import CollectedContext
+        return wrap_ldf(self._df.lazy(), collected_context=CollectedContext())
 
     def select(
         self, *exprs: IntoExpr | Iterable[IntoExpr], **named_exprs: IntoExpr

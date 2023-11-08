@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import polars._reexport as pl
+from polars.utils.various import CollectedContext
 
 if TYPE_CHECKING:
     from polars import DataFrame, Expr, LazyFrame, Series
@@ -13,8 +14,8 @@ def wrap_df(df: PyDataFrame) -> DataFrame:
     return pl.DataFrame._from_pydf(df)
 
 
-def wrap_ldf(ldf: PyLazyFrame) -> LazyFrame:
-    return pl.LazyFrame._from_pyldf(ldf)
+def wrap_ldf(ldf: PyLazyFrame, collected_context: CollectedContext) -> LazyFrame:
+    return pl.LazyFrame._from_pyldf(ldf, collected_context=collected_context)
 
 
 def wrap_s(s: PySeries) -> Series:
