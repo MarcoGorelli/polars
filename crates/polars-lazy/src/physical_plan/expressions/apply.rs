@@ -221,7 +221,7 @@ impl ApplyExpr {
             .iter_mut()
             .map(|ac|
                 // SAFETY: unstable series never lives longer than the iterator.
-                unsafe { ac.iter_groups(self.pass_name_to_apply) })
+                unsafe { ac.iter_groups(true) })
             .collect::<Vec<_>>();
 
         // Length of the items to iterate over.
@@ -255,7 +255,13 @@ impl ApplyExpr {
                 for iter in &mut iters {
                     match iter.next().unwrap() {
                         None => return Ok(None),
-                        Some(s) => container.push(s.deep_clone()),
+                        Some(s) => {
+                            let mut series = s.deep_clone();
+                            if df.get_column_names().contains(&series.name()){
+                                series.set_sorted_flag(df.column(series.name()).unwrap().is_sorted_flag());
+                            }
+                            container.push(series)
+                        },
                     }
                 }
                 self.function.call_udf(&mut container)
