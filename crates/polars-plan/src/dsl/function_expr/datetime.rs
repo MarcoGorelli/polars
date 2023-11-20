@@ -389,7 +389,11 @@ pub(super) fn truncate(s: &[Series], offset: &str) -> PolarsResult<Series> {
             .date()?
             .truncate(None, every, offset)?
             .into_series(),
-        dt => polars_bail!(opq = round, got = dt, expected = "date/datetime"),
+        DataType::Duration(_) => time_series
+            .duration()?
+            .truncate(None, every, offset)?
+            .into_series(),
+        dt => polars_bail!(opq = round, got = dt, expected = "date/datetime/duration"),
     };
     out.set_sorted_flag(time_series.is_sorted_flag());
     Ok(out)
@@ -487,7 +491,12 @@ pub(super) fn round(s: &[Series], every: &str, offset: &str) -> PolarsResult<Ser
             .unwrap()
             .round(every, offset, None)?
             .into_series(),
-        dt => polars_bail!(opq = round, got = dt, expected = "date/datetime"),
+        DataType::Duration(_) => time_series
+            .duration()
+            .unwrap()
+            .round(every, offset, None)?
+            .into_series(),
+        dt => polars_bail!(opq = round, got = dt, expected = "date/datetime/duration"),
     })
 }
 

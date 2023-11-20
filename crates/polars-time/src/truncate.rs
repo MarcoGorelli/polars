@@ -84,3 +84,38 @@ impl PolarsTruncate for DateChunked {
         Ok(out?.into_date())
     }
 }
+
+#[cfg(feature = "dtype-duration")]
+impl PolarsTruncate for DurationChunked {
+    fn truncate(&self, _tz: Option<&Tz>, every: &Utf8Chunked, offset: &str) -> PolarsResult<Self> {
+        let to_time_unit = match self.time_unit() {
+            TimeUnit::Nanoseconds => Duration::duration_ns,
+            TimeUnit::Microseconds => Duration::duration_us,
+            TimeUnit::Milliseconds => Duration::duration_ms,
+        };
+
+        let offset = to_time_unit(&Duration::parse(offset));
+
+        let out = match every.len() {
+            1 => {
+                if let Some(every) = every.get(0) {
+                    let every = to_time_unit(&Duration::parse(every));
+                    self.0
+                        .try_apply(|duration| Ok(duration - duration % every + offset))
+                } else {
+                    Ok(Int64Chunked::full_null(self.name(), self.len()))
+                }
+            },
+            _ => try_binary_elementwise(self, every, |opt_duration, opt_every| {
+                match (opt_duration, opt_every) {
+                    (Some(duration), Some(every)) => {
+                        let every = to_time_unit(&Duration::parse(every));
+                        Ok(Some(duration - duration % every + offset))
+                    },
+                    _ => Ok(None),
+                }
+            }),
+        };
+        Ok(out?.into_duration(self.time_unit()))
+    }
+}

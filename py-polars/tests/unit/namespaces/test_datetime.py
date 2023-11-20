@@ -508,6 +508,19 @@ def test_truncate(
     assert out.dt[-1] == stop
 
 
+@pytest.mark.parametrize("time_unit", ["ms", "us", "ns"])
+def test_truncate_duration(time_unit: TimeUnit) -> None:
+    durations = pl.Series(
+        [timedelta(seconds=21), timedelta(seconds=35), timedelta(seconds=59)]
+    ).dt.cast_time_unit(time_unit)
+
+    expected = pl.Series(
+        [timedelta(seconds=20), timedelta(seconds=30), timedelta(seconds=50)]
+    ).dt.cast_time_unit(time_unit)
+
+    assert_series_equal(durations.dt.truncate("10s"), expected)
+
+
 @pytest.mark.parametrize(
     ("time_unit", "every"),
     [
@@ -540,6 +553,33 @@ def test_round(
     assert out.dt[-3] == stop - timedelta(hours=1)
     assert out.dt[-2] == stop
     assert out.dt[-1] == stop
+
+
+@pytest.mark.parametrize("time_unit", ["ms", "us", "ns"])
+def test_round_duration(time_unit: TimeUnit) -> None:
+    durations = pl.Series(
+        [timedelta(seconds=21), timedelta(seconds=35), timedelta(seconds=59)]
+    ).dt.cast_time_unit(time_unit)
+
+    expected = pl.Series(
+        [timedelta(seconds=20), timedelta(seconds=40), timedelta(seconds=60)]
+    ).dt.cast_time_unit(time_unit)
+
+    assert_series_equal(durations.dt.round("10s"), expected)
+
+
+@pytest.mark.parametrize("time_unit", ["ms", "us", "ns"])
+def test_round_duration_half(time_unit: TimeUnit) -> None:
+    # Values at halfway points should round away from zero
+    durations = pl.Series(
+        [timedelta(minutes=-30), timedelta(minutes=30), timedelta(minutes=90)]
+    ).dt.cast_time_unit(time_unit)
+
+    expected = pl.Series(
+        [timedelta(hours=-1), timedelta(hours=1), timedelta(hours=2)]
+    ).dt.cast_time_unit(time_unit)
+
+    assert_series_equal(durations.dt.round("1h"), expected)
 
 
 @pytest.mark.parametrize(

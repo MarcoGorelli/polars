@@ -36,3 +36,22 @@ impl PolarsRound for DateChunked {
             .into_date())
     }
 }
+
+#[cfg(feature = "dtype-duration")]
+impl PolarsRound for DurationChunked {
+    fn round(&self, every: Duration, offset: Duration, _tz: Option<&Tz>) -> PolarsResult<Self> {
+        let (every, offset) = match self.time_unit() {
+            TimeUnit::Nanoseconds => (every.duration_ns(), offset.duration_ns()),
+            TimeUnit::Microseconds => (every.duration_us(), offset.duration_us()),
+            TimeUnit::Milliseconds => (every.duration_ms(), offset.duration_ms()),
+        };
+
+        let out = self.try_apply(|duration| {
+            // Round half-way values away from zero
+            let half_away = duration.signum() * every / 2;
+            Ok(duration + half_away - (duration + half_away) % every + offset)
+        });
+
+        out.map(|ok| ok.into_duration(self.time_unit()))
+    }
+}
