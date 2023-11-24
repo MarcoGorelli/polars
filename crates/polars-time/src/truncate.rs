@@ -1,6 +1,6 @@
 use arrow::legacy::time_zone::Tz;
 use arrow::temporal_conversions::{MILLISECONDS, SECONDS_IN_DAY};
-use polars_core::chunked_array::ops::arity::try_binary_elementwise;
+use polars_core::chunked_array::ops::arity::{binary_elementwise, try_binary_elementwise};
 use polars_core::prelude::*;
 
 use crate::prelude::*;
@@ -101,21 +101,22 @@ impl PolarsTruncate for DurationChunked {
                 if let Some(every) = every.get(0) {
                     let every = to_time_unit(&Duration::parse(every));
                     self.0
-                        .try_apply(|duration| Ok(duration - duration % every + offset))
+                        .apply_values(|duration| duration - duration % every + offset)
                 } else {
-                    Ok(Int64Chunked::full_null(self.name(), self.len()))
+                    Int64Chunked::full_null(self.name(), self.len())
                 }
             },
-            _ => try_binary_elementwise(self, every, |opt_duration, opt_every| {
-                match (opt_duration, opt_every) {
-                    (Some(duration), Some(every)) => {
-                        let every = to_time_unit(&Duration::parse(every));
-                        Ok(Some(duration - duration % every + offset))
-                    },
-                    _ => Ok(None),
-                }
+            _ => binary_elementwise(self, every, |opt_duration, opt_every: Option<&str>| match (
+                opt_duration,
+                opt_every,
+            ) {
+                (Some(duration), Some(every)) => {
+                    let every = to_time_unit(&Duration::parse(every));
+                    Some(duration - duration % every + offset)
+                },
+                _ => None,
             }),
         };
-        Ok(out?.into_duration(self.time_unit()))
+        Ok(out.into_duration(self.time_unit()))
     }
 }

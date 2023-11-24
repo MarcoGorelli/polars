@@ -511,11 +511,11 @@ def test_truncate(
 @pytest.mark.parametrize("time_unit", ["ms", "us", "ns"])
 def test_truncate_duration(time_unit: TimeUnit) -> None:
     durations = pl.Series(
-        [timedelta(seconds=21), timedelta(seconds=35), timedelta(seconds=59)]
+        [timedelta(seconds=21), timedelta(seconds=35), timedelta(seconds=59), None]
     ).dt.cast_time_unit(time_unit)
 
     expected = pl.Series(
-        [timedelta(seconds=20), timedelta(seconds=30), timedelta(seconds=50)]
+        [timedelta(seconds=20), timedelta(seconds=30), timedelta(seconds=50), None]
     ).dt.cast_time_unit(time_unit)
 
     assert_series_equal(durations.dt.truncate("10s"), expected)
@@ -558,11 +558,11 @@ def test_round(
 @pytest.mark.parametrize("time_unit", ["ms", "us", "ns"])
 def test_round_duration(time_unit: TimeUnit) -> None:
     durations = pl.Series(
-        [timedelta(seconds=21), timedelta(seconds=35), timedelta(seconds=59)]
+        [timedelta(seconds=21), timedelta(seconds=35), timedelta(seconds=59), None]
     ).dt.cast_time_unit(time_unit)
 
     expected = pl.Series(
-        [timedelta(seconds=20), timedelta(seconds=40), timedelta(seconds=60)]
+        [timedelta(seconds=20), timedelta(seconds=40), timedelta(seconds=60), None]
     ).dt.cast_time_unit(time_unit)
 
     assert_series_equal(durations.dt.round("10s"), expected)

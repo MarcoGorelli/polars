@@ -46,12 +46,12 @@ impl PolarsRound for DurationChunked {
             TimeUnit::Milliseconds => (every.duration_ms(), offset.duration_ms()),
         };
 
-        let out = self.try_apply(|duration| {
+        let out = self.apply_values(|duration| {
             // Round half-way values away from zero
             let half_away = duration.signum() * every / 2;
-            Ok(duration + half_away - (duration + half_away) % every + offset)
+            duration + half_away - (duration + half_away) % every + offset
         });
 
-        out.map(|ok| ok.into_duration(self.time_unit()))
+        Ok(out.into_duration(self.time_unit()))
     }
 }
