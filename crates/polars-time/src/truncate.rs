@@ -1,6 +1,6 @@
 use arrow::legacy::time_zone::Tz;
 use arrow::temporal_conversions::{MILLISECONDS, SECONDS_IN_DAY};
-use polars_core::chunked_array::ops::arity::{binary_elementwise, try_binary_elementwise};
+use polars_core::chunked_array::ops::arity::try_binary_elementwise;
 use polars_core::prelude::*;
 
 use crate::prelude::*;
@@ -94,29 +94,49 @@ impl PolarsTruncate for DurationChunked {
             TimeUnit::Milliseconds => Duration::duration_ms,
         };
 
-        let offset = to_time_unit(&Duration::parse(offset));
+        let offset_duration = Duration::parse(offset);
+        if !offset_duration.is_constant_duration() {
+            return Err(PolarsError::InvalidOperation(
+                "Cannot offset a Duration series by a non-constant duration.".into(),
+            ));
+        }
+        let offset_units = to_time_unit(&offset_duration);
 
-        let out = match every.len() {
-            1 => {
-                if let Some(every) = every.get(0) {
-                    let every = to_time_unit(&Duration::parse(every));
-                    self.0
-                        .apply_values(|duration| duration - duration % every + offset)
+        let out = if every.len() == 1 {
+            if let Some(every) = every.get(0) {
+                let every_duration = Duration::parse(every);
+                if every_duration.is_constant_duration() {
+                    let every_units = to_time_unit(&every_duration);
+
+                    Ok(self
+                        .0
+                        .apply_values(|duration| duration - duration % every_units + offset_units))
                 } else {
-                    Int64Chunked::full_null(self.name(), self.len())
+                    Err(PolarsError::InvalidOperation(
+                        "Cannot truncate a Duration series to a non-constant duration.".into(),
+                    ))
                 }
-            },
-            _ => binary_elementwise(self, every, |opt_duration, opt_every: Option<&str>| match (
-                opt_duration,
-                opt_every,
-            ) {
-                (Some(duration), Some(every)) => {
-                    let every = to_time_unit(&Duration::parse(every));
-                    Some(duration - duration % every + offset)
-                },
-                _ => None,
-            }),
+            } else {
+                Ok(Int64Chunked::full_null(self.name(), self.len()))
+            }
+        } else {
+            try_binary_elementwise(self, every, |opt_duration, opt_every| {
+                if let (Some(duration), Some(every)) = (opt_duration, opt_every) {
+                    let every_duration = Duration::parse(every);
+                    if every_duration.is_constant_duration() {
+                        let every_units = to_time_unit(&every_duration);
+
+                        Ok(Some(duration - duration % every_units + offset_units))
+                    } else {
+                        Err(PolarsError::InvalidOperation(
+                            "Cannot truncate a Duration series to a non-constant duration.".into(),
+                        ))
+                    }
+                } else {
+                    Ok(None)
+                }
+            })
         };
-        Ok(out.into_duration(self.time_unit()))
+        out.map(|s| s.into_duration(self.time_unit()))
     }
 }

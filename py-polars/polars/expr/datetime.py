@@ -103,6 +103,10 @@ class ExprDateTimeNameSpace:
         not be 24 hours, due to daylight savings). Similarly for "calendar week",
         "calendar month", "calendar quarter", and "calendar year".
 
+        Durations may not be truncated to a period length `every` containing calendar
+        days, weeks, months, quarters, or years, as these are not constant time
+        intervals.
+
         Returns
         -------
         Expr
@@ -275,6 +279,10 @@ class ExprDateTimeNameSpace:
         By "calendar day", we mean the corresponding time on the next day (which may
         not be 24 hours, due to daylight savings). Similarly for "calendar week",
         "calendar month", "calendar quarter", and "calendar year".
+
+        Durations may not be rounded to a period length `every` containing calendar
+        days, weeks, months, quarters, or years, as these are not constant time
+        intervals.
 
         Examples
         --------

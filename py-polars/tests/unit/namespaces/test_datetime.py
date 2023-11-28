@@ -521,6 +521,23 @@ def test_truncate_duration(time_unit: TimeUnit) -> None:
     assert_series_equal(durations.dt.truncate("10s"), expected)
 
 
+@pytest.mark.parametrize("every_unit", ["d", "w", "mo", "q", "y"])
+def test_truncated_duration_non_constant(every_unit: str) -> None:
+    # Duration series can't be truncated to non-constant durations
+    df = pl.DataFrame(
+        {
+            "durations": [timedelta(seconds=1), timedelta(seconds=2)],
+            "every": ["1" + every_unit, "1" + every_unit],
+        }
+    )
+
+    with pytest.raises(InvalidOperationError):
+        df["durations"].dt.truncate("1" + every_unit)
+
+    with pytest.raises(InvalidOperationError):
+        df.select(pl.col("durations").dt.truncate(pl.col("every")))
+
+
 @pytest.mark.parametrize(
     ("time_unit", "every"),
     [
@@ -566,6 +583,15 @@ def test_round_duration(time_unit: TimeUnit) -> None:
     ).dt.cast_time_unit(time_unit)
 
     assert_series_equal(durations.dt.round("10s"), expected)
+
+
+@pytest.mark.parametrize("every", ["d", "w", "mo", "q", "y"])
+def test_round_duration_non_constant(every: str) -> None:
+    # Duration series can't be rounded to non-constant durations
+    durations = pl.Series([timedelta(seconds=21)])
+
+    with pytest.raises(InvalidOperationError):
+        durations.dt.round("1" + every)
 
 
 @pytest.mark.parametrize("time_unit", ["ms", "us", "ns"])

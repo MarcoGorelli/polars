@@ -40,6 +40,17 @@ impl PolarsRound for DateChunked {
 #[cfg(feature = "dtype-duration")]
 impl PolarsRound for DurationChunked {
     fn round(&self, every: Duration, offset: Duration, _tz: Option<&Tz>) -> PolarsResult<Self> {
+        if !every.is_constant_duration() {
+            return Err(PolarsError::InvalidOperation(
+                "Cannot round a Duration series to a non-constant duration.".into(),
+            ));
+        }
+        if !offset.is_constant_duration() {
+            return Err(PolarsError::InvalidOperation(
+                "Cannot offset a Duration series by a non-constant duration.".into(),
+            ));
+        }
+
         let (every, offset) = match self.time_unit() {
             TimeUnit::Nanoseconds => (every.duration_ns(), offset.duration_ns()),
             TimeUnit::Microseconds => (every.duration_us(), offset.duration_us()),
