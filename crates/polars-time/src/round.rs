@@ -41,14 +41,10 @@ impl PolarsRound for DateChunked {
 impl PolarsRound for DurationChunked {
     fn round(&self, every: Duration, offset: Duration, _tz: Option<&Tz>) -> PolarsResult<Self> {
         if !every.is_constant_duration() {
-            return Err(PolarsError::InvalidOperation(
-                "Cannot round a Duration series to a non-constant duration.".into(),
-            ));
+            polars_bail!(InvalidOperation: "Cannot round a Duration series to a non-constant duration.");
         }
         if !offset.is_constant_duration() {
-            return Err(PolarsError::InvalidOperation(
-                "Cannot offset a Duration series by a non-constant duration.".into(),
-            ));
+            polars_bail!(InvalidOperation: "Cannot offset a Duration series by a non-constant duration.");
         }
 
         let (every, offset) = match self.time_unit() {

@@ -96,9 +96,9 @@ impl PolarsTruncate for DurationChunked {
 
         let offset_duration = Duration::parse(offset);
         if !offset_duration.is_constant_duration() {
-            return Err(PolarsError::InvalidOperation(
-                "Cannot offset a Duration series by a non-constant duration.".into(),
-            ));
+            polars_bail!(InvalidOperation:
+                "Cannot offset a Duration series by a non-constant duration."
+            );
         }
         let offset_units = to_time_unit(&offset_duration);
 
@@ -112,8 +112,8 @@ impl PolarsTruncate for DurationChunked {
                         .0
                         .apply_values(|duration| duration - duration % every_units + offset_units))
                 } else {
-                    Err(PolarsError::InvalidOperation(
-                        "Cannot truncate a Duration series to a non-constant duration.".into(),
+                    Err(polars_err!(InvalidOperation:
+                        "Cannot truncate a Duration series to a non-constant duration."
                     ))
                 }
             } else {
@@ -128,8 +128,8 @@ impl PolarsTruncate for DurationChunked {
 
                         Ok(Some(duration - duration % every_units + offset_units))
                     } else {
-                        Err(PolarsError::InvalidOperation(
-                            "Cannot truncate a Duration series to a non-constant duration.".into(),
+                        Err(polars_err!(InvalidOperation:
+                            "Cannot truncate a Duration series to a non-constant duration."
                         ))
                     }
                 } else {
