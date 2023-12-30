@@ -137,7 +137,7 @@ impl Wrap<&DataFrame> {
         if by.is_empty() {
             // If by is given, the column must be sorted in the 'by' arg, which we can not check now
             // this will be checked when the groups are materialized.
-            ensure_sorted_arg(&time, "group_by_rolling")?;
+            ensure_sorted_arg(&time, "rolling")?;
         }
         let time_type = time.dtype();
 

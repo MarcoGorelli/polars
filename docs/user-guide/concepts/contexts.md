@@ -59,6 +59,6 @@ In the `group_by` context, expressions work on groups and thus may yield results
 --8<-- "python/user-guide/concepts/contexts.py:group_by"
 ```
 
-As you can see from the result all expressions are applied to the group defined by the `group_by` context. Besides the standard `group_by`, `group_by_dynamic`, and `group_by_rolling` are also entrances to the group by context.
+As you can see from the result all expressions are applied to the group defined by the `group_by` context. Besides the standard `group_by`, `group_by_dynamic`, and `rolling` are also entrances to the group by context.
 
 [^1]: There are additional List and SQL contexts which are covered later in this guide. But for simplicity, we leave them out of scope for now.
