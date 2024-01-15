@@ -104,7 +104,7 @@ where
 {
     let init = None;
     let out: ChunkedArray<T> = match reverse {
-        false => ca.into_iter().scan(init, det_sum).collect_trusted(),
+        false => ca.into_iter().scan(init, det_sum).collect(),
         true => ca.into_iter().rev().scan(init, det_sum).collect_reversed(),
     };
     out.with_name(ca.name())
