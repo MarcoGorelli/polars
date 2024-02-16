@@ -53,6 +53,10 @@ impl PolarsRound for DurationChunked {
             TimeUnit::Milliseconds => (every.duration_ms(), offset.duration_ms()),
         };
 
+        if every == 0 {
+            polars_bail!(InvalidOperation: "duration cannot be zero.")
+        }
+
         let out = self.apply_values(|duration| {
             // Round half-way values away from zero
             let half_away = duration.signum() * every / 2;

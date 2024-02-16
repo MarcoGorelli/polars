@@ -113,13 +113,17 @@ impl PolarsTruncate for DurationChunked {
                 if every_duration.is_constant_duration() {
                     let every_units = to_time_unit(&every_duration);
 
+                    if every_units == 0 {
+                        polars_bail!(InvalidOperation: "duration cannot be zero.")
+                    }
+
                     Ok(self
                         .0
                         .apply_values(|duration| duration - duration % every_units + offset_units))
                 } else {
-                    Err(polars_err!(InvalidOperation:
+                    polars_bail!(InvalidOperation:
                         "Cannot truncate a Duration series to a non-constant duration."
-                    ))
+                    )
                 }
             } else {
                 Ok(Int64Chunked::full_null(self.name(), self.len()))
@@ -133,9 +137,9 @@ impl PolarsTruncate for DurationChunked {
 
                         Ok(Some(duration - duration % every_units + offset_units))
                     } else {
-                        Err(polars_err!(InvalidOperation:
+                        polars_bail!(InvalidOperation:
                             "Cannot truncate a Duration series to a non-constant duration."
-                        ))
+                        )
                     }
                 } else {
                     Ok(None)

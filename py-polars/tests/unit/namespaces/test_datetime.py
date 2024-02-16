@@ -533,6 +533,14 @@ def test_truncate_duration(time_unit: TimeUnit) -> None:
     assert_series_equal(durations.dt.truncate("10s"), expected)
 
 
+def test_truncate_duration_zero() -> None:
+    """Truncating to the nearest zero should raise a descriptive error."""
+    durations = pl.Series([timedelta(seconds=21), timedelta(seconds=35)])
+
+    with pytest.raises(InvalidOperationError, match="duration cannot be zero"):
+        durations.dt.truncate("0s")
+
+
 @pytest.mark.parametrize("every_unit", ["d", "w", "mo", "q", "y"])
 def test_truncated_duration_non_constant(every_unit: str) -> None:
     # Duration series can't be truncated to non-constant durations
@@ -607,6 +615,14 @@ def test_round_duration(time_unit: TimeUnit) -> None:
     ).dt.cast_time_unit(time_unit)
 
     assert_series_equal(durations.dt.round("10s"), expected)
+
+
+def test_round_duration_zero() -> None:
+    """Rounding to the nearest zero should raise a descriptive error."""
+    durations = pl.Series([timedelta(seconds=21), timedelta(seconds=35)])
+
+    with pytest.raises(InvalidOperationError, match="duration cannot be zero"):
+        durations.dt.round("0s")
 
 
 @pytest.mark.parametrize("every", ["d", "w", "mo", "q", "y"])
