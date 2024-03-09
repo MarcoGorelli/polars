@@ -233,6 +233,10 @@ pub trait ChunkApply<'a, T> {
     where
         F: Fn(Option<T>) -> Option<Self::FuncRet> + Copy;
 
+    fn try_apply<F>(&'a self, f: F) -> Self
+    where
+        F: Fn(Option<T>) -> PolarsResult<Option<Self::FuncRet>> + Copy;
+
     /// Apply a closure elementwise and write results to a mutable slice.
     fn apply_to_slice<F, S>(&'a self, f: F, slice: &mut [S])
     // (value of chunkedarray, value of slice) -> value of slice

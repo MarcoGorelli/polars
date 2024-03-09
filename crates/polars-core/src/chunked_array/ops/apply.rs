@@ -269,6 +269,17 @@ where
         Self::from_chunk_iter(self.name(), chunks)
     }
 
+    fn try_apply<F>(&'a self, f: F) -> Self
+    where
+        F: Fn(Option<T::Native>) -> PolarsResult<Option<T::Native>> + Copy,
+    {
+        let chunks = self.downcast_iter().map(|arr| {
+            let iter = arr.into_iter().map(|opt_v| f(opt_v.copied()).unwrap());
+            PrimitiveArray::<T::Native>::from_trusted_len_iter(iter)
+        });
+        Self::from_chunk_iter(self.name(), chunks)
+    }
+
     fn apply_to_slice<F, V>(&'a self, f: F, slice: &mut [V])
     where
         F: Fn(Option<T::Native>, &V) -> V,
@@ -359,6 +370,13 @@ impl<'a> ChunkApply<'a, bool> for BooleanChunked {
         self.apply_generic(f)
     }
 
+    fn try_apply<F>(&'a self, f: F) -> Self
+    where
+        F: Fn(Option<bool>) -> PolarsResult<Option<bool>> + Copy,
+    {
+        todo!()
+    }
+
     fn apply_to_slice<F, T>(&'a self, f: F, slice: &mut [T])
     where
         F: Fn(Option<bool>, &T) -> T,
@@ -445,6 +463,13 @@ impl<'a> ChunkApply<'a, &'a str> for StringChunked {
         self.apply_generic(f)
     }
 
+    fn try_apply<F>(&'a self, f: F) -> Self
+    where
+        F: Fn(Option<&'a str>) -> PolarsResult<Option<Cow<'a, str>>> + Copy,
+    {
+        todo!()
+    }
+
     fn apply_to_slice<F, T>(&'a self, f: F, slice: &mut [T])
     where
         F: Fn(Option<&'a str>, &T) -> T,
@@ -486,6 +511,12 @@ impl<'a> ChunkApply<'a, &'a [u8]> for BinaryChunked {
         F: Fn(Option<&'a [u8]>) -> Option<Cow<'a, [u8]>> + Copy,
     {
         self.apply_generic(f)
+    }
+    fn try_apply<F>(&'a self, f: F) -> Self
+    where
+        F: Fn(Option<&'a [u8]>) -> PolarsResult<Option<Cow<'a, [u8]>>> + Copy,
+    {
+        todo!()
     }
 
     fn apply_to_slice<F, T>(&'a self, f: F, slice: &mut [T])
@@ -649,6 +680,13 @@ impl<'a> ChunkApply<'a, Series> for ListChunked {
         self.into_iter().map(f).collect_trusted()
     }
 
+    fn try_apply<F>(&'a self, f: F) -> Self
+    where
+        F: Fn(Option<Series>) -> PolarsResult<Option<Series>> + Copy,
+    {
+        todo!()
+    }
+
     fn apply_to_slice<F, T>(&'a self, f: F, slice: &mut [T])
     where
         F: Fn(Option<Series>, &T) -> T,
@@ -700,6 +738,13 @@ where
         let mut ca: ObjectChunked<T> = self.into_iter().map(f).collect();
         ca.rename(self.name());
         ca
+    }
+
+    fn try_apply<F>(&'a self, f: F) -> Self
+    where
+        F: Fn(Option<&'a T>) -> PolarsResult<Option<T>> + Copy,
+    {
+        todo!()
     }
 
     fn apply_to_slice<F, V>(&'a self, f: F, slice: &mut [V])
