@@ -17,7 +17,7 @@ pub(crate) fn roll_backward(
     tz: Option<&Tz>,
     timestamp_to_datetime: fn(i64) -> NaiveDateTime,
     datetime_to_timestamp: fn(NaiveDateTime) -> i64,
-) -> PolarsResult<i64> {
+) -> PolarsResult<Option<i64>> {
     let ts = match tz {
         #[cfg(feature = "timezones")]
         Some(tz) => unlocalize_datetime(timestamp_to_datetime(t), tz),
@@ -49,8 +49,8 @@ pub(crate) fn roll_backward(
     let ndt = NaiveDateTime::new(date, time);
     let t = match tz {
         #[cfg(feature = "timezones")]
-        Some(tz) => datetime_to_timestamp(try_localize_datetime(ndt, tz, Ambiguous::Raise)?),
-        _ => datetime_to_timestamp(ndt),
+        Some(tz) => try_localize_datetime(ndt, tz, Ambiguous::Raise)?.map(datetime_to_timestamp),
+        _ => Some(datetime_to_timestamp(ndt)),
     };
     Ok(t)
 }
@@ -89,15 +89,16 @@ impl PolarsMonthStart for DatetimeChunked {
 impl PolarsMonthStart for DateChunked {
     fn month_start(&self, _tz: Option<&Tz>) -> PolarsResult<Self> {
         const MSECS_IN_DAY: i64 = MILLISECONDS * SECONDS_IN_DAY;
+        // there should be a version of `try_apply` which returns a `Result<Option<T>>` instead of `Result<T>`
         Ok(self
             .0
             .try_apply(|t| {
-                Ok((roll_backward(
+                Ok(roll_backward(
                     MSECS_IN_DAY * t as i64,
                     None,
                     timestamp_ms_to_datetime,
                     datetime_to_timestamp_ms,
-                )? / MSECS_IN_DAY) as i32)
+                )?.map(|x| x as i32 / MSECS_IN_DAY))
             })?
             .into_date())
     }
