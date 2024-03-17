@@ -47,10 +47,17 @@ impl PolarsRound for DurationChunked {
             polars_bail!(InvalidOperation: "Cannot offset a Duration series by a non-constant duration.");
         }
 
-        let (every, offset) = match self.time_unit() {
-            TimeUnit::Nanoseconds => (every.duration_ns(), offset.duration_ns()),
-            TimeUnit::Microseconds => (every.duration_us(), offset.duration_us()),
-            TimeUnit::Milliseconds => (every.duration_ms(), offset.duration_ms()),
+        let func = match self.time_unit() {
+            TimeUnit::Nanoseconds => Duration::duration_ns,
+            TimeUnit::Microseconds => Duration::duration_us,
+            TimeUnit::Milliseconds => Duration::duration_ms,
+        };
+
+        let every = func(&every);
+        let offset = if offset.negative {
+            -func(&offset)
+        } else {
+            func(&offset)
         };
 
         if every == 0 {

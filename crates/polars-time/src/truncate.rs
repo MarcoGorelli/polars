@@ -105,7 +105,11 @@ impl PolarsTruncate for DurationChunked {
                 "Cannot offset a Duration series by a non-constant duration."
             );
         }
-        let offset_units = to_time_unit(&offset_duration);
+        let offset_units = if offset_duration.negative {
+            -to_time_unit(&offset_duration)
+        } else {
+            to_time_unit(&offset_duration)
+        };
 
         let out = if every.len() == 1 {
             if let Some(every) = every.get(0) {
