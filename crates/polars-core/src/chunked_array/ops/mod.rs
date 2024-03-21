@@ -34,7 +34,6 @@ pub mod search_sorted;
 mod set;
 mod shift;
 pub mod sort;
-mod tile;
 #[cfg(feature = "algorithm_group_by")]
 pub(crate) mod unique;
 #[cfg(feature = "zip_with")]
@@ -224,7 +223,7 @@ pub trait ChunkApply<'a, T> {
     where
         F: Fn(T) -> Self::FuncRet + Copy;
 
-    fn try_apply<F>(&'a self, f: F) -> PolarsResult<Self>
+    fn try_apply_values<F>(&'a self, f: F) -> PolarsResult<Self>
     where
         F: Fn(T) -> PolarsResult<Self::FuncRet> + Copy,
         Self: Sized;
@@ -562,7 +561,12 @@ impl ChunkExpandAtIndex<FixedSizeListType> for ArrayChunked {
                 unsafe { ca.to_logical(self.inner_dtype()) };
                 ca
             },
-            None => ArrayChunked::full_null_with_dtype(self.name(), length, &self.inner_dtype(), 0),
+            None => ArrayChunked::full_null_with_dtype(
+                self.name(),
+                length,
+                &self.inner_dtype(),
+                self.width(),
+            ),
         }
     }
 }

@@ -378,11 +378,6 @@ class Series:
         return series
 
     @classmethod
-    def _from_arrow(cls, name: str, values: pa.Array, *, rechunk: bool = True) -> Self:
-        """Construct a Series from an Arrow Array."""
-        return cls._from_pyseries(arrow_to_pyseries(name, values, rechunk=rechunk))
-
-    @classmethod
     def _import_from_c(cls, name: str, pointers: list[tuple[int, int]]) -> Self:
         """
         Construct a Series from Arrows C interface.
@@ -393,19 +388,6 @@ class Series:
         garbage collect the heap pointer, but not its contents.
         """
         return cls._from_pyseries(PySeries._import_from_c(name, pointers))
-
-    @classmethod
-    def _from_pandas(
-        cls,
-        name: str,
-        values: pd.Series[Any] | pd.Index[Any] | pd.DatetimeIndex,
-        *,
-        nan_to_null: bool = True,
-    ) -> Self:
-        """Construct a Series from a pandas Series or DatetimeIndex."""
-        return cls._from_pyseries(
-            pandas_to_pyseries(name, values, nan_to_null=nan_to_null)
-        )
 
     def _get_buffer_info(self) -> BufferInfo:
         """
@@ -3573,6 +3555,40 @@ class Series:
             If 'any', the index of the first suitable location found is given.
             If 'left', the index of the leftmost suitable location found is given.
             If 'right', return the rightmost suitable location found is given.
+
+        Examples
+        --------
+        >>> s = pl.Series("set", [1, 2, 3, 4, 4, 5, 6, 7])
+        >>> s.search_sorted(4)
+        4
+        >>> s.search_sorted(4, "left")
+        3
+        >>> s.search_sorted(4, "right")
+        5
+        >>> s.search_sorted([1, 4, 5])
+        shape: (3,)
+        Series: 'set' [u32]
+        [
+                0
+                4
+                5
+        ]
+        >>> s.search_sorted([1, 4, 5], "left")
+        shape: (3,)
+        Series: 'set' [u32]
+        [
+                0
+                3
+                5
+        ]
+        >>> s.search_sorted([1, 4, 5], "right")
+        shape: (3,)
+        Series: 'set' [u32]
+        [
+                1
+                5
+                6
+        ]
         """
         if isinstance(element, (int, float)):
             return F.select(F.lit(self).search_sorted(element, side)).item()
@@ -4217,6 +4233,11 @@ class Series:
             (including strings) are parsed as literals.
         closed : {'both', 'left', 'right', 'none'}
             Define which sides of the interval are closed (inclusive).
+
+        Notes
+        -----
+        If the value of the `lower_bound` is greater than that of the `upper_bound`
+        then the result will be False, as no value can satisfy the condition.
 
         Examples
         --------

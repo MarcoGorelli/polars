@@ -123,7 +123,11 @@ def dict_to_pydf(
     if not data and schema_overrides:
         data_series = [
             pl.Series(
-                name, [], dtype=schema_overrides.get(name), nan_to_null=nan_to_null
+                name,
+                [],
+                dtype=schema_overrides.get(name),
+                strict=strict,
+                nan_to_null=nan_to_null,
             )._s
             for name in column_names
         ]
@@ -536,9 +540,9 @@ def _sequence_of_sequence_to_pydf(
 
         if unpack_nested:
             dicts = [nt_unpack(d) for d in data]
-            pydf = PyDataFrame.read_dicts(dicts, infer_schema_length)
+            pydf = PyDataFrame.from_dicts(dicts, infer_schema_length)
         else:
-            pydf = PyDataFrame.read_rows(
+            pydf = PyDataFrame.from_rows(
                 data,
                 infer_schema_length,
                 local_schema_override or None,
@@ -555,7 +559,10 @@ def _sequence_of_sequence_to_pydf(
         )
         data_series: list[PySeries] = [
             pl.Series(
-                column_names[i], element, schema_overrides.get(column_names[i])
+                column_names[i],
+                element,
+                dtype=schema_overrides.get(column_names[i]),
+                strict=strict,
             )._s
             for i, element in enumerate(data)
         ]
@@ -648,7 +655,7 @@ def _sequence_of_dict_to_pydf(
         if column_names
         else None
     )
-    pydf = PyDataFrame.read_dicts(
+    pydf = PyDataFrame.from_dicts(
         data, infer_schema_length, dicts_schema, schema_overrides
     )
 
@@ -667,13 +674,20 @@ def _sequence_of_elements_to_pydf(
     data: Sequence[Any],
     schema: SchemaDefinition | None,
     schema_overrides: SchemaDict | None,
+    *,
+    strict: bool,
     **kwargs: Any,
 ) -> PyDataFrame:
     column_names, schema_overrides = _unpack_schema(
         schema, schema_overrides=schema_overrides, n_expected=1
     )
     data_series: list[PySeries] = [
-        pl.Series(column_names[0], data, schema_overrides.get(column_names[0]))._s
+        pl.Series(
+            column_names[0],
+            data,
+            schema_overrides.get(column_names[0]),
+            strict=strict,
+        )._s
     ]
     data_series = _handle_columns_arg(data_series, columns=column_names)
     return PyDataFrame(data_series)
@@ -683,12 +697,10 @@ def _sequence_of_numpy_to_pydf(
     first_element: np.ndarray[Any, Any],
     **kwargs: Any,
 ) -> PyDataFrame:
-    to_pydf = (
-        _sequence_of_sequence_to_pydf
-        if first_element.ndim == 1
-        else _sequence_of_elements_to_pydf
-    )
-    return to_pydf(first_element, **kwargs)  # type: ignore[operator]
+    if first_element.ndim == 1:
+        return _sequence_of_sequence_to_pydf(first_element, **kwargs)
+    else:
+        return _sequence_of_elements_to_pydf(first_element, **kwargs)
 
 
 def _sequence_of_pandas_to_pydf(
@@ -743,10 +755,10 @@ def _sequence_of_dataclasses_to_pydf(
     )
     if unpack_nested:
         dicts = [asdict(md) for md in data]
-        pydf = PyDataFrame.read_dicts(dicts, infer_schema_length)
+        pydf = PyDataFrame.from_dicts(dicts, infer_schema_length)
     else:
         rows = [astuple(dc) for dc in data]
-        pydf = PyDataFrame.read_rows(rows, infer_schema_length, overrides or None)
+        pydf = PyDataFrame.from_rows(rows, infer_schema_length, overrides or None)
 
     if overrides:
         structs = {c: tp for c, tp in overrides.items() if isinstance(tp, Struct)}
@@ -790,17 +802,17 @@ def _sequence_of_pydantic_models_to_pydf(
             if old_pydantic
             else [md.model_dump(mode="python") for md in data]
         )
-        pydf = PyDataFrame.read_dicts(dicts, infer_schema_length)
+        pydf = PyDataFrame.from_dicts(dicts, infer_schema_length)
 
     elif len(model_fields) > 50:
-        # 'read_rows' is the faster codepath for models with a lot of fields...
+        # 'from_rows' is the faster codepath for models with a lot of fields...
         get_values = itemgetter(*model_fields)
         rows = [get_values(md.__dict__) for md in data]
-        pydf = PyDataFrame.read_rows(rows, infer_schema_length, overrides)
+        pydf = PyDataFrame.from_rows(rows, infer_schema_length, overrides)
     else:
-        # ...and 'read_dicts' is faster otherwise
+        # ...and 'from_dicts' is faster otherwise
         dicts = [md.__dict__ for md in data]
-        pydf = PyDataFrame.read_dicts(dicts, infer_schema_length, overrides)
+        pydf = PyDataFrame.from_dicts(dicts, infer_schema_length, overrides)
 
     if overrides:
         structs = {c: tp for c, tp in overrides.items() if isinstance(tp, Struct)}
@@ -1122,7 +1134,7 @@ def numpy_to_pydf(
     strict: bool = True,
     nan_to_null: bool = False,
 ) -> PyDataFrame:
-    """Construct a PyDataFrame from a numpy ndarray (including structured ndarrays)."""
+    """Construct a PyDataFrame from a NumPy ndarray (including structured ndarrays)."""
     shape = data.shape
     two_d = len(shape) == 2
 
