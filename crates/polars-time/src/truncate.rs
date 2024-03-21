@@ -130,6 +130,9 @@ impl PolarsTruncate for DurationChunked {
         let out = if every.len() == 1 {
             if let Some(every) = every.get(0) {
                 let every_duration = Duration::parse(every);
+                if every_duration.negative {
+                    polars_bail!(ComputeError: "cannot truncate a Duration to a negative duration")
+                }
                 if every_duration.is_constant_duration() {
                     let every_units = to_time_unit(&every_duration);
 
@@ -152,6 +155,9 @@ impl PolarsTruncate for DurationChunked {
             try_binary_elementwise(self, every, |opt_duration, opt_every| {
                 if let (Some(duration), Some(every)) = (opt_duration, opt_every) {
                     let every_duration = Duration::parse(every);
+                    if every_duration.negative {
+                        polars_bail!(ComputeError: "cannot truncate a Duration to a negative duration")
+                    }
                     if every_duration.is_constant_duration() {
                         let every_units = to_time_unit(&every_duration);
 

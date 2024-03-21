@@ -48,6 +48,9 @@ impl PolarsRound for DateChunked {
 #[cfg(feature = "dtype-duration")]
 impl PolarsRound for DurationChunked {
     fn round(&self, every: Duration, offset: Duration, _tz: Option<&Tz>) -> PolarsResult<Self> {
+        if every.negative {
+            polars_bail!(ComputeError: "cannot round a Duration to a negative duration")
+        }
         if !every.is_constant_duration() {
             polars_bail!(InvalidOperation: "Cannot round a Duration series to a non-constant duration.");
         }

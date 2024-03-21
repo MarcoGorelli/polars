@@ -531,7 +531,6 @@ def test_truncate_duration(time_unit: TimeUnit) -> None:
     ).dt.cast_time_unit(time_unit)
 
     assert_series_equal(durations.dt.truncate("10s"), expected)
-    assert_series_equal(durations.dt.truncate("-10s"), expected)
 
 
 def test_truncate_duration_zero() -> None:
@@ -591,7 +590,8 @@ def test_truncate_negative() -> None:
         {
             "date": [date(1895, 5, 7), date(1955, 11, 5)],
             "datetime": [datetime(1895, 5, 7), datetime(1955, 11, 5)],
-            "duration": ["-1m", "1m"],
+            "duration": [timedelta(minutes=1), timedelta(minutes=-1)],
+            "every": ["-1m", "1m"],
         }
     )
 
@@ -606,14 +606,24 @@ def test_truncate_negative() -> None:
         df.select(pl.col("datetime").dt.truncate("-1m"))
 
     with pytest.raises(
+        ComputeError, match="cannot truncate a Duration to a negative duration"
+    ):
+        df.select(pl.col("duration").dt.truncate("-1m"))
+
+    with pytest.raises(
         ComputeError, match="cannot truncate a Date to a negative duration"
     ):
-        df.select(pl.col("date").dt.truncate(pl.col("duration")))
+        df.select(pl.col("date").dt.truncate(pl.col("every")))
 
     with pytest.raises(
         ComputeError, match="cannot truncate a Datetime to a negative duration"
     ):
-        df.select(pl.col("datetime").dt.truncate(pl.col("duration")))
+        df.select(pl.col("datetime").dt.truncate(pl.col("every")))
+
+    with pytest.raises(
+        ComputeError, match="cannot truncate a Duration to a negative duration"
+    ):
+        df.select(pl.col("duration").dt.truncate(pl.col("every")))
 
 
 @pytest.mark.parametrize(
@@ -673,7 +683,6 @@ def test_round_duration(time_unit: TimeUnit) -> None:
     ).dt.cast_time_unit(time_unit)
 
     assert_series_equal(durations.dt.round("10s"), expected)
-    assert_series_equal(durations.dt.round("-10s"), expected)
 
 
 def test_round_duration_zero() -> None:
@@ -744,6 +753,11 @@ def test_round_negative() -> None:
         ComputeError, match="cannot round a Datetime to a negative duration"
     ):
         pl.Series([datetime(1895, 5, 7)]).dt.round("-1m")
+
+    with pytest.raises(
+        ComputeError, match="cannot round a Duration to a negative duration"
+    ):
+        pl.Series([timedelta(days=1)]).dt.round("-1m")
 
 
 @pytest.mark.parametrize(
