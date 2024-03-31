@@ -44,6 +44,7 @@ impl FunctionExpr {
             SearchSorted(_) => mapper.with_dtype(IDX_DTYPE),
             #[cfg(feature = "range")]
             Range(func) => func.get_field(mapper),
+            BusinessDayCount => mapper.with_dtype(IDX_DTYPE),
             #[cfg(feature = "date_offset")]
             DateOffset { .. } => mapper.with_same_dtype(),
             #[cfg(feature = "trigonometry")]

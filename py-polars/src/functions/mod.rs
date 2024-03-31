@@ -1,4 +1,5 @@
 mod aggregation;
+mod business_days;
 mod eager;
 mod io;
 mod lazy;
@@ -19,3 +20,4 @@ pub use random::*;
 pub use range::*;
 pub use string_cache::*;
 pub use whenthen::*;
+pub use business_days::*;

@@ -7,6 +7,7 @@ mod array;
 mod binary;
 mod boolean;
 mod bounds;
+mod business_day_count;
 #[cfg(feature = "dtype-categorical")]
 mod cat;
 #[cfg(feature = "round_series")]
@@ -326,6 +327,7 @@ pub enum FunctionExpr {
     #[cfg(feature = "reinterpret")]
     Reinterpret(bool),
     ExtendConstant,
+    BusinessDayCount,
 }
 
 impl Hash for FunctionExpr {
@@ -358,6 +360,7 @@ impl Hash for FunctionExpr {
             Correlation { method, .. } => method.hash(state),
             #[cfg(feature = "range")]
             Range(f) => f.hash(state),
+            BusinessDayCount => {},
             #[cfg(feature = "trigonometry")]
             Trigonometry(f) => f.hash(state),
             #[cfg(feature = "fused")]
@@ -570,6 +573,7 @@ impl Display for FunctionExpr {
             SearchSorted(_) => "search_sorted",
             #[cfg(feature = "range")]
             Range(func) => return write!(f, "{func}"),
+            BusinessDayCount => "business_day_count",
             #[cfg(feature = "date_offset")]
             DateOffset => "dt.offset_by",
             #[cfg(feature = "trigonometry")]
@@ -836,6 +840,9 @@ impl From<FunctionExpr> for SpecialEq<Arc<dyn SeriesUdf>> {
             },
             #[cfg(feature = "range")]
             Range(func) => func.into(),
+            BusinessDayCount => {
+                map_as_slice!(business_day_count::business_day_count)
+            },
 
             #[cfg(feature = "date_offset")]
             DateOffset => {

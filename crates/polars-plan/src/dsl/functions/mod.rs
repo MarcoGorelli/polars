@@ -2,6 +2,7 @@
 //!
 //! Functions on expressions that might be useful.
 mod arity;
+mod business_day_count;
 #[cfg(feature = "dtype-struct")]
 mod coerce;
 mod concat;
@@ -19,6 +20,7 @@ mod temporal;
 
 pub use arity::*;
 #[cfg(feature = "dtype-struct")]
+pub use business_day_count::*;
 pub use coerce::*;
 pub use concat::*;
 #[cfg(feature = "cov")]

@@ -1,5 +1,6 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 mod base_utc_offset;
+mod business_day_count;
 pub mod chunkedarray;
 mod date_range;
 mod dst_offset;
@@ -16,6 +17,7 @@ mod windows;
 
 #[cfg(feature = "timezones")]
 pub use base_utc_offset::*;
+pub use business_day_count::*;
 pub use date_range::*;
 #[cfg(feature = "timezones")]
 pub use dst_offset::*;
