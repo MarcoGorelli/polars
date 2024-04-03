@@ -135,6 +135,37 @@ def date_(
     -------
     Expr
         Expression of data type :class:`Date`.
+    
+    Examples
+    --------
+    We can use `pl.date` for filtering:
+
+    >>> from datetime import date
+    >>> df = pl.DataFrame({'a': [date(2020, 1, 1), date(2020, 1, 2)]})
+    >>> df.filter(pl.col("a") > pl.date(2020, 1, 1))
+    shape: (1, 1)
+    ┌────────────┐
+    │ a          │
+    │ ---        │
+    │ date       │
+    ╞════════════╡
+    │ 2020-01-02 │
+    └────────────┘
+
+    But we can also use `pl.date` to create a column:
+
+    >>> df = pl.DataFrame({'year': [2020, 2021, 2022], 'month': [1, 2, 3]})
+    >>> df.with_columns(pl.date(pl.col("year"), pl.col("month"), 1).alias("date"))
+    shape: (3, 3)
+    ┌──────┬───────┬────────────┐
+    │ year ┆ month ┆ date       │
+    │ ---  ┆ ---   ┆ ---        │
+    │ i64  ┆ i64   ┆ date       │
+    ╞══════╪═══════╪════════════╡
+    │ 2020 ┆ 1     ┆ 2020-01-01 │
+    │ 2021 ┆ 2     ┆ 2021-02-01 │
+    │ 2022 ┆ 3     ┆ 2022-03-01 │
+    └──────┴───────┴────────────┘
     """
     return datetime_(year, month, day).cast(Date).alias("date")
 
