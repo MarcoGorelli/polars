@@ -541,32 +541,6 @@ def test_truncate_duration_zero() -> None:
         durations.dt.truncate("0s")
 
 
-def test_truncate_duration_offset() -> None:
-    """Test that the offset sign is properly used."""
-    durations = pl.DataFrame({"a": [timedelta(days=1)]}).with_columns(
-        b=pl.col("a").dt.cast_time_unit("ms"),
-        c=pl.col("a").dt.cast_time_unit("ns"),
-    )
-
-    plus_one_minute = pl.DataFrame({"a": [timedelta(days=1, minutes=1)]}).with_columns(
-        b=pl.col("a").dt.cast_time_unit("ms"),
-        c=pl.col("a").dt.cast_time_unit("ns"),
-    )
-    assert_frame_equal(
-        durations.select(pl.all().dt.truncate("1h", offset="1m")), plus_one_minute
-    )
-
-    minus_one_minute = pl.DataFrame(
-        {"a": [timedelta(days=1, minutes=-1)]}
-    ).with_columns(
-        b=pl.col("a").dt.cast_time_unit("ms"),
-        c=pl.col("a").dt.cast_time_unit("ns"),
-    )
-    assert_frame_equal(
-        durations.select(pl.all().dt.truncate("1h", offset="-1m")), minus_one_minute
-    )
-
-
 @pytest.mark.parametrize("every_unit", ["d", "w", "mo", "q", "y"])
 def test_truncated_duration_non_constant(every_unit: str) -> None:
     # Duration series can't be truncated to non-constant durations
@@ -691,32 +665,6 @@ def test_round_duration_zero() -> None:
 
     with pytest.raises(InvalidOperationError, match="duration cannot be zero"):
         durations.dt.round("0s")
-
-
-def test_round_duration_offset() -> None:
-    """Test that the offset sign is properly used."""
-    durations = pl.DataFrame({"a": [timedelta(days=1)]}).with_columns(
-        b=pl.col("a").dt.cast_time_unit("ms"),
-        c=pl.col("a").dt.cast_time_unit("ns"),
-    )
-
-    plus_one_minute = pl.DataFrame({"a": [timedelta(days=1, minutes=1)]}).with_columns(
-        b=pl.col("a").dt.cast_time_unit("ms"),
-        c=pl.col("a").dt.cast_time_unit("ns"),
-    )
-    assert_frame_equal(
-        durations.select(pl.all().dt.round("1h", offset="1m")), plus_one_minute
-    )
-
-    minus_one_minute = pl.DataFrame(
-        {"a": [timedelta(days=1, minutes=-1)]}
-    ).with_columns(
-        b=pl.col("a").dt.cast_time_unit("ms"),
-        c=pl.col("a").dt.cast_time_unit("ns"),
-    )
-    assert_frame_equal(
-        durations.select(pl.all().dt.round("1h", offset="-1m")), minus_one_minute
-    )
 
 
 @pytest.mark.parametrize("every", ["d", "w", "mo", "q", "y"])

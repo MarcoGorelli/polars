@@ -116,17 +116,9 @@ impl PolarsTruncate for DurationChunked {
             TimeUnit::Milliseconds => Duration::duration_ms,
         };
 
-        let offset_duration = Duration::parse(offset);
-        if !offset_duration.is_constant_duration() {
-            polars_bail!(InvalidOperation:
-                "Cannot offset a Duration series by a non-constant duration."
-            );
+        if !Duration::parse(offset).is_zero() {
+            polars_bail!(InvalidOperation: "Offsets are not supported for truncating Durations.");
         }
-        let offset_units = if offset_duration.negative {
-            -to_time_unit(&offset_duration)
-        } else {
-            to_time_unit(&offset_duration)
-        };
 
         let out = if every.len() == 1 {
             if let Some(every) = every.get(0) {
@@ -143,7 +135,7 @@ impl PolarsTruncate for DurationChunked {
 
                     Ok(self
                         .0
-                        .apply_values(|duration| duration - duration % every_units + offset_units))
+                        .apply_values(|duration| duration - duration % every_units))
                 } else {
                     polars_bail!(InvalidOperation:
                         "Cannot truncate a Duration series to a non-constant duration."
@@ -162,7 +154,7 @@ impl PolarsTruncate for DurationChunked {
                     if every_duration.is_constant_duration() {
                         let every_units = to_time_unit(&every_duration);
 
-                        Ok(Some(duration - duration % every_units + offset_units))
+                        Ok(Some(duration - duration % every_units))
                     } else {
                         polars_bail!(InvalidOperation:
                             "Cannot truncate a Duration series to a non-constant duration."

@@ -54,21 +54,14 @@ impl PolarsRound for DurationChunked {
         if !every.is_constant_duration() {
             polars_bail!(InvalidOperation: "Cannot round a Duration series to a non-constant duration.");
         }
-        if !offset.is_constant_duration() {
-            polars_bail!(InvalidOperation: "Cannot offset a Duration series by a non-constant duration.");
+        if !offset.is_zero() {
+            polars_bail!(InvalidOperation: "Offsets are not supported for rounding Durations.");
         }
 
-        let func = match self.time_unit() {
-            TimeUnit::Nanoseconds => Duration::duration_ns,
-            TimeUnit::Microseconds => Duration::duration_us,
-            TimeUnit::Milliseconds => Duration::duration_ms,
-        };
-
-        let every = func(&every);
-        let offset = if offset.negative {
-            -func(&offset)
-        } else {
-            func(&offset)
+        let every = match self.time_unit() {
+            TimeUnit::Nanoseconds => every.duration_ns(),
+            TimeUnit::Microseconds => every.duration_us(),
+            TimeUnit::Milliseconds => every.duration_ms(),
         };
 
         if every == 0 {
@@ -78,7 +71,7 @@ impl PolarsRound for DurationChunked {
         let out = self.apply_values(|duration| {
             // Round half-way values away from zero
             let half_away = duration.signum() * every / 2;
-            duration + half_away - (duration + half_away) % every + offset
+            duration + half_away - (duration + half_away) % every
         });
 
         Ok(out.into_duration(self.time_unit()))
