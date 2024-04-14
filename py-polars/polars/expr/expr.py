@@ -344,6 +344,13 @@ class Expr:
             objects that have a `read()` method, such as a file handler (e.g.
             via builtin `open` function) or `BytesIO`).
 
+        Warnings
+        --------
+            This function uses :mod:`pickle` under some circumstances, and as
+            such inherits the security implications. Deserializing can execute
+            arbitrary code so it should only be attempted on trusted data.
+            pickle is only used when the logical plan contains python UDFs.
+
         See Also
         --------
         Expr.meta.serialize
@@ -2131,11 +2138,17 @@ class Expr:
         Expr
             Expression of data type :class:`UInt32`.
 
+        See Also
+        --------
+        Expr.gather: Take values by index.
+        Expr.rank : Get the rank of each row.
+
         Examples
         --------
         >>> df = pl.DataFrame(
         ...     {
         ...         "a": [20, 10, 30],
+        ...         "b": [1, 2, 3],
         ...     }
         ... )
         >>> df.select(pl.col("a").arg_sort())
@@ -2148,6 +2161,20 @@ class Expr:
         │ 1   │
         │ 0   │
         │ 2   │
+        └─────┘
+
+        Use gather to apply the arg sort to other columns.
+
+        >>> df.select(pl.col("b").gather(pl.col("a").arg_sort()))
+        shape: (3, 1)
+        ┌─────┐
+        │ b   │
+        │ --- │
+        │ i64 │
+        ╞═════╡
+        │ 2   │
+        │ 1   │
+        │ 3   │
         └─────┘
         """
         return self._from_pyexpr(self._pyexpr.arg_sort(descending, nulls_last))
@@ -2244,6 +2271,9 @@ class Expr:
         by: IntoExpr | Iterable[IntoExpr],
         *more_by: IntoExpr,
         descending: bool | Sequence[bool] = False,
+        nulls_last: bool = False,
+        multithreaded: bool = True,
+        maintain_order: bool = False,
     ) -> Self:
         """
         Sort this column by the ordering of other columns.
@@ -2261,6 +2291,12 @@ class Expr:
         descending
             Sort in descending order. When sorting by multiple columns, can be specified
             per column by passing a sequence of booleans.
+        nulls_last
+            Place null values last.
+        multithreaded
+            Sort using multiple threads.
+        maintain_order
+            Whether the order should be maintained if elements are equal.
 
         Examples
         --------
@@ -2368,7 +2404,11 @@ class Expr:
         elif len(by) != len(descending):
             msg = f"the length of `descending` ({len(descending)}) does not match the length of `by` ({len(by)})"
             raise ValueError(msg)
-        return self._from_pyexpr(self._pyexpr.sort_by(by, descending))
+        return self._from_pyexpr(
+            self._pyexpr.sort_by(
+                by, descending, nulls_last, multithreaded, maintain_order
+            )
+        )
 
     def gather(
         self, indices: int | list[int] | Expr | Series | np.ndarray[Any, Any]
@@ -3225,8 +3265,11 @@ class Expr:
                 Join the groups as 'List<group_dtype>' to the row positions.
                 warning: this can be memory intensive.
             - explode
-                Don't do any mapping, but simply flatten the group.
-                This only makes sense if the input data is sorted.
+                Explodes the grouped data into new rows, similar to the results of
+                `group_by` + `agg` + `explode`. Sorting of the given groups is required
+                if the groups are not part of the window operation for the operation,
+                otherwise the result would not make sense. This operation changes the
+                number of rows.
 
         Examples
         --------
@@ -3308,6 +3351,26 @@ class Expr:
         │ b   ┆ 5   ┆ 2   ┆ 1     │
         │ b   ┆ 3   ┆ 1   ┆ 1     │
         └─────┴─────┴─────┴───────┘
+
+        Aggregate values from each group using `mapping_strategy="explode"`.
+
+        >>> df.select(
+        ...     pl.col("a").head(2).over("a", mapping_strategy="explode"),
+        ...     pl.col("b").sort_by("b").head(2).over("a", mapping_strategy="explode"),
+        ...     pl.col("c").sort_by("b").head(2).over("a", mapping_strategy="explode"),
+        ... )
+        shape: (4, 3)
+        ┌─────┬─────┬─────┐
+        │ a   ┆ b   ┆ c   │
+        │ --- ┆ --- ┆ --- │
+        │ str ┆ i64 ┆ i64 │
+        ╞═════╪═════╪═════╡
+        │ a   ┆ 1   ┆ 5   │
+        │ a   ┆ 2   ┆ 4   │
+        │ b   ┆ 3   ┆ 3   │
+        │ b   ┆ 3   ┆ 1   │
+        └─────┴─────┴─────┘
+
         """
         exprs = parse_as_list_of_expressions(expr, *more_exprs)
         return self._from_pyexpr(self._pyexpr.over(exprs, mapping_strategy))
@@ -3372,17 +3435,15 @@ class Expr:
             {UInt32, UInt64, Int32, Int64}. Note that the first three get temporarily
             cast to Int64, so if performance matters use an Int64 column.
         period
-            length of the window - must be non-negative
+            Length of the window - must be non-negative.
         offset
-            offset of the window. Default is -period
+            Offset of the window. Default is `-period`.
         closed : {'right', 'left', 'both', 'none'}
             Define which sides of the temporal interval are closed (inclusive).
         check_sorted
-            When the `by` argument is given, polars can not check sortedness
-            by the metadata and has to do a full scan on the index column to
-            verify data is sorted. This is expensive. If you are sure the
-            data within the by groups is sorted, you can set this to `False`.
-            Doing so incorrectly will lead to incorrect output
+            Whether to check that `index_column` is sorted.
+            If you are sure the data is sorted, you can set this to `False`.
+            Doing so incorrectly will lead to incorrect output.
 
         Examples
         --------
@@ -3846,12 +3907,16 @@ class Expr:
 
     def rle(self) -> Self:
         """
-        Get the lengths and values of runs of identical values.
+        Compress the column data using run-length encoding.
+
+        Run-length encoding (RLE) encodes data by storing each *run* of identical values
+        as a single value and its length.
 
         Returns
         -------
         Expr
-            Expression of data type :class:`Struct` with Fields "lengths" and "values".
+            Expression of data type `Struct` with fields `lengths` of data type `Int32`
+            and `values` of the original data type.
 
         See Also
         --------
@@ -3859,8 +3924,8 @@ class Expr:
 
         Examples
         --------
-        >>> df = pl.DataFrame(pl.Series("s", [1, 1, 2, 1, None, 1, 3, 3]))
-        >>> df.select(pl.col("s").rle()).unnest("s")
+        >>> df = pl.DataFrame({"a": [1, 1, 2, 1, None, 1, 3, 3]})
+        >>> df.select(pl.col("a").rle()).unnest("a")
         shape: (6, 2)
         ┌─────────┬────────┐
         │ lengths ┆ values │
@@ -3881,33 +3946,47 @@ class Expr:
         """
         Get a distinct integer ID for each run of identical values.
 
-        The ID increases by one each time the value of a column (which can be a
-        :class:`Struct`) changes.
+        The ID starts at 0 and increases by one each time the value of the column
+        changes.
 
-        This is especially useful when you want to define a new group for every time a
-        column's value changes, rather than for every distinct value of that column.
+        Returns
+        -------
+        Expr
+            Expression of data type `UInt32`.
 
         See Also
         --------
         rle
 
+        Notes
+        -----
+        This functionality is especially useful for defining a new group for every time
+        a column's value changes, rather than for every distinct value of that column.
+
         Examples
         --------
-        >>> df = pl.DataFrame(dict(a=[1, 2, 1, 1, 1], b=["x", "x", None, "y", "y"]))
-        >>> # It works on structs of multiple values too!
-        >>> df.with_columns(a_r=pl.col("a").rle_id(), ab_r=pl.struct("a", "b").rle_id())
+        >>> df = pl.DataFrame(
+        ...     {
+        ...         "a": [1, 2, 1, 1, 1],
+        ...         "b": ["x", "x", None, "y", "y"],
+        ...     }
+        ... )
+        >>> df.with_columns(
+        ...     rle_id_a=pl.col("a").rle_id(),
+        ...     rle_id_ab=pl.struct("a", "b").rle_id(),
+        ... )
         shape: (5, 4)
-        ┌─────┬──────┬─────┬──────┐
-        │ a   ┆ b    ┆ a_r ┆ ab_r │
-        │ --- ┆ ---  ┆ --- ┆ ---  │
-        │ i64 ┆ str  ┆ u32 ┆ u32  │
-        ╞═════╪══════╪═════╪══════╡
-        │ 1   ┆ x    ┆ 0   ┆ 0    │
-        │ 2   ┆ x    ┆ 1   ┆ 1    │
-        │ 1   ┆ null ┆ 2   ┆ 2    │
-        │ 1   ┆ y    ┆ 2   ┆ 3    │
-        │ 1   ┆ y    ┆ 2   ┆ 3    │
-        └─────┴──────┴─────┴──────┘
+        ┌─────┬──────┬──────────┬───────────┐
+        │ a   ┆ b    ┆ rle_id_a ┆ rle_id_ab │
+        │ --- ┆ ---  ┆ ---      ┆ ---       │
+        │ i64 ┆ str  ┆ u32      ┆ u32       │
+        ╞═════╪══════╪══════════╪═══════════╡
+        │ 1   ┆ x    ┆ 0        ┆ 0         │
+        │ 2   ┆ x    ┆ 1        ┆ 1         │
+        │ 1   ┆ null ┆ 2        ┆ 2         │
+        │ 1   ┆ y    ┆ 2        ┆ 3         │
+        │ 1   ┆ y    ┆ 2        ┆ 3         │
+        └─────┴──────┴──────────┴───────────┘
         """
         return self._from_pyexpr(self._pyexpr.rle_id())
 
@@ -4255,7 +4334,9 @@ class Expr:
         The function is applied to each element of column `'a'`:
 
         >>> df.with_columns(  # doctest: +SKIP
-        ...     pl.col("a").map_elements(lambda x: x * 2).alias("a_times_2"),
+        ...     pl.col("a")
+        ...     .map_elements(lambda x: x * 2, return_dtype=pl.Int64)
+        ...     .alias("a_times_2"),
         ... )
         shape: (4, 3)
         ┌─────┬─────┬───────────┐
@@ -4296,7 +4377,7 @@ class Expr:
         >>> (
         ...     df.lazy()
         ...     .group_by("b")
-        ...     .agg(pl.col("a").map_elements(lambda x: x.sum()))
+        ...     .agg(pl.col("a").map_elements(lambda x: x.sum(), return_dtype=pl.Int64))
         ...     .collect()
         ... )  # doctest: +IGNORE_RESULT
         shape: (3, 2)
@@ -4329,7 +4410,9 @@ class Expr:
         ...     }
         ... )
         >>> df.with_columns(
-        ...     scaled=pl.col("val").map_elements(lambda s: s * len(s)).over("key"),
+        ...     scaled=pl.col("val")
+        ...     .map_elements(lambda s: s * len(s), return_dtype=pl.List(pl.Int64))
+        ...     .over("key"),
         ... ).sort("key")
         shape: (6, 3)
         ┌─────┬─────┬────────┐
@@ -5267,16 +5350,16 @@ class Expr:
         ...     pl.col("x").pow(pl.col("x").log(2)).alias("x ** xlog2"),
         ... )
         shape: (4, 3)
-        ┌─────┬───────┬────────────┐
-        │ x   ┆ cube  ┆ x ** xlog2 │
-        │ --- ┆ ---   ┆ ---        │
-        │ i64 ┆ f64   ┆ f64        │
-        ╞═════╪═══════╪════════════╡
-        │ 1   ┆ 1.0   ┆ 1.0        │
-        │ 2   ┆ 8.0   ┆ 2.0        │
-        │ 4   ┆ 64.0  ┆ 16.0       │
-        │ 8   ┆ 512.0 ┆ 512.0      │
-        └─────┴───────┴────────────┘
+        ┌─────┬──────┬────────────┐
+        │ x   ┆ cube ┆ x ** xlog2 │
+        │ --- ┆ ---  ┆ ---        │
+        │ i64 ┆ i64  ┆ f64        │
+        ╞═════╪══════╪════════════╡
+        │ 1   ┆ 1    ┆ 1.0        │
+        │ 2   ┆ 8    ┆ 2.0        │
+        │ 4   ┆ 64   ┆ 16.0       │
+        │ 8   ┆ 512  ┆ 512.0      │
+        └─────┴──────┴────────────┘
         """
         return self.__pow__(exponent)
 
@@ -5315,12 +5398,16 @@ class Expr:
         ...     schema={"x": pl.UInt8, "y": pl.UInt8},
         ... )
         >>> df.with_columns(
-        ...     pl.col("x").map_elements(binary_string).alias("bin_x"),
-        ...     pl.col("y").map_elements(binary_string).alias("bin_y"),
+        ...     pl.col("x")
+        ...     .map_elements(binary_string, return_dtype=pl.String)
+        ...     .alias("bin_x"),
+        ...     pl.col("y")
+        ...     .map_elements(binary_string, return_dtype=pl.String)
+        ...     .alias("bin_y"),
         ...     pl.col("x").xor(pl.col("y")).alias("xor_xy"),
         ...     pl.col("x")
         ...     .xor(pl.col("y"))
-        ...     .map_elements(binary_string)
+        ...     .map_elements(binary_string, return_dtype=pl.String)
         ...     .alias("bin_xor_xy"),
         ... )
         shape: (4, 6)
@@ -9118,13 +9205,13 @@ class Expr:
         ┌────────┐
         │ values │
         │ ---    │
-        │ f64    │
+        │ i64    │
         ╞════════╡
-        │ 0.0    │
-        │ -3.0   │
-        │ -8.0   │
-        │ -15.0  │
-        │ -24.0  │
+        │ 0      │
+        │ -3     │
+        │ -8     │
+        │ -15    │
+        │ -24    │
         └────────┘
         """
         return self._from_pyexpr(

@@ -6,10 +6,10 @@ use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
 pub use exitable::PyInProcessQuery;
-use polars::io::RowIndex;
+use polars::io::cloud::CloudOptions;
+use polars::io::{HiveOptions, RowIndex};
 use polars::time::*;
 use polars_core::prelude::*;
-use polars_rs::io::cloud::CloudOptions;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyList};
@@ -85,11 +85,11 @@ impl PyLazyFrame {
             .unwrap();
 
         // SAFETY:
-        // we skipped the serializing/deserializing of the static in lifetime in `DataType`
+        // We skipped the serializing/deserializing of the static in lifetime in `DataType`
         // so we actually don't have a lifetime at all when serializing.
 
         // &str still has a lifetime. But it's ok, because we drop it immediately
-        // in this scope
+        // in this scope.
         let json = unsafe { std::mem::transmute::<&'_ str, &'static str>(json.as_str()) };
 
         let lp = serde_json::from_str::<LogicalPlan>(json)
@@ -243,7 +243,7 @@ impl PyLazyFrame {
     #[cfg(feature = "parquet")]
     #[staticmethod]
     #[pyo3(signature = (path, paths, n_rows, cache, parallel, rechunk, row_index,
-        low_memory, cloud_options, use_statistics, hive_partitioning, retries)
+        low_memory, cloud_options, use_statistics, hive_partitioning, hive_schema, retries)
     )]
     fn new_from_parquet(
         path: Option<PathBuf>,
@@ -257,8 +257,12 @@ impl PyLazyFrame {
         cloud_options: Option<Vec<(String, String)>>,
         use_statistics: bool,
         hive_partitioning: bool,
+        hive_schema: Option<Wrap<Schema>>,
         retries: usize,
     ) -> PyResult<Self> {
+        let parallel = parallel.0;
+        let hive_schema = hive_schema.map(|s| Arc::new(s.0));
+
         let first_path = if let Some(path) = &path {
             path
         } else {
@@ -281,16 +285,21 @@ impl PyLazyFrame {
                     });
         }
         let row_index = row_index.map(|(name, offset)| RowIndex { name, offset });
+        let hive_options = HiveOptions {
+            enabled: hive_partitioning,
+            schema: hive_schema,
+        };
+
         let args = ScanArgsParquet {
             n_rows,
             cache,
-            parallel: parallel.0,
+            parallel,
             rechunk,
             row_index,
             low_memory,
             cloud_options,
             use_statistics,
-            hive_partitioning,
+            hive_options,
         };
 
         let lf = if path.is_some() {
@@ -349,7 +358,7 @@ impl PyLazyFrame {
             cache,
             rechunk,
             row_index,
-            memmap: memory_map,
+            memory_map,
             #[cfg(feature = "cloud")]
             cloud_options,
         };
@@ -449,14 +458,15 @@ impl PyLazyFrame {
         descending: bool,
         nulls_last: bool,
         maintain_order: bool,
+        multithreaded: bool,
     ) -> Self {
         let ldf = self.ldf.clone();
         ldf.sort(
-            by_column,
-            SortOptions {
-                descending,
+            [by_column],
+            SortMultipleOptions {
+                descending: vec![descending],
                 nulls_last,
-                multithreaded: true,
+                multithreaded,
                 maintain_order,
             },
         )
@@ -469,11 +479,20 @@ impl PyLazyFrame {
         descending: Vec<bool>,
         nulls_last: bool,
         maintain_order: bool,
+        multithreaded: bool,
     ) -> Self {
         let ldf = self.ldf.clone();
         let exprs = by.to_exprs();
-        ldf.sort_by_exprs(exprs, descending, nulls_last, maintain_order)
-            .into()
+        ldf.sort_by_exprs(
+            exprs,
+            SortMultipleOptions {
+                descending,
+                nulls_last,
+                maintain_order,
+                multithreaded,
+            },
+        )
+        .into()
     }
 
     fn top_k(
@@ -483,11 +502,21 @@ impl PyLazyFrame {
         descending: Vec<bool>,
         nulls_last: bool,
         maintain_order: bool,
+        multithreaded: bool,
     ) -> Self {
         let ldf = self.ldf.clone();
         let exprs = by.to_exprs();
-        ldf.top_k(k, exprs, descending, nulls_last, maintain_order)
-            .into()
+        ldf.top_k(
+            k,
+            exprs,
+            SortMultipleOptions {
+                descending,
+                nulls_last,
+                maintain_order,
+                multithreaded,
+            },
+        )
+        .into()
     }
 
     fn bottom_k(
@@ -497,11 +526,21 @@ impl PyLazyFrame {
         descending: Vec<bool>,
         nulls_last: bool,
         maintain_order: bool,
+        multithreaded: bool,
     ) -> Self {
         let ldf = self.ldf.clone();
         let exprs = by.to_exprs();
-        ldf.bottom_k(k, exprs, descending, nulls_last, maintain_order)
-            .into()
+        ldf.bottom_k(
+            k,
+            exprs,
+            SortMultipleOptions {
+                descending,
+                nulls_last,
+                maintain_order,
+                multithreaded,
+            },
+        )
+        .into()
     }
 
     fn cache(&self) -> Self {
@@ -530,27 +569,25 @@ impl PyLazyFrame {
     }
 
     #[pyo3(signature = (lambda,))]
-    fn collect_with_callback(&self, py: Python, lambda: PyObject) {
-        py.allow_threads(|| {
-            let ldf = self.ldf.clone();
+    fn collect_with_callback(&self, lambda: PyObject) {
+        let ldf = self.ldf.clone();
 
-            polars_core::POOL.spawn(move || {
-                let result = ldf
-                    .collect()
-                    .map(PyDataFrame::new)
-                    .map_err(PyPolarsErr::from);
+        polars_core::POOL.spawn(move || {
+            let result = ldf
+                .collect()
+                .map(PyDataFrame::new)
+                .map_err(PyPolarsErr::from);
 
-                Python::with_gil(|py| match result {
-                    Ok(df) => {
-                        lambda.call1(py, (df,)).map_err(|err| err.restore(py)).ok();
-                    },
-                    Err(err) => {
-                        lambda
-                            .call1(py, (PyErr::from(err).to_object(py),))
-                            .map_err(|err| err.restore(py))
-                            .ok();
-                    },
-                });
+            Python::with_gil(|py| match result {
+                Ok(df) => {
+                    lambda.call1(py, (df,)).map_err(|err| err.restore(py)).ok();
+                },
+                Err(err) => {
+                    lambda
+                        .call1(py, (PyErr::from(err).to_object(py),))
+                        .map_err(|err| err.restore(py))
+                        .ok();
+                },
             });
         });
     }

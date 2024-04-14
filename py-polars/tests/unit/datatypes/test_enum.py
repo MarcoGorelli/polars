@@ -81,6 +81,13 @@ def test_nested_enum_creation() -> None:
     assert s.dtype == dtype
 
 
+def test_enum_union() -> None:
+    e1 = pl.Enum(["a", "b"])
+    e2 = pl.Enum(["b", "c"])
+    assert e1 | e2 == pl.Enum(["a", "b", "c"])
+    assert e1.union(e2) == pl.Enum(["a", "b", "c"])
+
+
 def test_nested_enum_concat() -> None:
     dtype = pl.List(pl.Enum(["a", "b", "c", "d"]))
     s1 = pl.Series([[None, "a"], ["b", "c"]], dtype=dtype)
@@ -214,8 +221,8 @@ def test_append_to_an_enum() -> None:
 
 def test_append_to_an_enum_with_new_category() -> None:
     with pytest.raises(
-        pl.ComputeError,
-        match=("can not merge incompatible Enum types"),
+        pl.SchemaError,
+        match=("cannot extend/append Enum"),
     ):
         pl.Series([None, "a", "b", "c"], dtype=pl.Enum(["a", "b", "c"])).append(
             pl.Series(["d", "a", "b", "c"], dtype=pl.Enum(["a", "b", "c", "d"]))
@@ -469,7 +476,36 @@ def test_enum_cse_eq() -> None:
     dt1 = pl.Enum(["a", "b"])
     dt2 = pl.Enum(["a", "c"])
 
-    df.lazy().select(
-        pl.when(True).then(pl.lit("a", dtype=dt1)).alias("dt1"),
-        pl.when(True).then(pl.lit("a", dtype=dt2)).alias("dt2"),
-    ).collect()
+    out = (
+        df.lazy()
+        .select(
+            pl.when(True).then(pl.lit("a", dtype=dt1)).alias("dt1"),
+            pl.when(True).then(pl.lit("a", dtype=dt2)).alias("dt2"),
+        )
+        .collect()
+    )
+
+    assert out["dt1"].item() == "a"
+    assert out["dt2"].item() == "a"
+    assert out["dt1"].dtype == pl.Enum(["a", "b"])
+    assert out["dt2"].dtype == pl.Enum(["a", "c"])
+    assert out["dt1"].dtype != out["dt2"].dtype
+
+
+def test_category_comparison_subset() -> None:
+    dt1 = pl.Enum(["a"])
+    dt2 = pl.Enum(["a", "b"])
+    out = (
+        pl.LazyFrame()
+        .select(
+            pl.lit("a", dtype=dt1).alias("dt1"),
+            pl.lit("a", dtype=dt2).alias("dt2"),
+        )
+        .collect()
+    )
+
+    assert out["dt1"].item() == "a"
+    assert out["dt2"].item() == "a"
+    assert out["dt1"].dtype == pl.Enum(["a"])
+    assert out["dt2"].dtype == pl.Enum(["a", "b"])
+    assert out["dt1"].dtype != out["dt2"].dtype

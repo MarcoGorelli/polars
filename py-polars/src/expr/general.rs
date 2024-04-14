@@ -8,7 +8,7 @@ use pyo3::class::basic::CompareOp;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
-use crate::conversion::{parse_fill_null_strategy, Wrap};
+use crate::conversion::{parse_fill_null_strategy, vec_extract_wrapped, Wrap};
 use crate::error::PyPolarsErr;
 use crate::map::lazy::map_single;
 use crate::PyExpr;
@@ -268,7 +268,7 @@ impl PyExpr {
     fn sort_with(&self, descending: bool, nulls_last: bool) -> Self {
         self.inner
             .clone()
-            .sort_with(SortOptions {
+            .sort(SortOptions {
                 descending,
                 nulls_last,
                 multithreaded: true,
@@ -332,9 +332,27 @@ impl PyExpr {
         self.inner.clone().get(idx.inner).into()
     }
 
-    fn sort_by(&self, by: Vec<Self>, descending: Vec<bool>) -> Self {
+    fn sort_by(
+        &self,
+        by: Vec<Self>,
+        descending: Vec<bool>,
+        nulls_last: bool,
+        multithreaded: bool,
+        maintain_order: bool,
+    ) -> Self {
         let by = by.into_iter().map(|e| e.inner).collect::<Vec<_>>();
-        self.inner.clone().sort_by(by, descending).into()
+        self.inner
+            .clone()
+            .sort_by(
+                by,
+                SortMultipleOptions {
+                    descending,
+                    nulls_last,
+                    multithreaded,
+                    maintain_order,
+                },
+            )
+            .into()
     }
 
     fn backward_fill(&self, limit: FillNullLimit) -> Self {
@@ -421,16 +439,17 @@ impl PyExpr {
     fn gather_every(&self, n: usize, offset: usize) -> Self {
         self.inner.clone().gather_every(n, offset).into()
     }
-    fn tail(&self, n: usize) -> Self {
-        self.inner.clone().tail(Some(n)).into()
+
+    fn slice(&self, offset: Self, length: Self) -> Self {
+        self.inner.clone().slice(offset.inner, length.inner).into()
     }
 
     fn head(&self, n: usize) -> Self {
         self.inner.clone().head(Some(n)).into()
     }
 
-    fn slice(&self, offset: Self, length: Self) -> Self {
-        self.inner.clone().slice(offset.inner, length.inner).into()
+    fn tail(&self, n: usize) -> Self {
+        self.inner.clone().tail(Some(n)).into()
     }
 
     fn append(&self, other: Self, upcast: bool) -> Self {
@@ -684,9 +703,7 @@ impl PyExpr {
         self.inner.clone().exclude(columns).into()
     }
     fn exclude_dtype(&self, dtypes: Vec<Wrap<DataType>>) -> Self {
-        // SAFETY:
-        // Wrap is transparent.
-        let dtypes: Vec<DataType> = unsafe { std::mem::transmute(dtypes) };
+        let dtypes = vec_extract_wrapped(dtypes);
         self.inner.clone().exclude_dtype(&dtypes).into()
     }
     fn interpolate(&self, method: Wrap<InterpolationMethod>) -> Self {

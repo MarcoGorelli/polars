@@ -40,6 +40,10 @@ impl PyExpr {
         }
     }
 
+    fn arr_n_unique(&self) -> Self {
+        self.inner.clone().arr().n_unique().into()
+    }
+
     fn arr_to_list(&self) -> Self {
         self.inner.clone().arr().to_list().into()
     }
@@ -76,8 +80,12 @@ impl PyExpr {
         self.inner.clone().arr().arg_max().into()
     }
 
-    fn arr_get(&self, index: PyExpr) -> Self {
-        self.inner.clone().arr().get(index.inner).into()
+    fn arr_get(&self, index: PyExpr, null_on_oob: bool) -> Self {
+        self.inner
+            .clone()
+            .arr()
+            .get(index.inner, null_on_oob)
+            .into()
     }
 
     fn arr_join(&self, separator: PyExpr, ignore_nulls: bool) -> Self {

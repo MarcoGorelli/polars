@@ -194,8 +194,12 @@ impl private::PrivateSeries for SeriesWrap<DurationChunked> {
         self.0.group_tuples(multithreaded, sorted)
     }
 
-    fn arg_sort_multiple(&self, options: &SortMultipleOptions) -> PolarsResult<IdxCa> {
-        self.0.deref().arg_sort_multiple(options)
+    fn arg_sort_multiple(
+        &self,
+        by: &[Series],
+        options: &SortMultipleOptions,
+    ) -> PolarsResult<IdxCa> {
+        self.0.deref().arg_sort_multiple(by, options)
     }
 }
 
@@ -326,11 +330,12 @@ impl SeriesTrait for SeriesWrap<DurationChunked> {
         self.0.get_any_value_unchecked(index)
     }
 
-    fn sort_with(&self, options: SortOptions) -> Series {
-        self.0
+    fn sort_with(&self, options: SortOptions) -> PolarsResult<Series> {
+        Ok(self
+            .0
             .sort_with(options)
             .into_duration(self.0.time_unit())
-            .into_series()
+            .into_series())
     }
 
     fn arg_sort(&self, options: SortOptions) -> IdxCa {

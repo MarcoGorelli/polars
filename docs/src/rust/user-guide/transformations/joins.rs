@@ -58,11 +58,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             df_orders.clone().lazy(),
             [col("customer_id")],
             [col("customer_id")],
-            JoinArgs::new(JoinType::Outer { coalesce: true }),
+            JoinArgs::new(JoinType::Outer { coalesce: false }),
         )
         .collect()?;
     println!("{}", &df_outer_join);
     // --8<-- [end:outer]
+
+    // --8<-- [start:outer_coalesce]
+    let df_outer_join = df_customers
+        .clone()
+        .lazy()
+        .join(
+            df_orders.clone().lazy(),
+            [col("customer_id")],
+            [col("customer_id")],
+            JoinArgs::new(JoinType::Outer { coalesce: true }),
+        )
+        .collect()?;
+    println!("{}", &df_outer_join);
+    // --8<-- [end:outer_coalesce]
 
     // --8<-- [start:df3]
     let df_colors = df!(
@@ -171,8 +185,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // --8<-- [end:df8]
 
     // --8<-- [start:asofpre]
-    let df_trades = df_trades.sort(["time"], false, true).unwrap();
-    let df_quotes = df_quotes.sort(["time"], false, true).unwrap();
+    let df_trades = df_trades
+        .sort(
+            ["time"],
+            SortMultipleOptions::default().with_maintain_order(true),
+        )
+        .unwrap();
+    let df_quotes = df_quotes
+        .sort(
+            ["time"],
+            SortMultipleOptions::default().with_maintain_order(true),
+        )
+        .unwrap();
     // --8<-- [end:asofpre]
 
     // --8<-- [start:asof]

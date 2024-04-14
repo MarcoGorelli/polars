@@ -221,8 +221,20 @@ impl DataType {
         matches!(self, DataType::List(_))
     }
 
+    /// Check if this [`DataType`] is a array
+    pub fn is_array(&self) -> bool {
+        #[cfg(feature = "dtype-array")]
+        {
+            matches!(self, DataType::Array(_, _))
+        }
+        #[cfg(not(feature = "dtype-array"))]
+        {
+            false
+        }
+    }
+
     pub fn is_nested(&self) -> bool {
-        self.is_list() || self.is_struct()
+        self.is_list() || self.is_struct() || self.is_array()
     }
 
     /// Check if this [`DataType`] is a struct
@@ -239,6 +251,21 @@ impl DataType {
 
     pub fn is_binary(&self) -> bool {
         matches!(self, DataType::Binary)
+    }
+
+    pub fn is_object(&self) -> bool {
+        #[cfg(feature = "object")]
+        {
+            matches!(self, DataType::Object(_, _))
+        }
+        #[cfg(not(feature = "object"))]
+        {
+            false
+        }
+    }
+
+    pub fn is_null(&self) -> bool {
+        matches!(self, DataType::Null)
     }
 
     pub fn contains_views(&self) -> bool {

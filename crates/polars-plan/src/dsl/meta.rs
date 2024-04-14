@@ -41,22 +41,13 @@ impl MetaNameSpace {
     }
 
     /// Undo any renaming operation like `alias`, `keep_name`.
-    pub fn undo_aliases(mut self) -> Expr {
-        self.0.mutate().apply(|e| match e {
+    pub fn undo_aliases(self) -> Expr {
+        self.0.map_expr(|e| match e {
             Expr::Alias(input, _)
             | Expr::KeepName(input)
-            | Expr::RenameAlias { expr: input, .. } => {
-                // remove this node
-                *e = *input.clone();
-
-                // continue iteration
-                true
-            },
-            // continue iteration
-            _ => true,
-        });
-
-        self.0
+            | Expr::RenameAlias { expr: input, .. } => Arc::unwrap_or_clone(input),
+            e => e,
+        })
     }
 
     /// Indicate if this expression expands to multiple expressions.
@@ -137,7 +128,9 @@ impl MetaNameSpace {
         let mut arena = Default::default();
         let node = to_aexpr(self.0, &mut arena);
         let mut visitor = TreeFmtVisitor::default();
-        AexprNode::with_context(node, &mut arena, |ae_node| ae_node.visit(&mut visitor))?;
+
+        AexprNode::new(node).visit(&mut visitor, &arena)?;
+
         Ok(visitor)
     }
 }

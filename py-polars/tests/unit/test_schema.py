@@ -2,12 +2,15 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from datetime import date, timedelta
-from typing import Any, Iterator, Mapping
+from typing import TYPE_CHECKING, Any, Iterator, Mapping
 
 import pytest
 
 import polars as pl
 from polars.testing import assert_frame_equal, assert_series_equal
+
+if TYPE_CHECKING:
+    from polars.type_aliases import PolarsDataType
 
 
 class CustomSchema(Mapping[str, Any]):
@@ -638,3 +641,72 @@ def test_literal_subtract_schema_13284() -> None:
 def test_schema_boolean_sum_horizontal() -> None:
     lf = pl.LazyFrame({"a": [True, False]}).select(pl.sum_horizontal("a"))
     assert lf.schema == OrderedDict([("a", pl.UInt32)])
+
+
+@pytest.mark.parametrize(
+    ("in_dtype", "out_dtype"),
+    [
+        (pl.Boolean, pl.Float64),
+        (pl.UInt8, pl.Float64),
+        (pl.UInt16, pl.Float64),
+        (pl.UInt32, pl.Float64),
+        (pl.UInt64, pl.Float64),
+        (pl.Int8, pl.Float64),
+        (pl.Int16, pl.Float64),
+        (pl.Int32, pl.Float64),
+        (pl.Int64, pl.Float64),
+        (pl.Float32, pl.Float32),
+        (pl.Float64, pl.Float64),
+    ],
+)
+def test_schema_mean_horizontal_single_column(
+    in_dtype: PolarsDataType,
+    out_dtype: PolarsDataType,
+) -> None:
+    lf = pl.LazyFrame({"a": pl.Series([1, 0], dtype=in_dtype)}).select(
+        pl.mean_horizontal(pl.all())
+    )
+
+    assert lf.schema == OrderedDict([("a", out_dtype)])
+
+
+def test_struct_alias_prune_15401() -> None:
+    df = pl.DataFrame({"a": []}, schema={"a": pl.Struct({"b": pl.Int8})})
+    assert df.select(pl.col("a").alias("c").struct.field("b")).columns == ["b"]
+
+
+def test_alias_prune_in_fold_15438() -> None:
+    df = pl.DataFrame({"x": [1, 2], "expected_result": ["first", "second"]}).select(
+        actual_result=pl.fold(
+            acc=pl.lit("other", dtype=pl.Utf8),
+            function=lambda acc, x: pl.when(x).then(pl.lit(x.name)).otherwise(acc),  # type: ignore[arg-type, return-value]
+            exprs=[
+                (pl.col("x") == 1).alias("first"),
+                (pl.col("x") == 2).alias("second"),
+            ],
+        )
+    )
+    expected = pl.DataFrame(
+        {
+            "actual_result": ["first", "second"],
+        }
+    )
+    assert_frame_equal(df, expected)
+
+
+def test_resolved_names_15442() -> None:
+    df = pl.DataFrame(
+        {
+            "x": [206.0],
+            "y": [225.0],
+        }
+    )
+    center = pl.struct(
+        x=pl.col("x"),
+        y=pl.col("y"),
+    )
+
+    left = 0
+    right = 1000
+    in_x = (left < center.struct.field("x")) & (center.struct.field("x") <= right)
+    assert df.lazy().filter(in_x).collect().shape == (1, 2)

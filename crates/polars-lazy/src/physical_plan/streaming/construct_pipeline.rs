@@ -11,6 +11,7 @@ use polars_pipe::pipeline::{
     create_pipeline, execute_pipeline, get_dummy_operator, get_operator, CallBacks, PipeLine,
 };
 use polars_pipe::SExecutionContext;
+use polars_plan::prelude::expr_ir::ExprIR;
 
 use crate::physical_plan::planner::{create_physical_expr, ExpressionConversionState};
 use crate::physical_plan::state::ExecutionState;
@@ -46,13 +47,13 @@ impl PhysicalPipedExpr for Wrap {
 }
 
 fn to_physical_piped_expr(
-    node: Node,
+    expr: &ExprIR,
     expr_arena: &Arena<AExpr>,
     schema: Option<&SchemaRef>,
 ) -> PolarsResult<Arc<dyn PhysicalPipedExpr>> {
     // this is a double Arc<dyn> explore if we can create a single of it.
     create_physical_expr(
-        node,
+        expr,
         Context::Default,
         expr_arena,
         schema,
@@ -63,7 +64,7 @@ fn to_physical_piped_expr(
 
 fn jit_insert_slice(
     node: Node,
-    lp_arena: &mut Arena<ALogicalPlan>,
+    lp_arena: &mut Arena<IR>,
     sink_nodes: &mut Vec<(usize, Node, Rc<RefCell<u32>>)>,
     operator_offset: usize,
 ) {
@@ -71,7 +72,7 @@ fn jit_insert_slice(
     // note that we take the offset + 1, because we want to
     // slice AFTER the join has happened and the join will be an
     // operator
-    use ALogicalPlan::*;
+    use IR::*;
     let (offset, len) = match lp_arena.get(node) {
         Join { options, .. } if options.args.slice.is_some() => {
             let Some((offset, len)) = options.args.slice else {
@@ -100,11 +101,11 @@ fn jit_insert_slice(
 
 pub(super) fn construct(
     tree: Tree,
-    lp_arena: &mut Arena<ALogicalPlan>,
+    lp_arena: &mut Arena<IR>,
     expr_arena: &mut Arena<AExpr>,
     fmt: bool,
 ) -> PolarsResult<Option<Node>> {
-    use ALogicalPlan::*;
+    use IR::*;
 
     let mut pipelines = Vec::with_capacity(tree.len());
     let mut callbacks = CallBacks::new();
@@ -145,7 +146,7 @@ pub(super) fn construct(
         // The file sink is always to the top of the tree
         // not every branch has a final sink. For instance rhs join branches
         if let Some(node) = branch.get_final_sink() {
-            if matches!(lp_arena.get(node), ALogicalPlan::Sink { .. }) {
+            if matches!(lp_arena.get(node), IR::Sink { .. }) {
                 final_sink = Some(node)
             }
         }
@@ -250,14 +251,14 @@ impl SExecutionContext for ExecutionState {
 }
 
 fn get_pipeline_node(
-    lp_arena: &mut Arena<ALogicalPlan>,
+    lp_arena: &mut Arena<IR>,
     mut pipelines: Vec<PipeLine>,
     schema: SchemaRef,
     original_lp: Option<LogicalPlan>,
-) -> ALogicalPlan {
+) -> IR {
     // create a dummy input as the map function will call the input
     // so we just create a scan that returns an empty df
-    let dummy = lp_arena.add(ALogicalPlan::DataFrameScan {
+    let dummy = lp_arena.add(IR::DataFrameScan {
         df: Arc::new(DataFrame::empty()),
         schema: Arc::new(Schema::new()),
         output_schema: None,
@@ -265,7 +266,7 @@ fn get_pipeline_node(
         selection: None,
     });
 
-    ALogicalPlan::MapFunction {
+    IR::MapFunction {
         function: FunctionNode::Pipeline {
             function: Arc::new(move |_df: DataFrame| {
                 let mut state = ExecutionState::new();

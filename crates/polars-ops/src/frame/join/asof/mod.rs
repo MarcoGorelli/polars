@@ -12,7 +12,7 @@ use smartstring::alias::String as SmartString;
 
 #[cfg(feature = "dtype-categorical")]
 use super::_check_categorical_src;
-use super::{_finish_join, build_tables, multiple_keys as mk, prepare_bytes};
+use super::{_finish_join, build_tables, prepare_bytes};
 use crate::frame::IntoDf;
 
 trait AsofJoinState<T>: Default {
@@ -142,7 +142,7 @@ impl<T: NumericNative> AsofJoinState<T> for AsofJoinNearestState {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Default, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct AsOfOptions {
     pub strategy: AsofStrategy,
@@ -191,7 +191,7 @@ fn check_asof_columns(
     Ok(())
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum AsofStrategy {
     /// selects the last row in the right DataFrame whose ‘on’ key is less than or equal to the left’s key

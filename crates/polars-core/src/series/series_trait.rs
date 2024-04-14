@@ -163,7 +163,12 @@ pub(crate) mod private {
             invalid_operation_panic!(zip_with_same_type, self)
         }
 
-        fn arg_sort_multiple(&self, _options: &SortMultipleOptions) -> PolarsResult<IdxCa> {
+        #[allow(unused_variables)]
+        fn arg_sort_multiple(
+            &self,
+            by: &[Series],
+            _options: &SortMultipleOptions,
+        ) -> PolarsResult<IdxCa> {
             polars_bail!(opq = arg_sort_multiple, self._dtype());
         }
     }
@@ -333,8 +338,8 @@ pub trait SeriesTrait:
         invalid_operation_panic!(get_unchecked, self)
     }
 
-    fn sort_with(&self, _options: SortOptions) -> Series {
-        invalid_operation_panic!(sort_with, self)
+    fn sort_with(&self, _options: SortOptions) -> PolarsResult<Series> {
+        polars_bail!(opq = sort_with, self._dtype());
     }
 
     /// Retrieve the indexes needed for a sort.
@@ -493,9 +498,9 @@ pub trait SeriesTrait:
 }
 
 impl<'a> (dyn SeriesTrait + 'a) {
-    pub fn unpack<N: 'static>(&self) -> PolarsResult<&ChunkedArray<N>>
+    pub fn unpack<N>(&self) -> PolarsResult<&ChunkedArray<N>>
     where
-        N: PolarsDataType,
+        N: 'static + PolarsDataType,
     {
         polars_ensure!(&N::get_dtype() == self.dtype(), unpack);
         Ok(self.as_ref())

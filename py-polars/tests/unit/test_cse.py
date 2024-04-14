@@ -37,7 +37,7 @@ def test_union_duplicates() -> None:
 
     result = len(
         re.findall(
-            r".*CACHE\[id: .*, count: 9].*",
+            r".*CACHE\[id: .*, cache_hits: 9].*",
             pl.concat(lazy_dfs).explain(),
             flags=re.MULTILINE,
         )
@@ -172,6 +172,7 @@ Gr1,B
     assert_frame_equal(result, expected)
 
 
+@pytest.mark.debug()
 def test_cse_expr_selection_context(monkeypatch: Any, capfd: Any) -> None:
     monkeypatch.setenv("POLARS_VERBOSE", "1")
     q = pl.LazyFrame(
@@ -217,7 +218,7 @@ def test_cse_expr_selection_context(monkeypatch: Any, capfd: Any) -> None:
     )
     assert_frame_equal(result, expected)
 
-    out = capfd.readouterr().out
+    out = capfd.readouterr().err
     assert "run ProjectionExec with 2 CSE" in out
     assert "run StackExec with 2 CSE" in out
 
@@ -644,3 +645,42 @@ def test_cse_14047() -> None:
     assert_frame_equal(
         ldf.collect(comm_subexpr_elim=True), ldf.collect(comm_subexpr_elim=False)
     )
+
+
+def test_cse_15536() -> None:
+    source = pl.DataFrame({"a": range(10)})
+
+    data = source.lazy().filter(pl.col("a") >= 5)
+
+    assert pl.concat(
+        [
+            data.filter(pl.lit(True) & (pl.col("a") == 6) | (pl.col("a") == 9)),
+            data.filter(pl.lit(True) & (pl.col("a") == 7) | (pl.col("a") == 8)),
+        ]
+    ).collect()["a"].to_list() == [6, 9, 7, 8]
+
+
+def test_cse_15548() -> None:
+    ldf = pl.LazyFrame({"a": [1, 2, 3]})
+    ldf2 = ldf.filter(pl.col("a") == 1).cache()
+    ldf3 = pl.concat([ldf, ldf2])
+
+    assert len(ldf3.collect(comm_subplan_elim=False)) == 4
+    assert len(ldf3.collect(comm_subplan_elim=True)) == 4
+
+
+@pytest.mark.debug()
+def test_cse_and_schema_update_projection_pd(capfd: Any, monkeypatch: Any) -> None:
+    monkeypatch.setenv("POLARS_VERBOSE", "1")
+    df = pl.LazyFrame({"a": [1, 2], "b": [99, 99]})
+
+    assert df.lazy().with_row_index().select(
+        pl.when(pl.col("b") < 10)
+        .then(0.1 * pl.col("b"))
+        .when(pl.col("b") < 100)
+        .then(0.2 * pl.col("b"))
+    ).collect(comm_subplan_elim=False).to_dict(as_series=False) == {
+        "literal": [19.8, 19.8]
+    }
+    captured = capfd.readouterr().err
+    assert "1 CSE" in captured

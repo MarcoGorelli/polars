@@ -393,11 +393,11 @@ fn test_scan_parquet_limit_9001() {
     let q = LazyFrame::scan_parquet(path, args).unwrap().limit(3);
     let (node, lp_arena, _) = q.to_alp_optimized().unwrap();
     (&lp_arena).iter(node).all(|(_, lp)| match lp {
-        ALogicalPlan::Union { options, .. } => {
+        IR::Union { options, .. } => {
             let sliced = options.slice.unwrap();
             sliced.1 == 3
         },
-        ALogicalPlan::Scan { file_options, .. } => file_options.n_rows == Some(3),
+        IR::Scan { file_options, .. } => file_options.n_rows == Some(3),
         _ => true,
     });
 }
@@ -415,8 +415,7 @@ fn test_ipc_globbing() -> PolarsResult<()> {
             cache: true,
             rechunk: false,
             row_index: None,
-            memmap: true,
-            #[cfg(feature = "cloud")]
+            memory_map: true,
             cloud_options: None,
         },
     )?
@@ -429,9 +428,9 @@ fn test_ipc_globbing() -> PolarsResult<()> {
     Ok(())
 }
 
-fn slice_at_union(lp_arena: &Arena<ALogicalPlan>, lp: Node) -> bool {
+fn slice_at_union(lp_arena: &Arena<IR>, lp: Node) -> bool {
     (&lp_arena).iter(lp).all(|(_, lp)| {
-        if let ALogicalPlan::Union { options, .. } = lp {
+        if let IR::Union { options, .. } = lp {
             options.slice.is_some()
         } else {
             true
@@ -512,7 +511,6 @@ fn test_union_and_agg_projections() -> PolarsResult<()> {
             col("fats_g").cast(DataType::Float64).mean().alias("mean"),
             col("fats_g").min().alias("min"),
         ]);
-        println!("{}", lf.describe_optimized_plan().unwrap());
 
         let out = lf.collect()?;
         assert_eq!(out.shape(), (1, 3));

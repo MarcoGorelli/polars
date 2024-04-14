@@ -1,4 +1,5 @@
 use polars_core::prelude::*;
+use recursive::recursive;
 
 use crate::logical_plan::projection_expr::ProjectionExprs;
 use crate::prelude::*;
@@ -25,7 +26,7 @@ fn can_pushdown_slice_past_projections(
     arena: &Arena<AExpr>,
 ) -> (bool, bool) {
     let mut all_elementwise_and_any_expr_has_column = false;
-    for node in exprs.iter() {
+    for expr_ir in exprs.iter() {
         // `select(c = Literal([1, 2, 3])).slice(0, 0)` must block slice pushdown,
         // because `c` projects to a height independent from the input height. We check
         // this by observing that `c` does not have any columns in its input notes.
@@ -36,7 +37,7 @@ fn can_pushdown_slice_past_projections(
         // but the output height is not dependent on it.
         let mut has_column = false;
         let mut literals_all_scalar = true;
-        let is_elementwise = arena.iter(*node).all(|(_node, ae)| {
+        let is_elementwise = arena.iter(expr_ir.node()).all(|(_node, ae)| {
             has_column |= matches!(ae, AExpr::Column(_));
             literals_all_scalar &= if let AExpr::Literal(v) = ae {
                 v.projects_as_scalar()
@@ -69,15 +70,15 @@ impl SlicePushDown {
     // we also stop optimization
     fn no_pushdown_finish_opt(
         &self,
-        lp: ALogicalPlan,
+        lp: IR,
         state: Option<State>,
-        lp_arena: &mut Arena<ALogicalPlan>,
-    ) -> PolarsResult<ALogicalPlan> {
+        lp_arena: &mut Arena<IR>,
+    ) -> PolarsResult<IR> {
         match state {
             Some(state) => {
                 let input = lp_arena.add(lp);
 
-                let lp = ALogicalPlan::Slice {
+                let lp = IR::Slice {
                     input,
                     offset: state.offset,
                     len: state.len,
@@ -91,11 +92,11 @@ impl SlicePushDown {
     /// slice will be done at this node, but we continue optimization
     fn no_pushdown_restart_opt(
         &self,
-        lp: ALogicalPlan,
+        lp: IR,
         state: Option<State>,
-        lp_arena: &mut Arena<ALogicalPlan>,
+        lp_arena: &mut Arena<IR>,
         expr_arena: &mut Arena<AExpr>,
-    ) -> PolarsResult<ALogicalPlan> {
+    ) -> PolarsResult<IR> {
         let inputs = lp.get_inputs();
         let exprs = lp.get_exprs();
 
@@ -118,11 +119,11 @@ impl SlicePushDown {
     /// slice will be pushed down.
     fn pushdown_and_continue(
         &self,
-        lp: ALogicalPlan,
+        lp: IR,
         state: Option<State>,
-        lp_arena: &mut Arena<ALogicalPlan>,
+        lp_arena: &mut Arena<IR>,
         expr_arena: &mut Arena<AExpr>,
-    ) -> PolarsResult<ALogicalPlan> {
+    ) -> PolarsResult<IR> {
         let inputs = lp.get_inputs();
         let exprs = lp.get_exprs();
 
@@ -138,14 +139,15 @@ impl SlicePushDown {
         Ok(lp.with_exprs_and_input(exprs, new_inputs))
     }
 
+    #[recursive]
     fn pushdown(
         &self,
-        lp: ALogicalPlan,
+        lp: IR,
         state: Option<State>,
-        lp_arena: &mut Arena<ALogicalPlan>,
+        lp_arena: &mut Arena<IR>,
         expr_arena: &mut Arena<AExpr>,
-    ) -> PolarsResult<ALogicalPlan> {
-        use ALogicalPlan::*;
+    ) -> PolarsResult<IR> {
+        use IR::*;
 
         match (lp, state) {
             #[cfg(feature = "python")]
@@ -248,7 +250,7 @@ impl SlicePushDown {
                     options
                 })
             }
-            (Aggregate { input, keys, aggs, schema, apply, maintain_order, mut options }, Some(state)) => {
+            (GroupBy { input, keys, aggs, schema, apply, maintain_order, mut options }, Some(state)) => {
                 // first restart optimization in inputs and get the updated LP
                 let input_lp = lp_arena.take(input);
                 let input_lp = self.pushdown(input_lp, None, lp_arena, expr_arena)?;
@@ -257,7 +259,7 @@ impl SlicePushDown {
                 let mut_options= Arc::make_mut(&mut options);
                 mut_options.slice = Some((state.offset, state.len as usize));
 
-                Ok(Aggregate {
+                Ok(GroupBy {
                     input,
                     keys,
                     aggs,
@@ -278,17 +280,19 @@ impl SlicePushDown {
                     options,
                 })
             }
-            (Sort {input, by_column, mut args}, Some(state)) => {
+            (Sort {input, by_column, mut slice,
+                sort_options}, Some(state)) => {
                 // first restart optimization in inputs and get the updated LP
                 let input_lp = lp_arena.take(input);
                 let input_lp = self.pushdown(input_lp, None, lp_arena, expr_arena)?;
                 let input= lp_arena.add(input_lp);
 
-                args.slice = Some((state.offset, state.len as usize));
+                slice = Some((state.offset, state.len as usize));
                 Ok(Sort {
                     input,
                     by_column,
-                    args
+                    slice,
+                    sort_options
                 })
             }
             (Slice {
@@ -331,7 +335,7 @@ impl SlicePushDown {
             // [Do not pushdown] boundary
             // here we do not pushdown.
             // we reset the state and then start the optimization again
-            m @ (Selection { .. }, _)
+            m @ (Filter { .. }, _)
             // other blocking nodes
             | m @ (DataFrameScan {..}, _)
             | m @ (Sort {..}, _)
@@ -339,7 +343,7 @@ impl SlicePushDown {
             | m @ (MapFunction {function: FunctionNode::Melt {..}, ..}, _)
             | m @ (Cache {..}, _)
             | m @ (Distinct {..}, _)
-            | m @ (Aggregate{..},_)
+            | m @ (GroupBy{..},_)
             // blocking in streaming
             | m @ (Join{..},_)
             => {
@@ -358,21 +362,21 @@ impl SlicePushDown {
             }
             // [Pushdown]
             // these nodes will be pushed down.
-             // State is None, we can continue
-             m @(Projection{..}, None)
+            // State is None, we can continue
+            m @(Select {..}, None)
             => {
                 let (lp, state) = m;
                 self.pushdown_and_continue(lp, state, lp_arena, expr_arena)
             }
             // there is state, inspect the projection to determine how to deal with it
-            (Projection {input, expr, schema, options}, Some(_)) => {
+            (Select {input, expr, schema, options}, Some(_)) => {
                 if can_pushdown_slice_past_projections(&expr, expr_arena).1 {
-                    let lp = Projection {input, expr, schema, options};
+                    let lp = Select {input, expr, schema, options};
                     self.pushdown_and_continue(lp, state, lp_arena, expr_arena)
                 }
                 // don't push down slice, but restart optimization
                 else {
-                    let lp = Projection {input, expr, schema, options};
+                    let lp = Select {input, expr, schema, options};
                     self.no_pushdown_restart_opt(lp, state, lp_arena, expr_arena)
                 }
             }
@@ -403,16 +407,15 @@ impl SlicePushDown {
             (catch_all, state) => {
                 self.no_pushdown_finish_opt(catch_all, state, lp_arena)
             }
-
         }
     }
 
     pub fn optimize(
         &self,
-        logical_plan: ALogicalPlan,
-        lp_arena: &mut Arena<ALogicalPlan>,
+        logical_plan: IR,
+        lp_arena: &mut Arena<IR>,
         expr_arena: &mut Arena<AExpr>,
-    ) -> PolarsResult<ALogicalPlan> {
+    ) -> PolarsResult<IR> {
         self.pushdown(logical_plan, None, lp_arena, expr_arena)
     }
 }

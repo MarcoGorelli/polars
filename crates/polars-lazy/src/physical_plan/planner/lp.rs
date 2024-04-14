@@ -1,14 +1,15 @@
 use polars_core::prelude::*;
 use polars_core::POOL;
 use polars_plan::global::_set_n_rows_for_scan;
+use polars_plan::logical_plan::expr_ir::ExprIR;
 
 use super::super::executors::{self, Executor};
 use super::*;
 use crate::utils::*;
 
 fn partitionable_gb(
-    keys: &[Node],
-    aggs: &[Node],
+    keys: &[ExprIR],
+    aggs: &[ExprIR],
     _input_schema: &Schema,
     expr_arena: &Arena<AExpr>,
     apply: &Option<Arc<dyn DataFrameUdf>>,
@@ -26,7 +27,7 @@ fn partitionable_gb(
         // complex expressions in the group_by itself are also not partitionable
         // in this case anything more than col("foo")
         for key in keys {
-            if (expr_arena).iter(*key).count() > 1 {
+            if (expr_arena).iter(key.node()).count() > 1 {
                 partitionable = false;
                 break;
             }
@@ -34,14 +35,8 @@ fn partitionable_gb(
 
         if partitionable {
             for agg in aggs {
-                let mut agg = *agg;
-                let mut aexpr = expr_arena.get(agg);
-                // It should end with an aggregation
-                if let AExpr::Alias(input, _) = aexpr {
-                    agg = *input;
-                    aexpr = expr_arena.get(agg);
-                }
-
+                let agg = agg.node();
+                let aexpr = expr_arena.get(agg);
                 let depth = (expr_arena).iter(agg).count();
 
                 // These single expressions are partitionable
@@ -86,7 +81,7 @@ fn partitionable_gb(
                         },
                         Function {input, options, ..} => {
                             matches!(options.collect_groups, ApplyOptions::ElementWise) && input.len() == 1 &&
-                                !has_aggregation(input[0])
+                                !has_aggregation(input[0].node())
                         }
                         BinaryExpr {left, right, ..} => {
                             !has_aggregation(*left) && !has_aggregation(*right)
@@ -94,7 +89,7 @@ fn partitionable_gb(
                         Ternary {truthy, falsy, predicate,..} => {
                             !has_aggregation(*truthy) && !has_aggregation(*falsy) && !has_aggregation(*predicate)
                         }
-                        Column(_) | Alias(_, _) | Len | Literal(_) | Cast {..} => {
+                        Column(_) | Len | Literal(_) | Cast {..} => {
                             true
                         }
                         _ => {
@@ -103,7 +98,7 @@ fn partitionable_gb(
                     }
                 }) &&
                     // we only allow expressions that end with an aggregation
-                    matches!(aexpr, AExpr::Alias(_, _) | AExpr::Agg(_)))
+                    matches!(aexpr, AExpr::Agg(_)))
                 {
                     partitionable = false;
                     break;
@@ -133,10 +128,10 @@ fn partitionable_gb(
 
 pub fn create_physical_plan(
     root: Node,
-    lp_arena: &mut Arena<ALogicalPlan>,
+    lp_arena: &mut Arena<IR>,
     expr_arena: &mut Arena<AExpr>,
 ) -> PolarsResult<Box<dyn Executor>> {
-    use ALogicalPlan::*;
+    use IR::*;
 
     let logical_plan = lp_arena.take(root);
     match logical_plan {
@@ -176,12 +171,13 @@ pub fn create_physical_plan(
             let input = create_physical_plan(input, lp_arena, expr_arena)?;
             Ok(Box::new(executors::SliceExec { input, offset, len }))
         },
-        Selection { input, predicate } => {
+        Filter { input, predicate } => {
+            let streamable = is_streamable(predicate.node(), expr_arena, Context::Default);
             let input_schema = lp_arena.get(input).schema(lp_arena).into_owned();
             let input = create_physical_plan(input, lp_arena, expr_arena)?;
             let mut state = ExpressionConversionState::default();
             let predicate = create_physical_expr(
-                predicate,
+                &predicate,
                 Context::Default,
                 expr_arena,
                 Some(&input_schema),
@@ -191,6 +187,7 @@ pub fn create_physical_plan(
                 predicate,
                 input,
                 state.has_windows,
+                streamable,
             )))
         },
         #[allow(unused_variables)]
@@ -207,7 +204,7 @@ pub fn create_physical_plan(
             let predicate = predicate
                 .map(|pred| {
                     create_physical_expr(
-                        pred,
+                        &pred,
                         Context::Default,
                         expr_arena,
                         output_schema.as_ref(),
@@ -234,7 +231,6 @@ pub fn create_physical_plan(
                 #[cfg(feature = "ipc")]
                 FileScan::Ipc {
                     options,
-                    #[cfg(feature = "cloud")]
                     cloud_options,
                     metadata,
                 } => Ok(Box::new(executors::IpcExec {
@@ -243,7 +239,6 @@ pub fn create_physical_plan(
                     predicate,
                     options,
                     file_options,
-                    #[cfg(feature = "cloud")]
                     cloud_options,
                     metadata,
                 })),
@@ -273,7 +268,7 @@ pub fn create_physical_plan(
                 },
             }
         },
-        Projection {
+        Select {
             expr,
             input,
             schema: _schema,
@@ -283,14 +278,20 @@ pub fn create_physical_plan(
             let input_schema = lp_arena.get(input).schema(lp_arena).into_owned();
             let input = create_physical_plan(input, lp_arena, expr_arena)?;
             let mut state = ExpressionConversionState::new(POOL.current_num_threads() > expr.len());
-            let phys_expr = create_physical_expressions(
+
+            let streamable = if expr.has_sub_exprs() {
+                false
+            } else {
+                all_streamable(&expr, expr_arena, Context::Default)
+            };
+            let phys_expr = create_physical_expressions_from_irs(
                 expr.default_exprs(),
                 Context::Default,
                 expr_arena,
                 Some(&input_schema),
                 &mut state,
             )?;
-            let cse_expr = create_physical_expressions(
+            let cse_expr = create_physical_expressions_from_irs(
                 expr.cse_exprs(),
                 Context::Default,
                 expr_arena,
@@ -306,6 +307,7 @@ pub fn create_physical_plan(
                 #[cfg(test)]
                 schema: _schema,
                 options,
+                streamable,
             }))
         },
         DataFrameScan {
@@ -319,7 +321,7 @@ pub fn create_physical_plan(
             let selection = predicate
                 .map(|pred| {
                     create_physical_expr(
-                        pred,
+                        &pred,
                         Context::Default,
                         expr_arena,
                         Some(&schema),
@@ -337,10 +339,11 @@ pub fn create_physical_plan(
         Sort {
             input,
             by_column,
-            args,
+            slice,
+            sort_options,
         } => {
             let input_schema = lp_arena.get(input).schema(lp_arena);
-            let by_column = create_physical_expressions(
+            let by_column = create_physical_expressions_from_irs(
                 &by_column,
                 Context::Default,
                 expr_arena,
@@ -351,18 +354,27 @@ pub fn create_physical_plan(
             Ok(Box::new(executors::SortExec {
                 input,
                 by_column,
-                args,
+                slice,
+                sort_options,
             }))
         },
-        Cache { input, id, count } => {
+        Cache {
+            input,
+            id,
+            cache_hits,
+        } => {
             let input = create_physical_plan(input, lp_arena, expr_arena)?;
-            Ok(Box::new(executors::CacheExec { id, input, count }))
+            Ok(Box::new(executors::CacheExec {
+                id,
+                input,
+                count: cache_hits,
+            }))
         },
         Distinct { input, options } => {
             let input = create_physical_plan(input, lp_arena, expr_arena)?;
             Ok(Box::new(executors::UniqueExec { input, options }))
         },
-        Aggregate {
+        GroupBy {
             input,
             keys,
             aggs,
@@ -373,14 +385,14 @@ pub fn create_physical_plan(
         } => {
             let input_schema = lp_arena.get(input).schema(lp_arena).into_owned();
             let options = Arc::try_unwrap(options).unwrap_or_else(|options| (*options).clone());
-            let phys_keys = create_physical_expressions(
+            let phys_keys = create_physical_expressions_from_irs(
                 &keys,
                 Context::Default,
                 expr_arena,
                 Some(&input_schema),
                 &mut Default::default(),
             )?;
-            let phys_aggs = create_physical_expressions(
+            let phys_aggs = create_physical_expressions_from_irs(
                 &aggs,
                 Context::Aggregation,
                 expr_arena,
@@ -430,11 +442,11 @@ pub fn create_physical_plan(
                 let input = create_physical_plan(input, lp_arena, expr_arena)?;
                 let keys = keys
                     .iter()
-                    .map(|node| node_to_expr(*node, expr_arena))
+                    .map(|e| e.to_expr(expr_arena))
                     .collect::<Vec<_>>();
                 let aggs = aggs
                     .iter()
-                    .map(|node| node_to_expr(*node, expr_arena))
+                    .map(|e| e.to_expr(expr_arena))
                     .collect::<Vec<_>>();
                 Ok(Box::new(executors::PartitionGroupByExec::new(
                     input,
@@ -486,14 +498,14 @@ pub fn create_physical_plan(
 
             let input_left = create_physical_plan(input_left, lp_arena, expr_arena)?;
             let input_right = create_physical_plan(input_right, lp_arena, expr_arena)?;
-            let left_on = create_physical_expressions(
+            let left_on = create_physical_expressions_from_irs(
                 &left_on,
                 Context::Default,
                 expr_arena,
                 None,
                 &mut Default::default(),
             )?;
-            let right_on = create_physical_expressions(
+            let right_on = create_physical_expressions_from_irs(
                 &right_on,
                 Context::Default,
                 expr_arena,
@@ -519,10 +531,16 @@ pub fn create_physical_plan(
             let input_schema = lp_arena.get(input).schema(lp_arena).into_owned();
             let input = create_physical_plan(input, lp_arena, expr_arena)?;
 
+            let streamable = if exprs.has_sub_exprs() {
+                false
+            } else {
+                all_streamable(&exprs, expr_arena, Context::Default)
+            };
+
             let mut state =
                 ExpressionConversionState::new(POOL.current_num_threads() > exprs.len());
 
-            let cse_exprs = create_physical_expressions(
+            let cse_exprs = create_physical_expressions_from_irs(
                 exprs.cse_exprs(),
                 Context::Default,
                 expr_arena,
@@ -530,7 +548,7 @@ pub fn create_physical_plan(
                 &mut state,
             )?;
 
-            let phys_exprs = create_physical_expressions(
+            let phys_exprs = create_physical_expressions_from_irs(
                 exprs.default_exprs(),
                 Context::Default,
                 expr_arena,
@@ -544,6 +562,7 @@ pub fn create_physical_plan(
                 exprs: phys_exprs,
                 input_schema,
                 options,
+                streamable,
             }))
         },
         MapFunction {
@@ -562,5 +581,19 @@ pub fn create_physical_plan(
                 .collect::<PolarsResult<_>>()?;
             Ok(Box::new(executors::ExternalContext { input, contexts }))
         },
+        SimpleProjection {
+            input,
+            columns,
+            duplicate_check,
+        } => {
+            let input = create_physical_plan(input, lp_arena, expr_arena)?;
+            let exec = executors::ProjectionSimple {
+                input,
+                columns,
+                duplicate_check,
+            };
+            Ok(Box::new(exec))
+        },
+        Invalid => unreachable!(),
     }
 }

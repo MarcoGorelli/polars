@@ -2,7 +2,7 @@ use polars_core::utils::try_get_supertype;
 
 use super::*;
 
-// Has functions that create schema's for both the `LogicalPlan` and the `AlogicalPlan` builders.
+// Has functions that create schema's for both the `LogicalPlan` and the `IR` builders.
 
 pub(super) fn explode_schema(schema: &mut Schema, columns: &[Arc<str>]) -> PolarsResult<()> {
     // columns to string
@@ -53,8 +53,4 @@ pub(super) fn det_melt_schema(args: &MeltArgs, input_schema: &Schema) -> SchemaR
     }
     new_schema.with_column(value_name, supertype);
     Arc::new(new_schema)
-}
-
-pub(super) fn row_index_schema(schema: &mut Schema, name: &str) {
-    schema.insert_at_index(0, name.into(), IDX_DTYPE).unwrap();
 }

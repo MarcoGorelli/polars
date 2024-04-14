@@ -15,7 +15,6 @@ mod arity;
 #[cfg(feature = "dtype-array")]
 mod array;
 pub mod binary;
-pub mod consts;
 #[cfg(feature = "temporal")]
 pub mod dt;
 mod expr;
@@ -167,7 +166,7 @@ impl Expr {
 
     /// Rename Column.
     pub fn alias(self, name: &str) -> Expr {
-        Expr::Alias(Box::new(self), Arc::from(name))
+        Expr::Alias(Arc::new(self), ColumnName::from(name))
     }
 
     /// Run is_null operation on `Expr`.
@@ -194,29 +193,29 @@ impl Expr {
 
     /// Get the number of unique values in the groups.
     pub fn n_unique(self) -> Self {
-        AggExpr::NUnique(Box::new(self)).into()
+        AggExpr::NUnique(Arc::new(self)).into()
     }
 
     /// Get the first value in the group.
     pub fn first(self) -> Self {
-        AggExpr::First(Box::new(self)).into()
+        AggExpr::First(Arc::new(self)).into()
     }
 
     /// Get the last value in the group.
     pub fn last(self) -> Self {
-        AggExpr::Last(Box::new(self)).into()
+        AggExpr::Last(Arc::new(self)).into()
     }
 
-    /// Aggregate the group to a Series.
+    /// GroupBy the group to a Series.
     pub fn implode(self) -> Self {
-        AggExpr::Implode(Box::new(self)).into()
+        AggExpr::Implode(Arc::new(self)).into()
     }
 
     /// Compute the quantile per group.
     pub fn quantile(self, quantile: Expr, interpol: QuantileInterpolOptions) -> Self {
         AggExpr::Quantile {
-            expr: Box::new(self),
-            quantile: Box::new(quantile),
+            expr: Arc::new(self),
+            quantile: Arc::new(quantile),
             interpol,
         }
         .into()
@@ -224,7 +223,7 @@ impl Expr {
 
     /// Get the group indexes of the group by operation.
     pub fn agg_groups(self) -> Self {
-        AggExpr::AggGroups(Box::new(self)).into()
+        AggExpr::AggGroups(Arc::new(self)).into()
     }
 
     /// Alias for `explode`.
@@ -234,16 +233,16 @@ impl Expr {
 
     /// Explode the String/List column.
     pub fn explode(self) -> Self {
-        Expr::Explode(Box::new(self))
+        Expr::Explode(Arc::new(self))
     }
 
     /// Slice the Series.
     /// `offset` may be negative.
     pub fn slice<E: Into<Expr>, F: Into<Expr>>(self, offset: E, length: F) -> Self {
         Expr::Slice {
-            input: Box::new(self),
-            offset: Box::new(offset.into()),
-            length: Box::new(length.into()),
+            input: Arc::new(self),
+            offset: Arc::new(offset.into()),
+            length: Arc::new(length.into()),
         }
     }
 
@@ -376,7 +375,7 @@ impl Expr {
     /// Throws an error if conversion had overflows.
     pub fn strict_cast(self, data_type: DataType) -> Self {
         Expr::Cast {
-            expr: Box::new(self),
+            expr: Arc::new(self),
             data_type,
             strict: true,
         }
@@ -385,7 +384,7 @@ impl Expr {
     /// Cast expression to another data type.
     pub fn cast(self, data_type: DataType) -> Self {
         Expr::Cast {
-            expr: Box::new(self),
+            expr: Arc::new(self),
             data_type,
             strict: false,
         }
@@ -394,8 +393,8 @@ impl Expr {
     /// Take the values by idx.
     pub fn gather<E: Into<Expr>>(self, idx: E) -> Self {
         Expr::Gather {
-            expr: Box::new(self),
-            idx: Box::new(idx.into()),
+            expr: Arc::new(self),
+            idx: Arc::new(idx.into()),
             returns_scalar: false,
         }
     }
@@ -403,27 +402,44 @@ impl Expr {
     /// Take the values by a single index.
     pub fn get<E: Into<Expr>>(self, idx: E) -> Self {
         Expr::Gather {
-            expr: Box::new(self),
-            idx: Box::new(idx.into()),
+            expr: Arc::new(self),
+            idx: Arc::new(idx.into()),
             returns_scalar: true,
         }
     }
 
-    /// Sort in increasing order. See [the eager implementation](Series::sort).
-    pub fn sort(self, descending: bool) -> Self {
-        Expr::Sort {
-            expr: Box::new(self),
-            options: SortOptions {
-                descending,
-                ..Default::default()
-            },
-        }
-    }
-
     /// Sort with given options.
-    pub fn sort_with(self, options: SortOptions) -> Self {
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use polars_core::prelude::*;
+    /// # use polars_lazy::prelude::*;
+    /// # fn main() -> PolarsResult<()> {
+    /// let lf = df! {
+    ///    "a" => [Some(5), Some(4), Some(3), Some(2), None]
+    /// }?
+    /// .lazy();
+    ///
+    /// let sorted = lf
+    ///     .select(
+    ///         vec![col("a").sort(SortOptions::default())],
+    ///     )
+    ///     .collect()?;
+    ///
+    /// assert_eq!(
+    ///     sorted,
+    ///     df! {
+    ///         "a" => [None, Some(2), Some(3), Some(4), Some(5)]
+    ///     }?
+    /// );
+    /// # Ok(())
+    /// # }
+    /// ```
+    /// See [`SortOptions`] for more options.
+    pub fn sort(self, options: SortOptions) -> Self {
         Expr::Sort {
-            expr: Box::new(self),
+            expr: Arc::new(self),
             options,
         }
     }
@@ -904,7 +920,7 @@ impl Expr {
             .map(|e| e.clone().into())
             .collect();
         Expr::Window {
-            function: Box::new(self),
+            function: Arc::new(self),
             partition_by,
             options: options.into(),
         }
@@ -916,7 +932,7 @@ impl Expr {
         // not ignore it.
         let index_col = col(options.index_column.as_str());
         Expr::Window {
-            function: Box::new(self),
+            function: Arc::new(self),
             partition_by: vec![index_col],
             options: WindowType::Rolling(options),
         }
@@ -962,11 +978,11 @@ impl Expr {
     /// or
     /// Get counts of the group by operation.
     pub fn count(self) -> Self {
-        AggExpr::Count(Box::new(self), false).into()
+        AggExpr::Count(Arc::new(self), false).into()
     }
 
     pub fn len(self) -> Self {
-        AggExpr::Count(Box::new(self), true).into()
+        AggExpr::Count(Arc::new(self), true).into()
     }
 
     /// Get a mask of duplicated values.
@@ -1038,8 +1054,8 @@ impl Expr {
             panic!("filter '*' not allowed, use LazyFrame::filter")
         };
         Expr::Filter {
-            input: Box::new(self),
-            by: Box::new(predicate.into()),
+            input: Arc::new(self),
+            by: Arc::new(predicate.into()),
         }
     }
 
@@ -1072,19 +1088,42 @@ impl Expr {
         }
     }
 
-    /// Sort this column by the ordering of another column.
+    /// Sort this column by the ordering of another column evaluated from given expr.
     /// Can also be used in a group_by context to sort the groups.
-    pub fn sort_by<E: AsRef<[IE]>, IE: Into<Expr> + Clone, R: AsRef<[bool]>>(
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use polars_core::prelude::*;
+    /// # use polars_lazy::prelude::*;
+    /// # fn main() -> PolarsResult<()> {
+    /// let lf = df! {
+    ///     "a" => [1, 2, 3, 4, 5],
+    ///     "b" => [5, 4, 3, 2, 1]
+    /// }?.lazy();
+    ///
+    /// let sorted = lf
+    ///     .select(
+    ///         vec![col("a").sort_by(col("b"), SortOptions::default())],
+    ///     )
+    ///     .collect()?;
+    ///
+    /// assert_eq!(
+    ///     sorted,
+    ///     df! { "a" => [5, 4, 3, 2, 1] }?
+    /// );
+    /// # Ok(())
+    /// # }
+    pub fn sort_by<E: AsRef<[IE]>, IE: Into<Expr> + Clone>(
         self,
         by: E,
-        descending: R,
+        sort_options: SortMultipleOptions,
     ) -> Expr {
         let by = by.as_ref().iter().map(|e| e.clone().into()).collect();
-        let descending = descending.as_ref().to_vec();
         Expr::SortBy {
-            expr: Box::new(self),
+            expr: Arc::new(self),
             by,
-            descending,
+            sort_options,
         }
     }
 
@@ -1136,9 +1175,9 @@ impl Expr {
         let v = columns
             .into_vec()
             .into_iter()
-            .map(|s| Excluded::Name(Arc::from(s)))
+            .map(|s| Excluded::Name(ColumnName::from(s)))
             .collect();
-        Expr::Exclude(Box::new(self), v)
+        Expr::Exclude(Arc::new(self), v)
     }
 
     pub fn exclude_dtype<D: AsRef<[DataType]>>(self, dtypes: D) -> Expr {
@@ -1147,7 +1186,7 @@ impl Expr {
             .iter()
             .map(|dt| Excluded::Dtype(dt.clone()))
             .collect();
-        Expr::Exclude(Box::new(self), v)
+        Expr::Exclude(Arc::new(self), v)
     }
 
     #[cfg(feature = "interpolate")]
@@ -1484,9 +1523,9 @@ impl Expr {
         self.map_private(FunctionExpr::LowerBound)
     }
 
-    pub fn reshape(self, dims: &[i64]) -> Self {
-        let dims = dims.to_vec();
-        self.apply_private(FunctionExpr::Reshape(dims))
+    pub fn reshape(self, dimensions: &[i64]) -> Self {
+        let dimensions = dimensions.to_vec();
+        self.apply_private(FunctionExpr::Reshape(dimensions))
     }
 
     #[cfg(feature = "ewma")]

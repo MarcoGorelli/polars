@@ -102,6 +102,14 @@ impl PyExpr {
             .into()
     }
 
+    fn str_head(&self, n: Self) -> Self {
+        self.inner.clone().str().head(n.inner).into()
+    }
+
+    fn str_tail(&self, n: Self) -> Self {
+        self.inner.clone().str().tail(n.inner).into()
+    }
+
     fn str_explode(&self) -> Self {
         self.inner.clone().str().explode().into()
     }
@@ -205,11 +213,11 @@ impl PyExpr {
         self.inner.clone().str().base64_decode(strict).into()
     }
 
-    fn str_to_integer(&self, base: u32, strict: bool) -> Self {
+    fn str_to_integer(&self, base: Self, strict: bool) -> Self {
         self.inner
             .clone()
             .str()
-            .to_integer(base, strict)
+            .to_integer(base.inner, strict)
             .with_fmt("str.to_integer")
             .into()
     }

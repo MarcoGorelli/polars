@@ -157,17 +157,17 @@ impl Series {
     }
 
     pub fn clear(&self) -> Series {
-        // Only the inner of objects know their type, so use this hack.
-        #[cfg(feature = "object")]
-        if matches!(self.dtype(), DataType::Object(_, _)) {
-            return if self.is_empty() {
-                self.clone()
-            } else {
-                let av = self.get(0).unwrap();
-                Series::new(self.name(), [av]).slice(0, 0)
-            };
+        if self.is_empty() {
+            self.clone()
+        } else {
+            match self.dtype() {
+                #[cfg(feature = "object")]
+                DataType::Object(_, _) => self
+                    .take(&ChunkedArray::<IdxType>::new_vec("", vec![]))
+                    .unwrap(),
+                dt => Series::new_empty(self.name(), dt),
+            }
         }
-        Series::new_empty(self.name(), self.dtype())
     }
 
     #[doc(hidden)]
@@ -285,12 +285,23 @@ impl Series {
         Ok(self)
     }
 
-    pub fn sort(&self, descending: bool, nulls_last: bool) -> Self {
-        self.sort_with(SortOptions {
-            descending,
-            nulls_last,
-            ..Default::default()
-        })
+    /// Sort the series with specific options.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use polars_core::prelude::*;
+    /// # fn main() -> PolarsResult<()> {
+    /// let s = Series::new("foo", [2, 1, 3]);
+    /// let sorted = s.sort(SortOptions::default())?;
+    /// assert_eq!(sorted, Series::new("foo", [1, 2, 3]));
+    /// # Ok(())
+    /// }
+    /// ```
+    ///
+    /// See [`SortOptions`] for more options.
+    pub fn sort(&self, sort_options: SortOptions) -> PolarsResult<Self> {
+        self.sort_with(sort_options)
     }
 
     /// Only implemented for numeric types
@@ -778,6 +789,10 @@ impl Series {
                     .cast(dt)
                     .unwrap()
             },
+            #[cfg(feature = "dtype-time")]
+            dt @ DataType::Time => Series::new(self.name(), &[self.mean().map(|v| v as i64)])
+                .cast(dt)
+                .unwrap(),
             _ => return Series::full_null(self.name(), 1, self.dtype()),
         }
     }

@@ -80,6 +80,7 @@ from polars.exceptions import (
     ComputeError,
     DuplicateError,
     InvalidOperationError,
+    MapWithoutReturnDtypeWarning,
     NoDataError,
     OutOfBoundsError,
     PolarsError,
@@ -105,6 +106,7 @@ from polars.functions import (
     arctan2d,
     arg_sort_by,
     arg_where,
+    business_day_count,
     coalesce,
     col,
     collect_all,
@@ -179,6 +181,7 @@ from polars.functions import (
 )
 from polars.io import (
     read_avro,
+    read_clipboard,
     read_csv,
     read_csv_batched,
     read_database,
@@ -244,6 +247,7 @@ __all__ = [
     "PolarsWarning",
     "CategoricalRemappingWarning",
     "ChronoFormatWarning",
+    "MapWithoutReturnDtypeWarning",
     "UnstableWarning",
     # core classes
     "DataFrame",
@@ -314,6 +318,7 @@ __all__ = [
     "scan_ndjson",
     "scan_parquet",
     "scan_pyarrow_dataset",
+    "read_clipboard",
     # polars.stringcache
     "StringCache",
     "disable_string_cache",
@@ -326,6 +331,7 @@ __all__ = [
     # polars.functions
     "align_frames",
     "arg_where",
+    "business_day_count",
     "concat",
     "date_range",
     "date_ranges",

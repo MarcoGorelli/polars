@@ -27,7 +27,13 @@ from polars.testing import (
 if TYPE_CHECKING:
     from zoneinfo import ZoneInfo
 
-    from polars.type_aliases import Ambiguous, PolarsTemporalType, TimeUnit
+    from polars.type_aliases import (
+        Ambiguous,
+        FillNullStrategy,
+        PolarsIntegerType,
+        PolarsTemporalType,
+        TimeUnit,
+    )
 else:
     from polars._utils.convert import string_to_zoneinfo as ZoneInfo
 
@@ -562,7 +568,10 @@ def test_rolling() -> None:
         ("Europe/Warsaw", ZoneInfo("Europe/Warsaw")),
     ],
 )
-def test_upsample(time_zone: str | None, tzinfo: ZoneInfo | timezone | None) -> None:
+@pytest.mark.parametrize("offset", [None, "1mo"])
+def test_upsample(
+    time_zone: str | None, tzinfo: ZoneInfo | timezone | None, offset: None | str
+) -> None:
     df = pl.DataFrame(
         {
             "time": [
@@ -576,38 +585,101 @@ def test_upsample(time_zone: str | None, tzinfo: ZoneInfo | timezone | None) -> 
         }
     ).with_columns(pl.col("time").dt.replace_time_zone(time_zone).set_sorted())
 
-    up = df.upsample(
-        time_column="time", every="1mo", group_by="admin", maintain_order=True
-    ).select(pl.all().forward_fill())
+    context_manager: contextlib.AbstractContextManager[pytest.WarningsRecorder | None]
+    msg = (
+        "`offset` is deprecated and will be removed in the next breaking release. "
+        "Instead, chain `upsample` with `dt.offset_by`."
+    )
+    if offset is not None:
+        context_manager = pytest.deprecated_call(match=msg)
+    else:
+        context_manager = contextlib.nullcontext()
+
+    with context_manager:
+        up = df.upsample(
+            time_column="time",
+            every="1mo",
+            group_by="admin",
+            maintain_order=True,
+            offset=offset,
+        ).select(pl.all().forward_fill())
     # this print will panic if timezones feature is not activated
     # don't remove
     print(up)
 
-    expected = pl.DataFrame(
-        {
-            "time": [
-                datetime(2021, 2, 1, 0, 0),
-                datetime(2021, 3, 1, 0, 0),
-                datetime(2021, 4, 1, 0, 0),
-                datetime(2021, 5, 1, 0, 0),
-                datetime(2021, 4, 1, 0, 0),
-                datetime(2021, 5, 1, 0, 0),
-                datetime(2021, 6, 1, 0, 0),
-            ],
-            "admin": [
-                "Åland",
-                "Åland",
-                "Åland",
-                "Åland",
-                "Netherlands",
-                "Netherlands",
-                "Netherlands",
-            ],
-            "test2": [0, 0, 0, 2, 1, 1, 3],
-        }
-    ).with_columns(pl.col("time").dt.replace_time_zone(time_zone))
+    if offset is not None:
+        expected = pl.DataFrame(
+            {
+                "time": [
+                    datetime(2021, 3, 1, 0, 0),
+                    datetime(2021, 4, 1, 0, 0),
+                    datetime(2021, 5, 1, 0, 0),
+                    datetime(2021, 5, 1, 0, 0),
+                    datetime(2021, 6, 1, 0, 0),
+                ],
+                "admin": [None, None, "Åland", "Åland", "Netherlands"],
+                "test2": [None, None, 2, 2, 3],
+            }
+        )
+    else:
+        expected = pl.DataFrame(
+            {
+                "time": [
+                    datetime(2021, 2, 1, 0, 0),
+                    datetime(2021, 3, 1, 0, 0),
+                    datetime(2021, 4, 1, 0, 0),
+                    datetime(2021, 5, 1, 0, 0),
+                    datetime(2021, 4, 1, 0, 0),
+                    datetime(2021, 5, 1, 0, 0),
+                    datetime(2021, 6, 1, 0, 0),
+                ],
+                "admin": [
+                    "Åland",
+                    "Åland",
+                    "Åland",
+                    "Åland",
+                    "Netherlands",
+                    "Netherlands",
+                    "Netherlands",
+                ],
+                "test2": [0, 0, 0, 2, 1, 1, 3],
+            }
+        )
+    expected = expected.with_columns(pl.col("time").dt.replace_time_zone(time_zone))
 
     assert_frame_equal(up, expected)
+
+
+def test_offset_deprecated() -> None:
+    df = pl.DataFrame(
+        {
+            "time": [
+                datetime(2021, 2, 1),
+                datetime(2021, 4, 1),
+                datetime(2021, 5, 1),
+                datetime(2021, 6, 1),
+            ],
+            "admin": ["Åland", "Netherlands", "Åland", "Netherlands"],
+            "test2": [0, 1, 2, 3],
+        }
+    ).sort("time")
+
+    # truncate
+    with pytest.deprecated_call():
+        df.select(pl.col("time").dt.truncate(every="1mo", offset="1d"))
+
+    # round
+    with pytest.deprecated_call():
+        df.select(pl.col("time").dt.round(every="1mo", offset="1d"))
+
+    ser = df.to_series(0)
+    # truncate
+    with pytest.deprecated_call():
+        ser.dt.truncate(every="1mo", offset="1d")
+
+    # round
+    with pytest.deprecated_call():
+        ser.dt.round(every="1mo", offset="1d")
 
 
 @pytest.mark.parametrize("time_zone", [None, "US/Central"])
@@ -639,7 +711,18 @@ def test_upsample_crossing_dst(
             "values": [1, 2, 3],
         }
     )
-    result = df.upsample(time_column="time", every="1d", offset=offset)
+    context_manager: contextlib.AbstractContextManager[pytest.WarningsRecorder | None]
+    msg = (
+        "`offset` is deprecated and will be removed in the next breaking release. "
+        "Instead, chain `upsample` with `dt.offset_by`."
+    )
+    if offset is not None:
+        context_manager = pytest.deprecated_call(match=msg)
+    else:
+        context_manager = contextlib.nullcontext()
+
+    with context_manager:
+        result = df.upsample(time_column="time", every="1d", offset=offset)
     expected = pl.DataFrame(
         {
             "time": expected_time,
@@ -687,6 +770,94 @@ def test_upsample_time_zones(
     expected = expected.with_columns(pl.col("time").dt.replace_time_zone(time_zone))
     result = df.upsample(time_column="time", every="60m").fill_null(strategy="forward")
     assert_frame_equal(result, expected)
+
+
+@pytest.mark.parametrize(
+    ("every", "fill", "expected_index", "expected_groups"),
+    [
+        (
+            "1i",
+            "forward",
+            [1, 2, 3, 4] + [5, 6, 7],
+            ["a"] * 4 + ["b"] * 3,
+        ),
+        (
+            "1i",
+            "backward",
+            [1, 2, 3, 4] + [5, 6, 7],
+            ["a"] * 4 + ["b"] * 3,
+        ),
+    ],
+)
+@pytest.mark.parametrize("dtype", [pl.Int32, pl.Int64, pl.UInt32, pl.UInt64])
+def test_upsample_index(
+    every: str,
+    fill: FillNullStrategy | None,
+    expected_index: list[int],
+    expected_groups: list[str],
+    dtype: PolarsIntegerType,
+) -> None:
+    df = (
+        pl.DataFrame(
+            {
+                "index": [1, 2, 4] + [5, 7],
+                "groups": ["a"] * 3 + ["b"] * 2,
+            }
+        )
+        .with_columns(pl.col("index").cast(dtype))
+        .set_sorted("index")
+    )
+    expected = pl.DataFrame(
+        {
+            "index": expected_index,
+            "groups": expected_groups,
+        }
+    ).with_columns(pl.col("index").cast(dtype))
+    result = (
+        df.upsample(time_column="index", group_by="groups", every=every)
+        .fill_null(strategy=fill)
+        .sort(["groups", "index"])
+    )
+    assert_frame_equal(result, expected)
+
+
+@pytest.mark.parametrize(
+    ("every", "offset"),
+    [
+        (
+            "1i",
+            "1h",
+        ),
+        (
+            "1h",
+            "1i",
+        ),
+        (
+            "1h",
+            "0i",
+        ),
+        (
+            "0i",
+            "1h",
+        ),
+    ],
+)
+def test_upsample_index_invalid(
+    df: pl.DataFrame,
+    every: str,
+    offset: str,
+) -> None:
+    df = pl.DataFrame(
+        {
+            "index": [1, 2, 4] + [5, 7],
+            "groups": ["a"] * 3 + ["b"] * 2,
+        }
+    ).set_sorted("index")
+    # On Python3.8, mypy complains about combining two context managers into a
+    # tuple, so we nest them instead.
+    with pytest.raises(ComputeError, match=r"cannot combine time .* integer"):  # noqa: SIM117
+        with pytest.deprecated_call():
+            df.upsample(time_column="index", every=every, offset=offset)
 
 
 def test_microseconds_accuracy() -> None:
@@ -961,14 +1132,26 @@ def test_temporal_dtypes_map_elements(
                 [
                     # don't actually do this; native expressions are MUCH faster ;)
                     pl.col("timestamp")
-                    .map_elements(lambda x: const_dtm, skip_nulls=skip_nulls)
+                    .map_elements(
+                        lambda x: const_dtm,
+                        skip_nulls=skip_nulls,
+                        return_dtype=pl.Datetime,
+                    )
                     .alias("const_dtm"),
                     # note: the below now trigger a PolarsInefficientMapWarning
                     pl.col("timestamp")
-                    .map_elements(lambda x: x and x.date(), skip_nulls=skip_nulls)
+                    .map_elements(
+                        lambda x: x and x.date(),
+                        skip_nulls=skip_nulls,
+                        return_dtype=pl.Date,
+                    )
                     .alias("date"),
                     pl.col("timestamp")
-                    .map_elements(lambda x: x and x.time(), skip_nulls=skip_nulls)
+                    .map_elements(
+                        lambda x: x and x.time(),
+                        skip_nulls=skip_nulls,
+                        return_dtype=pl.Time,
+                    )
                     .alias("time"),
                 ]
             ),
@@ -1739,9 +1922,8 @@ def test_replace_time_zone_ambiguous_null() -> None:
 
 def test_use_earliest_deprecation() -> None:
     # strptime
-    with pytest.warns(
-        DeprecationWarning,
-        match="Please replace `use_earliest=True` with `ambiguous='earliest'`",
+    with pytest.deprecated_call(
+        match="Please replace `use_earliest=True` with `ambiguous='earliest'`"
     ):
         result = pl.Series(["2020-10-25 01:00"]).str.strptime(
             pl.Datetime("us", "Europe/London"), use_earliest=True
@@ -1750,9 +1932,8 @@ def test_use_earliest_deprecation() -> None:
         pl.Datetime("us", "Europe/London"), ambiguous="earliest"
     )
     assert_series_equal(result, expected)
-    with pytest.warns(
-        DeprecationWarning,
-        match="Please replace `use_earliest=False` with `ambiguous='latest'`",
+    with pytest.deprecated_call(
+        match="Please replace `use_earliest=False` with `ambiguous='latest'`"
     ):
         result = pl.Series(["2020-10-25 01:00"]).str.strptime(
             pl.Datetime("us", "Europe/London"), use_earliest=False
@@ -1766,47 +1947,39 @@ def test_use_earliest_deprecation() -> None:
     ser = pl.Series(["2020-10-25 01:00"]).str.to_datetime(
         time_zone="Europe/London", ambiguous="latest"
     )
-    with pytest.warns(
-        DeprecationWarning,
-    ):
+    with pytest.deprecated_call():
         result = ser.dt.truncate("1h", use_earliest=True)
     expected = ser.dt.truncate("1h")
     assert_series_equal(result, expected)
-    with pytest.warns(
-        DeprecationWarning,
-    ):
+    with pytest.deprecated_call():
         result = ser.dt.truncate("1h", use_earliest=True)
     expected = ser.dt.truncate("1h")
     assert_series_equal(result, expected)
 
     # replace_time_zone
     ser = pl.Series([datetime(2020, 10, 25, 1)])
-    with pytest.warns(
-        DeprecationWarning,
-        match="Please replace `use_earliest=True` with `ambiguous='earliest'`",
+    with pytest.deprecated_call(
+        match="Please replace `use_earliest=True` with `ambiguous='earliest'`"
     ):
         result = ser.dt.replace_time_zone("Europe/London", use_earliest=True)
     expected = ser.dt.replace_time_zone("Europe/London", ambiguous="earliest")
     assert_series_equal(result, expected)
-    with pytest.warns(
-        DeprecationWarning,
-        match="Please replace `use_earliest=False` with `ambiguous='latest'`",
+    with pytest.deprecated_call(
+        match="Please replace `use_earliest=False` with `ambiguous='latest'`"
     ):
         result = ser.dt.replace_time_zone("Europe/London", use_earliest=False)
     expected = ser.dt.replace_time_zone("Europe/London", ambiguous="latest")
     assert_series_equal(result, expected)
 
     # pl.datetime
-    with pytest.warns(
-        DeprecationWarning,
-        match="Please replace `use_earliest=True` with `ambiguous='earliest'`",
+    with pytest.deprecated_call(
+        match="Please replace `use_earliest=True` with `ambiguous='earliest'`"
     ):
         result = pl.select(pl.datetime(2020, 10, 25, 1, use_earliest=True))["datetime"]
     expected = pl.select(pl.datetime(2020, 10, 25, 1, ambiguous="earliest"))["datetime"]
     assert_series_equal(result, expected)
-    with pytest.warns(
-        DeprecationWarning,
-        match="Please replace `use_earliest=False` with `ambiguous='latest'`",
+    with pytest.deprecated_call(
+        match="Please replace `use_earliest=False` with `ambiguous='latest'`"
     ):
         result = pl.select(pl.datetime(2020, 10, 25, 1, use_earliest=False))["datetime"]
     expected = pl.select(pl.datetime(2020, 10, 25, 1, ambiguous="latest"))["datetime"]
@@ -2669,6 +2842,19 @@ def test_infer_iso8601_date(iso8601_format_date: str) -> None:
     assert parsed.dt.year().item() == 2134
     assert parsed.dt.month().item() == 12
     assert parsed.dt.day().item() == 13
+
+
+def test_year_null_backed_by_out_of_range_15313() -> None:
+    # Create a Series where the null value is backed by a value which would
+    # be out-of-range for Datetime('us')
+    s = pl.Series([None, 2**63 - 1])
+    s -= 2**63 - 1
+    result = s.cast(pl.Datetime).dt.year()
+    expected = pl.Series([None, 1970], dtype=pl.Int32)
+    assert_series_equal(result, expected)
+    result = s.cast(pl.Date).dt.year()
+    expected = pl.Series([None, 1970], dtype=pl.Int32)
+    assert_series_equal(result, expected)
 
 
 def test_series_is_temporal() -> None:

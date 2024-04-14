@@ -105,8 +105,16 @@ impl LogicalPlan {
                 }
                 write!(f, "\n{:indent$}END HCONCAT", "")
             },
-            Cache { input, id, count } => {
-                write!(f, "{:indent$}CACHE[id: {:x}, count: {}]", "", *id, *count)?;
+            Cache {
+                input,
+                id,
+                cache_hits,
+            } => {
+                write!(
+                    f,
+                    "{:indent$}CACHE[id: {:x}, cache_hits: {}]",
+                    "", *id, *cache_hits
+                )?;
                 input._format(f, sub_indent)
             },
             Scan {
@@ -133,7 +141,7 @@ impl LogicalPlan {
                     file_options.n_rows,
                 )
             },
-            Selection { predicate, input } => {
+            Filter { predicate, input } => {
                 // this one is writeln because we don't increase indent (which inserts a line)
                 writeln!(f, "{:indent$}FILTER {predicate:?} FROM", "")?;
                 input._format(f, indent)
@@ -163,7 +171,7 @@ impl LogicalPlan {
                     selection,
                 )
             },
-            Projection { expr, input, .. } => {
+            Select { expr, input, .. } => {
                 write!(f, "{:indent$} SELECT {expr:?} FROM", "")?;
                 input._format(f, sub_indent)
             },
@@ -173,7 +181,7 @@ impl LogicalPlan {
                 write!(f, "{:indent$}SORT BY {by_column:?}", "")?;
                 input._format(f, sub_indent)
             },
-            Aggregate {
+            GroupBy {
                 input, keys, aggs, ..
             } => {
                 write!(f, "{:indent$}AGGREGATE", "")?;
@@ -299,9 +307,12 @@ impl Debug for Expr {
             SortBy {
                 expr,
                 by,
-                descending,
+                sort_options,
             } => {
-                write!(f, "{expr:?}.sort_by(by={by:?}, descending={descending:?})",)
+                write!(
+                    f,
+                    "{expr:?}.sort_by(by={by:?}, sort_option={sort_options:?})",
+                )
             },
             Filter { input, by } => {
                 write!(f, "{input:?}.filter({by:?})")

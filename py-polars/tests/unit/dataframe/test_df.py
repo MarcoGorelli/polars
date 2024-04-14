@@ -1407,6 +1407,28 @@ def test_dot_product() -> None:
     assert df["a"].dot(df["b"]) == 20
     assert typing.cast(int, df.select([pl.col("a").dot("b")])[0, "a"]) == 20
 
+    result = pl.Series([1, 2, 3]) @ pl.Series([4, 5, 6])
+    assert isinstance(result, int)
+    assert result == 32
+
+    result = pl.Series([1, 2, 3]) @ pl.Series([4.0, 5.0, 6.0])
+    assert isinstance(result, float)
+    assert result == 32.0
+
+    result = pl.Series([1.0, 2.0, 3.0]) @ pl.Series([4.0, 5.0, 6.0])
+    assert isinstance(result, float)
+    assert result == 32.0
+
+    with pytest.raises(
+        pl.InvalidOperationError, match="`dot` operation not supported for dtype `bool`"
+    ):
+        pl.Series([True, False, False, True]) @ pl.Series([4, 5, 6, 7])
+
+    with pytest.raises(
+        pl.InvalidOperationError, match="`dot` operation not supported for dtype `str`"
+    ):
+        pl.Series([1, 2, 3, 4]) @ pl.Series(["True", "False", "False", "True"])
+
 
 def test_hash_rows() -> None:
     df = pl.DataFrame({"a": [1, 2, 3, 4], "b": [2, 2, 2, 2]})
@@ -1439,6 +1461,27 @@ def test_reproducible_hash_with_seeds() -> None:
         assert_series_equal(expected, result, check_names=False, check_exact=True)
         result = df.select([pl.col("s").hash(*seeds)])["s"]
         assert_series_equal(expected, result, check_names=False, check_exact=True)
+
+
+@pytest.mark.slow()
+@pytest.mark.parametrize(
+    "e",
+    [
+        pl.int_range(1_000_000),
+        # Test code path for null_count > 0
+        pl.when(pl.int_range(1_000_000) != 0).then(pl.int_range(1_000_000)),
+    ],
+)
+def test_hash_collision_multiple_columns_equal_values_15390(e: pl.Expr) -> None:
+    df = pl.select(e.alias("a"))
+
+    for n_columns in (1, 2, 3, 4):
+        s = df.select(pl.col("a").alias(f"x{i}") for i in range(n_columns)).hash_rows()
+
+        vc = s.sort().value_counts(sort=True)
+        max_bucket_size = vc["count"][0]
+
+        assert max_bucket_size == 1
 
 
 def test_hashing_on_python_objects() -> None:
@@ -1537,6 +1580,46 @@ def test_group_by_agg_n_unique_floats() -> None:
         assert out["b"].to_list() == [2, 1]
 
 
+def test_group_by_agg_n_unique_empty_group_idx_path() -> None:
+    df = pl.DataFrame(
+        {
+            "key": [1, 1, 1, 2, 2, 2],
+            "value": [1, 2, 3, 4, 5, 6],
+            "filt": [True, True, True, False, False, False],
+        }
+    )
+    out = df.group_by("key", maintain_order=True).agg(
+        pl.col("value").filter("filt").n_unique().alias("n_unique")
+    )
+    expected = pl.DataFrame(
+        {
+            "key": [1, 2],
+            "n_unique": pl.Series([3, 0], dtype=pl.UInt32),
+        }
+    )
+    assert_frame_equal(out, expected)
+
+
+def test_group_by_agg_n_unique_empty_group_slice_path() -> None:
+    df = pl.DataFrame(
+        {
+            "key": [1, 1, 1, 2, 2, 2],
+            "value": [1, 2, 3, 4, 5, 6],
+            "filt": [False, False, False, False, False, False],
+        }
+    )
+    out = df.group_by("key", maintain_order=True).agg(
+        pl.col("value").filter("filt").n_unique().alias("n_unique")
+    )
+    expected = pl.DataFrame(
+        {
+            "key": [1, 2],
+            "n_unique": pl.Series([0, 0], dtype=pl.UInt32),
+        }
+    )
+    assert_frame_equal(out, expected)
+
+
 def test_select_by_dtype(df: pl.DataFrame) -> None:
     out = df.select(pl.col(pl.String))
     assert out.columns == ["strings", "strings_nulls"]
@@ -1620,8 +1703,8 @@ def test_extension() -> None:
             return f"foo({self.value})"
 
     foos = [Foo(1), Foo(2), Foo(3)]
-    # I believe foos, stack, and sys.getrefcount have a ref
-    base_count = 3
+    # foos and sys.getrefcount have a reference.
+    base_count = 2
     assert sys.getrefcount(foos[0]) == base_count
 
     df = pl.DataFrame({"groups": [1, 1, 2], "a": foos})
@@ -1647,14 +1730,21 @@ def test_extension() -> None:
     assert sys.getrefcount(foos[0]) == base_count
 
 
-def test_group_by_order_dispatch() -> None:
+@pytest.mark.parametrize("name", [None, "n", ""])
+def test_group_by_order_dispatch(name: str | None) -> None:
     df = pl.DataFrame({"x": list("bab"), "y": range(3)})
+    lf = df.lazy()
 
-    result = df.group_by("x", maintain_order=True).len()
+    result = df.group_by("x", maintain_order=True).len(name=name)
+    lazy_result = lf.group_by("x").len(name=name).sort(by="x", descending=True)
+
+    name = "len" if name is None else name
     expected = pl.DataFrame(
-        {"x": ["b", "a"], "len": [2, 1]}, schema_overrides={"len": pl.UInt32}
+        data={"x": ["b", "a"], name: [2, 1]},
+        schema_overrides={name: pl.UInt32},
     )
     assert_frame_equal(result, expected)
+    assert_frame_equal(lazy_result.collect(), expected)
 
     result = df.group_by("x", maintain_order=True).all()
     expected = pl.DataFrame({"x": ["b", "a"], "y": [[0, 2], [1]]})
@@ -1692,19 +1782,6 @@ def test_df_schema_unique() -> None:
 
     with pytest.raises(pl.DuplicateError):
         df.rename({"b": "a"})
-
-
-def test_cleared() -> None:
-    df = pl.DataFrame(
-        {"a": [1, 2], "b": [True, False]}, schema_overrides={"a": pl.UInt32}
-    )
-    dfc = df.clear()
-    assert dfc.schema == df.schema
-    assert dfc.rows() == []
-
-    dfc = df.clear(3)
-    assert dfc.schema == df.schema
-    assert dfc.rows() == [(None, None), (None, None), (None, None)]
 
 
 def test_empty_projection() -> None:

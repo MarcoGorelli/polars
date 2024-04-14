@@ -1,29 +1,22 @@
 from __future__ import annotations
 
 import re
-import warnings
 from collections.abc import Coroutine
 from contextlib import suppress
-from inspect import Parameter, isclass, signature
+from inspect import Parameter, signature
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
+from polars import functions as F
+from polars._utils.various import parse_version
 from polars.convert import from_arrow
 from polars.datatypes import (
-    INTEGER_DTYPES,
     N_INFER_DEFAULT,
-    UNSIGNED_INTEGER_DTYPES,
-    Decimal,
-    Float32,
-    Float64,
 )
-from polars.datatypes.convert import _map_py_type_to_dtype
-from polars.exceptions import UnsuitableSQLError
+from polars.exceptions import ModuleUpgradeRequired, UnsuitableSQLError
 from polars.io.database._arrow_registry import ARROW_DRIVER_REGISTRY
-from polars.io.database._cursor_proxies import ODBCCursorProxy
-from polars.io.database._inference import (
-    _infer_dtype_from_database_typename,
-    _integer_dtype_from_nbits,
-)
+from polars.io.database._cursor_proxies import ODBCCursorProxy, SurrealDBCursorProxy
+from polars.io.database._inference import _infer_dtype_from_cursor_description
+from polars.io.database._utils import _run_async
 
 if TYPE_CHECKING:
     import sys
@@ -44,7 +37,6 @@ if TYPE_CHECKING:
         from typing_extensions import Self
 
     from polars import DataFrame
-    from polars.datatypes import PolarsDataType
     from polars.type_aliases import ConnectionOrCursor, Cursor, SchemaDict
 
     try:
@@ -53,7 +45,6 @@ if TYPE_CHECKING:
         Selectable: TypeAlias = Any  # type: ignore[no-redef]
 
     from sqlalchemy.sql.elements import TextClause
-
 
 _INVALID_QUERY_TYPES = {
     "ALTER",
@@ -83,6 +74,9 @@ class ConnectionExecutor:
             if isinstance(connection, ODBCCursorProxy)
             else type(connection).__module__.split(".", 1)[0].lower()
         )
+        if self.driver_name == "surrealdb":
+            connection = SurrealDBCursorProxy(client=connection)
+
         self.cursor = self._normalise_cursor(connection)
         self.result: Any = None
 
@@ -98,12 +92,24 @@ class ConnectionExecutor:
         # if we created it and are finished with it, we can
         # close the cursor (but NOT the connection)
         if type(self.cursor).__name__ == "AsyncConnection":
-            self._run_async(self._close_async_cursor())
+            _run_async(self._close_async_cursor())
         elif self.can_close_cursor and hasattr(self.cursor, "close"):
             self.cursor.close()
 
     def __repr__(self) -> str:
         return f"<{type(self).__name__} module={self.driver_name!r}>"
+
+    @staticmethod
+    def _apply_overrides(df: DataFrame, schema_overrides: SchemaDict) -> DataFrame:
+        """Apply schema overrides to a DataFrame."""
+        existing_schema = df.schema
+        if cast_cols := [
+            F.col(col).cast(dtype)
+            for col, dtype in schema_overrides.items()
+            if col in existing_schema and dtype != existing_schema[col]
+        ]:
+            df = df.with_columns(cast_cols)
+        return df
 
     async def _close_async_cursor(self) -> None:
         if self.can_close_cursor and hasattr(self.cursor, "close"):
@@ -111,6 +117,20 @@ class ConnectionExecutor:
 
             with suppress(AsyncContextNotStarted):
                 await self.cursor.close()
+
+    @staticmethod
+    def _check_module_version(module_name: str, minimum_version: str) -> None:
+        """Check the module version against a minimum required version."""
+        mod = __import__(module_name)
+        with suppress(AttributeError):
+            module_version: tuple[int, ...] | None = None
+            for version_attr in ("__version__", "version"):
+                if isinstance(ver := getattr(mod, version_attr, None), str):
+                    module_version = parse_version(ver)
+                    break
+            if module_version and module_version < parse_version(minimum_version):
+                msg = f"`read_database` queries require at least {module_name} version {minimum_version}"
+                raise ModuleUpgradeRequired(msg)
 
     def _fetch_arrow(
         self,
@@ -122,11 +142,8 @@ class ConnectionExecutor:
         """Yield Arrow data as a generator of one or more RecordBatches or Tables."""
         fetch_batches = driver_properties["fetch_batches"]
         if not iter_batches or fetch_batches is None:
-            fetch_method, sz = driver_properties["fetch_all"], []
-            if isinstance(fetch_method, tuple):
-                fetch_method, chunk_size = fetch_method
-                sz = [chunk_size]
-            yield getattr(self.result, fetch_method)(*sz)
+            fetch_method = driver_properties["fetch_all"]
+            yield getattr(self.result, fetch_method)()
         else:
             size = batch_size if driver_properties["exact_batch_size"] else None
             repeat_batch_calls = driver_properties["repeat_batch_calls"]
@@ -146,7 +163,7 @@ class ConnectionExecutor:
         rows = result.fetchall()
         return (
             [tuple(row) for row in rows]
-            if rows and not isinstance(rows[0], (list, tuple))
+            if rows and not isinstance(rows[0], (list, tuple, dict))
             else rows
         )
 
@@ -158,7 +175,7 @@ class ConnectionExecutor:
             rows = result.fetchmany(batch_size)
             if not rows:
                 break
-            elif isinstance(rows[0], (list, tuple)):
+            elif isinstance(rows[0], (list, tuple, dict)):
                 yield rows
             else:
                 yield [tuple(row) for row in rows]
@@ -172,13 +189,19 @@ class ConnectionExecutor:
         infer_schema_length: int | None,
     ) -> DataFrame | Iterable[DataFrame] | None:
         """Return resultset data in Arrow format for frame init."""
+        from polars import DataFrame
+
         try:
             for driver, driver_properties in ARROW_DRIVER_REGISTRY.items():
                 if re.match(f"^{driver}$", self.driver_name):
+                    if ver := driver_properties["minimum_version"]:
+                        self._check_module_version(self.driver_name, ver)
                     fetch_batches = driver_properties["fetch_batches"]
                     self.can_close_cursor = fetch_batches is None or not iter_batches
                     frames = (
-                        from_arrow(batch, schema_overrides=schema_overrides)
+                        self._apply_overrides(batch, (schema_overrides or {}))
+                        if isinstance(batch, DataFrame)
+                        else from_arrow(batch, schema_overrides=schema_overrides)
                         for batch in self._fetch_arrow(
                             driver_properties,
                             iter_batches=iter_batches,
@@ -210,7 +233,7 @@ class ConnectionExecutor:
         from polars import DataFrame
 
         if is_async := isinstance(original_result := self.result, Coroutine):
-            self.result = self._run_async(self.result)
+            self.result = _run_async(self.result)
         try:
             if hasattr(self.result, "fetchall"):
                 if self.driver_name == "sqlalchemy":
@@ -223,8 +246,11 @@ class ConnectionExecutor:
                     else:
                         msg = f"Unable to determine metadata from query result; {self.result!r}"
                         raise ValueError(msg)
-                else:
+
+                elif hasattr(self.result, "description"):
                     cursor_desc = {d[0]: d[1:] for d in self.result.description}
+                else:
+                    cursor_desc = {}
 
                 schema_overrides = self._inject_type_overrides(
                     description=cursor_desc,
@@ -234,13 +260,13 @@ class ConnectionExecutor:
                 frames = (
                     DataFrame(
                         data=rows,
-                        schema=result_columns,
+                        schema=result_columns or None,
                         schema_overrides=schema_overrides,
                         infer_schema_length=infer_schema_length,
                         orient="row",
                     )
                     for rows in (
-                        list(self._fetchmany_rows(self.result, batch_size))
+                        self._fetchmany_rows(self.result, batch_size)
                         if iter_batches
                         else [self._fetchall_rows(self.result)]  # type: ignore[list-item]
                     )
@@ -251,22 +277,8 @@ class ConnectionExecutor:
             if is_async:
                 original_result.close()
 
-    @staticmethod
-    def _run_async(co: Coroutine) -> Any:  # type: ignore[type-arg]
-        """Consolidate async event loop acquisition and coroutine/func execution."""
-        import asyncio
-
-        try:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
-                loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        return loop.run_until_complete(co)
-
-    @staticmethod
     def _inject_type_overrides(
+        self,
         description: dict[str, Any],
         schema_overrides: SchemaDict,
     ) -> SchemaDict:
@@ -275,50 +287,14 @@ class ConnectionExecutor:
 
         Notes
         -----
-        This is limited; the `type_code` property may contain almost anything,
+        This is limited; the `type_code` description attr may contain almost anything,
         from strings or python types to driver-specific codes, classes, enums, etc.
         We currently only do the additional inference from string/python type values.
         (Further refinement will require per-driver module knowledge and lookups).
         """
-        dtype: PolarsDataType | None = None
         for nm, desc in description.items():
-            if desc is None:
-                continue
-            elif nm not in schema_overrides:
-                type_code, _disp_size, internal_size, prec, scale, _null_ok = desc
-                if isclass(type_code):
-                    # python types, eg: int, float, str, etc
-                    with suppress(TypeError):
-                        dtype = _map_py_type_to_dtype(type_code)  # type: ignore[arg-type]
-
-                elif isinstance(type_code, str):
-                    # database/sql type names, eg: "VARCHAR", "NUMERIC", "BLOB", etc
-                    dtype = _infer_dtype_from_database_typename(
-                        value=type_code,
-                        raise_unmatched=False,
-                    )
-
-                if dtype is not None:
-                    # check additional cursor attrs to improve dtype specification
-                    if dtype == Float64 and internal_size == 4:
-                        dtype = Float32
-
-                    elif dtype in INTEGER_DTYPES and internal_size in (2, 4, 8):
-                        bits = internal_size * 8
-                        dtype = _integer_dtype_from_nbits(
-                            bits,
-                            unsigned=(dtype in UNSIGNED_INTEGER_DTYPES),
-                            default=dtype,
-                        )
-                    elif (
-                        dtype == Decimal
-                        and isinstance(prec, int)
-                        and isinstance(scale, int)
-                        and prec <= 38
-                        and scale <= 38
-                    ):
-                        dtype = Decimal(prec, scale)
-
+            if desc is not None and nm not in schema_overrides:
+                dtype = _infer_dtype_from_cursor_description(self.cursor, desc)
                 if dtype is not None:
                     schema_overrides[nm] = dtype  # type: ignore[index]
 
@@ -328,8 +304,6 @@ class ConnectionExecutor:
         """Normalise a connection object such that we have the query executor."""
         if self.driver_name == "sqlalchemy":
             conn_type = type(conn).__name__
-            self.can_close_cursor = conn_type.endswith("Engine")
-
             if conn_type in ("Session", "async_sessionmaker"):
                 return conn
             else:
@@ -341,6 +315,8 @@ class ConnectionExecutor:
                     self.driver_name = "duckdb"
                     return conn.engine.raw_connection().driver_connection.c
                 elif conn_type in ("AsyncEngine", "Engine"):
+                    # note: if we create it, we can close it
+                    self.can_close_cursor = True
                     return conn.connect()
                 else:
                     return conn
@@ -355,7 +331,7 @@ class ConnectionExecutor:
             # can execute directly (given cursor, sqlalchemy connection, etc)
             return conn
 
-        msg = f"Unrecognised connection {conn!r}; unable to find 'execute' method"
+        msg = f"""Unrecognised connection type "{conn!r}"; no 'execute' or 'cursor' method"""
         raise TypeError(msg)
 
     async def _sqlalchemy_async_execute(self, query: TextClause, **options: Any) -> Any:

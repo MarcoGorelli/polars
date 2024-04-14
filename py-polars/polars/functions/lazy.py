@@ -1537,9 +1537,12 @@ def arg_sort_by(
     exprs: IntoExpr | Iterable[IntoExpr],
     *more_exprs: IntoExpr,
     descending: bool | Sequence[bool] = False,
+    nulls_last: bool = False,
+    multithreaded: bool = True,
+    maintain_order: bool = False,
 ) -> Expr:
     """
-    Return the row indices that would sort the columns.
+    Return the row indices that would sort the column(s).
 
     Parameters
     ----------
@@ -1551,6 +1554,17 @@ def arg_sort_by(
     descending
         Sort in descending order. When sorting by multiple columns, can be specified
         per column by passing a sequence of booleans.
+    nulls_last
+        Place null values last.
+    multithreaded
+        Sort using multiple threads.
+    maintain_order
+        Whether the order should be maintained if elements are equal.
+
+    See Also
+    --------
+    Expr.gather: Take values by index.
+    Expr.rank : Get the rank of each row.
 
     Examples
     --------
@@ -1560,6 +1574,7 @@ def arg_sort_by(
     ...     {
     ...         "a": [0, 1, 1, 0],
     ...         "b": [3, 2, 3, 2],
+    ...         "c": [1, 2, 3, 4],
     ...     }
     ... )
     >>> df.select(pl.arg_sort_by("a"))
@@ -1590,6 +1605,21 @@ def arg_sort_by(
     │ 0   │
     │ 3   │
     └─────┘
+
+    Use gather to apply the arg sort to other columns.
+
+    >>> df.select(pl.col("c").gather(pl.arg_sort_by("a")))
+    shape: (4, 1)
+    ┌─────┐
+    │ c   │
+    │ --- │
+    │ i64 │
+    ╞═════╡
+    │ 1   │
+    │ 4   │
+    │ 2   │
+    │ 3   │
+    └─────┘
     """
     exprs = parse_as_list_of_expressions(exprs, *more_exprs)
 
@@ -1598,7 +1628,9 @@ def arg_sort_by(
     elif len(exprs) != len(descending):
         msg = f"the length of `descending` ({len(descending)}) does not match the length of `exprs` ({len(exprs)})"
         raise ValueError(msg)
-    return wrap_expr(plr.arg_sort_by(exprs, descending))
+    return wrap_expr(
+        plr.arg_sort_by(exprs, descending, nulls_last, multithreaded, maintain_order)
+    )
 
 
 def collect_all(
@@ -2189,10 +2221,10 @@ def sql_expr(sql: str | Sequence[str]) -> Expr | list[Expr]:
     ┌─────┬─────┬───────┐
     │ a   ┆ a_a ┆ a_txt │
     │ --- ┆ --- ┆ ---   │
-    │ i64 ┆ f64 ┆ str   │
+    │ i64 ┆ i64 ┆ str   │
     ╞═════╪═════╪═══════╡
-    │ 2   ┆ 4.0 ┆ 2     │
-    │ 1   ┆ 1.0 ┆ 1     │
+    │ 2   ┆ 4   ┆ 2     │
+    │ 1   ┆ 1   ┆ 1     │
     └─────┴─────┴───────┘
     """
     if isinstance(sql, str):

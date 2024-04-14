@@ -1,8 +1,8 @@
-use arrow::chunk::Chunk;
+use arrow::record_batch::RecordBatch;
 
 use crate::prelude::*;
 
-pub type ArrowChunk = Chunk<ArrayRef>;
+pub type ArrowChunk = RecordBatch<ArrayRef>;
 
 impl std::convert::TryFrom<(ArrowChunk, &[ArrowField])> for DataFrame {
     type Error = PolarsError;
@@ -17,5 +17,27 @@ impl std::convert::TryFrom<(ArrowChunk, &[ArrowField])> for DataFrame {
             .collect();
 
         DataFrame::new(columns?)
+    }
+}
+
+impl DataFrame {
+    pub fn split_chunks(mut self) -> impl Iterator<Item = DataFrame> {
+        self.align_chunks();
+
+        (0..self.n_chunks()).map(move |i| unsafe {
+            let columns = self
+                .get_columns()
+                .iter()
+                .map(|s| {
+                    Series::from_chunks_and_dtype_unchecked(
+                        s.name(),
+                        vec![s.chunks()[i].clone()],
+                        s.dtype(),
+                    )
+                })
+                .collect::<Vec<_>>();
+
+            DataFrame::new_no_checks(columns)
+        })
     }
 }
