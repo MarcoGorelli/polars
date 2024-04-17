@@ -49,8 +49,14 @@ impl PolarsRound for DateChunked {
 impl PolarsRound for DurationChunked {
     fn round(&self, every: Duration, offset: Duration, tz: Option<&Tz>) -> PolarsResult<Self> {
         polars_ensure!(!every.negative, ComputeError: "cannot round a Duration to a negative duration");
+
+        let time_zone = match tz {
+            #[cfg(feature = "timezones")]
+            Some(tz) => Some(tz.name()),
+            _ => None,
+        };
         polars_ensure!(
-            every.is_constant_duration(tz.map(|t| t.name())),
+            every.is_constant_duration(time_zone),
             InvalidOperation: "Cannot round a Duration series to a non-constant duration."
         );
         polars_ensure!(offset.is_zero(), InvalidOperation: "Offsets are not supported for rounding Durations.");
