@@ -104,43 +104,43 @@ impl PolarsTruncate for DateChunked {
 
 #[cfg(feature = "dtype-duration")]
 impl PolarsTruncate for DurationChunked {
-    fn truncate(
-        &self,
-        _tz: Option<&Tz>,
-        every: &StringChunked,
-        offset: &str,
-    ) -> PolarsResult<Self> {
+    fn truncate(&self, tz: Option<&Tz>, every: &StringChunked, offset: &str) -> PolarsResult<Self> {
+        let time_zone = tz.map(|t| t.name());
         let to_time_unit = match self.time_unit() {
             TimeUnit::Nanoseconds => Duration::duration_ns,
             TimeUnit::Microseconds => Duration::duration_us,
             TimeUnit::Milliseconds => Duration::duration_ms,
         };
 
-        if !Duration::parse(offset).is_zero() {
-            polars_bail!(InvalidOperation: "Offsets are not supported for truncating Durations.");
-        }
+        polars_ensure!(
+            Duration::parse(offset).is_zero(),
+            InvalidOperation: "Offsets are not supported for truncating Durations."
+        );
 
         let out = if every.len() == 1 {
             if let Some(every) = every.get(0) {
                 let every_duration = Duration::parse(every);
-                if every_duration.negative {
-                    polars_bail!(ComputeError: "cannot truncate a Duration to a negative duration")
-                }
-                if every_duration.is_constant_duration() {
-                    let every_units = to_time_unit(&every_duration);
 
-                    if every_units == 0 {
-                        polars_bail!(InvalidOperation: "duration cannot be zero.")
-                    }
+                polars_ensure!(
+                    !every_duration.negative,
+                    ComputeError: "cannot truncate a Duration to a negative duration"
+                );
 
-                    Ok(self
-                        .0
-                        .apply_values(|duration| duration - duration % every_units))
-                } else {
-                    polars_bail!(InvalidOperation:
+                polars_ensure!(
+                    every_duration.is_constant_duration(time_zone),
+                    InvalidOperation:
                         "Cannot truncate a Duration series to a non-constant duration."
-                    )
+                );
+
+                let every_units = to_time_unit(&every_duration);
+
+                if every_units == 0 {
+                    polars_bail!(InvalidOperation: "duration cannot be zero.")
                 }
+
+                Ok(self
+                    .0
+                    .apply_values(|duration| duration - duration % every_units))
             } else {
                 Ok(Int64Chunked::full_null(self.name(), self.len()))
             }
@@ -148,18 +148,19 @@ impl PolarsTruncate for DurationChunked {
             try_binary_elementwise(self, every, |opt_duration, opt_every| {
                 if let (Some(duration), Some(every)) = (opt_duration, opt_every) {
                     let every_duration = Duration::parse(every);
-                    if every_duration.negative {
-                        polars_bail!(ComputeError: "cannot truncate a Duration to a negative duration")
-                    }
-                    if every_duration.is_constant_duration() {
-                        let every_units = to_time_unit(&every_duration);
 
-                        Ok(Some(duration - duration % every_units))
-                    } else {
-                        polars_bail!(InvalidOperation:
+                    polars_ensure!(
+                        !every_duration.negative,
+                        ComputeError: "cannot truncate a Duration to a negative duration"
+                    );
+
+                    polars_ensure!(
+                        every_duration.is_constant_duration(time_zone),
+                        InvalidOperation:
                             "Cannot truncate a Duration series to a non-constant duration."
-                        )
-                    }
+                    );
+
+                    Ok(Some(duration - duration % to_time_unit(&every_duration)))
                 } else {
                     Ok(None)
                 }

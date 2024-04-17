@@ -541,7 +541,7 @@ def test_truncate_duration_zero() -> None:
         durations.dt.truncate("0s")
 
 
-@pytest.mark.parametrize("every_unit", ["d", "w", "mo", "q", "y"])
+@pytest.mark.parametrize("every_unit", ["mo", "q", "y"])
 def test_truncated_duration_non_constant(every_unit: str) -> None:
     # Duration series can't be truncated to non-constant durations
     df = pl.DataFrame(
@@ -667,7 +667,7 @@ def test_round_duration_zero() -> None:
         durations.dt.round("0s")
 
 
-@pytest.mark.parametrize("every", ["d", "w", "mo", "q", "y"])
+@pytest.mark.parametrize("every", ["mo", "q", "y"])
 def test_round_duration_non_constant(every: str) -> None:
     # Duration series can't be rounded to non-constant durations
     durations = pl.Series([timedelta(seconds=21)])
