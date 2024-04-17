@@ -1695,7 +1695,7 @@ class DateTimeNameSpace:
             - `False`: use the latest datetime
 
             .. deprecated:: 0.19.0
-                Use `ambiguous` instead
+                This is now automatically inferred; you can safely omit this argument.
         ambiguous
             Determine how to deal with ambiguous datetimes:
 
@@ -1704,7 +1704,7 @@ class DateTimeNameSpace:
             - `'latest'`: use the latest datetime
 
             .. deprecated:: 0.19.3
-                This is now auto-inferred, you can safely remove this argument.
+                This is now automatically inferred; you can safely omit this argument.
 
         Notes
         -----
@@ -1850,7 +1850,7 @@ class DateTimeNameSpace:
             - `'latest'`: use the latest datetime
 
             .. deprecated:: 0.19.3
-                This is now auto-inferred, you can safely remove this argument.
+                This is now automatically inferred; you can safely omit this argument.
 
         Returns
         -------

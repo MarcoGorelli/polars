@@ -194,7 +194,7 @@ class ExprDateTimeNameSpace:
             - `False`: use the latest datetime
 
             .. deprecated:: 0.19.0
-                Use `ambiguous` instead
+                This is now automatically inferred; you can safely omit this argument.
         ambiguous
             Determine how to deal with ambiguous datetimes:
 
@@ -203,7 +203,7 @@ class ExprDateTimeNameSpace:
             - `'latest'`: use the latest datetime
 
             .. deprecated:: 0.19.3
-                This is now auto-inferred, you can safely remove this argument.
+                This is now automatically inferred; you can safely omit this argument.
 
         Notes
         -----
@@ -326,12 +326,12 @@ class ExprDateTimeNameSpace:
 
         if use_earliest is not None:
             issue_deprecation_warning(
-                "`use_earliest` is deprecated. It is now auto-inferred, you can safely remove this argument.",
+                "`use_earliest` is deprecated. It is now automatically inferred; you can safely omit this argument.",
                 version="0.19.13",
             )
         if ambiguous is not None:
             issue_deprecation_warning(
-                "`ambiguous` is deprecated. It is now auto-inferred, you can safely remove this argument.",
+                "`ambiguous` is deprecated. It is now automatically inferred; you can safely omit this argument.",
                 version="0.19.13",
             )
         every = parse_as_expression(every, str_as_lit=True)
@@ -388,7 +388,7 @@ class ExprDateTimeNameSpace:
             - `'latest'`: use the latest datetime
 
             .. deprecated:: 0.19.3
-                This is now auto-inferred, you can safely remove this argument.
+                This is now automatically inferred; you can safely omit this argument.
 
         Returns
         -------
@@ -487,7 +487,7 @@ class ExprDateTimeNameSpace:
 
         if ambiguous is not None:
             issue_deprecation_warning(
-                "`ambiguous` is deprecated. It is now auto-inferred, you can safely remove this argument.",
+                "`ambiguous` is deprecated. It is now automatically inferred; you can safely omit this argument.",
                 version="0.19.13",
             )
 
