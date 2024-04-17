@@ -67,9 +67,10 @@ impl PolarsRound for DurationChunked {
             TimeUnit::Milliseconds => every.duration_ms(),
         };
 
-        if every == 0 {
-            polars_bail!(InvalidOperation: "duration cannot be zero.")
-        }
+        polars_ensure!(
+            every != 0,
+            InvalidOperation: "duration cannot be zero."
+        );
 
         let out = self.apply_values(|duration| {
             // Round half-way values away from zero

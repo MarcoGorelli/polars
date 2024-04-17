@@ -138,10 +138,10 @@ impl PolarsTruncate for DurationChunked {
                 );
 
                 let every_units = to_time_unit(&every_duration);
-
-                if every_units == 0 {
-                    polars_bail!(InvalidOperation: "duration cannot be zero.")
-                }
+                polars_ensure!(
+                    every_units != 0,
+                    InvalidOperation: "duration cannot be zero."
+                );
 
                 Ok(self
                     .0
@@ -165,7 +165,13 @@ impl PolarsTruncate for DurationChunked {
                             "Cannot truncate a Duration series to a non-constant duration."
                     );
 
-                    Ok(Some(duration - duration % to_time_unit(&every_duration)))
+                    let every_units = to_time_unit(&every_duration);
+                    polars_ensure!(
+                        every_units != 0,
+                        InvalidOperation: "duration cannot be zero."
+                    );
+
+                    Ok(Some(duration - duration % every_units))
                 } else {
                     Ok(None)
                 }
