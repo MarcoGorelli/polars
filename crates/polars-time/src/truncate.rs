@@ -110,13 +110,11 @@ impl PolarsTruncate for DurationChunked {
             Some(tz) => Some(tz.name()),
             _ => None,
         };
-
         let to_i64 = match self.time_unit() {
             TimeUnit::Nanoseconds => Duration::duration_ns,
             TimeUnit::Microseconds => Duration::duration_us,
             TimeUnit::Milliseconds => Duration::duration_ms,
         };
-
         polars_ensure!(
             Duration::parse(offset).is_zero(),
             InvalidOperation: "`offset` is not supported for truncating Durations."
@@ -130,7 +128,6 @@ impl PolarsTruncate for DurationChunked {
                     !every_duration.negative,
                     ComputeError: "cannot truncate a Duration to a negative duration"
                 );
-
                 ensure_is_constant_duration(every_duration, time_zone, "every")?;
                 let every_units = to_i64(&every_duration);
                 polars_ensure!(
@@ -153,7 +150,6 @@ impl PolarsTruncate for DurationChunked {
                         !every_duration.negative,
                         ComputeError: "cannot truncate a Duration to a negative duration"
                     );
-
                     ensure_is_constant_duration(every_duration, time_zone, "every")?;
                     let every_units = to_i64(&every_duration);
                     polars_ensure!(
