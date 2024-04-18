@@ -132,7 +132,7 @@ impl PolarsTruncate for DurationChunked {
                 let every_units = to_i64(&every_duration);
                 polars_ensure!(
                     every_units != 0,
-                    InvalidOperation: "duration cannot be zero."
+                    InvalidOperation: "`every` duration cannot be zero"
                 );
 
                 Ok(self
@@ -154,7 +154,7 @@ impl PolarsTruncate for DurationChunked {
                     let every_units = to_i64(&every_duration);
                     polars_ensure!(
                         every_units != 0,
-                        InvalidOperation: "duration cannot be zero."
+                        InvalidOperation: "`every` duration cannot be zero"
                     );
 
                     Ok(Some(duration - duration % every_units))

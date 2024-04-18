@@ -63,7 +63,7 @@ impl PolarsRound for DurationChunked {
         };
         polars_ensure!(
             every != 0,
-            InvalidOperation: "duration cannot be zero."
+            InvalidOperation: "`every` duration cannot be zero."
         );
 
         let out = self.apply_values(|duration| {
