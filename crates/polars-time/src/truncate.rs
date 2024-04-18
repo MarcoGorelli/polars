@@ -131,14 +131,7 @@ impl PolarsTruncate for DurationChunked {
                     ComputeError: "cannot truncate a Duration to a negative duration"
                 );
 
-                polars_ensure!(every_duration.is_constant_duration(time_zone),
-                    InvalidOperation: "expected `every` to be a constant duration \
-                    (i.e. one independent of differing month durations or of daylight savings time), got {}.\n\
-                    \n\
-                    You may want to try:\n\
-                    - using `'730h'` instead of `'1mo'`\n\
-                    - using `'24h'` instead of `'1d'` if your series is time-zone-aware", every_duration);
-
+                ensure_is_constant_duration(every_duration, time_zone, "every")?;
                 let every_units = to_i64(&every_duration);
                 polars_ensure!(
                     every_units != 0,
@@ -161,14 +154,7 @@ impl PolarsTruncate for DurationChunked {
                         ComputeError: "cannot truncate a Duration to a negative duration"
                     );
 
-                    polars_ensure!(every_duration.is_constant_duration(time_zone),
-                        InvalidOperation: "expected `every` to be a constant duration \
-                        (i.e. one independent of differing month durations or of daylight savings time), got {}.\n\
-                        \n\
-                        You may want to try:\n\
-                        - using `'730h'` instead of `'1mo'`\n\
-                        - using `'24h'` instead of `'1d'` if your series is time-zone-aware", every_duration);
-
+                    ensure_is_constant_duration(every_duration, time_zone, "every")?;
                     let every_units = to_i64(&every_duration);
                     polars_ensure!(
                         every_units != 0,
