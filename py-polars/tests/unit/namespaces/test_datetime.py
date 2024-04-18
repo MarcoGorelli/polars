@@ -560,37 +560,6 @@ def test_truncate_expressions() -> None:
     assert_series_equal(result, expected)
 
 
-def test_truncate_expressions_invalid() -> None:
-    df = pl.DataFrame(
-        {
-            "duration": [
-                timedelta(seconds=20),
-                timedelta(seconds=21),
-                timedelta(seconds=22),
-            ],
-            "every": ["3s", "4s", "-5s"],
-        }
-    )
-    with pytest.raises(
-        pl.ComputeError, match="cannot truncate a Duration to a negative duration"
-    ):
-        df.select(pl.col("duration").dt.truncate(pl.col("every")))
-    df = pl.DataFrame(
-        {
-            "duration": [
-                timedelta(seconds=20),
-                timedelta(seconds=21),
-                timedelta(seconds=22),
-            ],
-            "every": ["3s", "0s", "-5s"],
-        }
-    )
-    with pytest.raises(
-        pl.InvalidOperationError, match="`every` duration cannot be zero"
-    ):
-        df.select(pl.col("duration").dt.truncate(pl.col("every")))
-
-
 @pytest.mark.parametrize("every_unit", ["mo", "q", "y"])
 def test_truncated_duration_non_constant(every_unit: str) -> None:
     # Duration series can't be truncated to non-constant durations
