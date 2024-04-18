@@ -48,7 +48,7 @@ use crate::logical_plan::visitor::*;
 use crate::prelude::optimizer::collect_members::MemberCollector;
 
 pub trait Optimize {
-    fn optimize(&self, logical_plan: LogicalPlan) -> PolarsResult<LogicalPlan>;
+    fn optimize(&self, logical_plan: DslPlan) -> PolarsResult<DslPlan>;
 }
 
 // arbitrary constant to reduce reallocation.
@@ -59,7 +59,7 @@ pub(crate) fn init_hashmap<K, V>(max_len: Option<usize>) -> PlHashMap<K, V> {
 }
 
 pub fn optimize(
-    logical_plan: LogicalPlan,
+    logical_plan: DslPlan,
     opt_state: OptState,
     lp_arena: &mut Arena<IR>,
     expr_arena: &mut Arena<AExpr>,
@@ -189,7 +189,8 @@ pub fn optimize(
 
     lp_top = opt.optimize_loop(&mut rules, expr_arena, lp_arena, lp_top)?;
 
-    if members.has_joins_or_unions && members.has_cache {
+    if members.has_joins_or_unions && members.has_cache && _cse_plan_changed {
+        // We only want to run this on cse inserted caches
         cache_states::set_cache_states(
             lp_top,
             lp_arena,

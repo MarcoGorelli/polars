@@ -50,7 +50,7 @@ pub trait IntoLazy {
 impl IntoLazy for DataFrame {
     /// Convert the `DataFrame` into a `LazyFrame`
     fn lazy(self) -> LazyFrame {
-        let lp = LogicalPlanBuilder::from_existing_df(self).build();
+        let lp = DslBuilder::from_existing_df(self).build();
         LazyFrame {
             logical_plan: lp,
             opt_state: Default::default(),
@@ -70,12 +70,12 @@ impl IntoLazy for LazyFrame {
 #[derive(Clone, Default)]
 #[must_use]
 pub struct LazyFrame {
-    pub logical_plan: LogicalPlan,
+    pub logical_plan: DslPlan,
     pub(crate) opt_state: OptState,
 }
 
-impl From<LogicalPlan> for LazyFrame {
-    fn from(plan: LogicalPlan) -> Self {
+impl From<DslPlan> for LazyFrame {
+    fn from(plan: DslPlan) -> Self {
         Self {
             logical_plan: plan,
             opt_state: OptState {
@@ -96,15 +96,15 @@ impl LazyFrame {
         self.logical_plan.schema().map(|schema| schema.into_owned())
     }
 
-    pub(crate) fn get_plan_builder(self) -> LogicalPlanBuilder {
-        LogicalPlanBuilder::from(self.logical_plan)
+    pub(crate) fn get_plan_builder(self) -> DslBuilder {
+        DslBuilder::from(self.logical_plan)
     }
 
     fn get_opt_state(&self) -> OptState {
         self.opt_state
     }
 
-    fn from_logical_plan(logical_plan: LogicalPlan, opt_state: OptState) -> Self {
+    fn from_logical_plan(logical_plan: DslPlan, opt_state: OptState) -> Self {
         LazyFrame {
             logical_plan,
             opt_state,
@@ -215,7 +215,7 @@ impl LazyFrame {
         self.logical_plan.describe_tree_format()
     }
 
-    fn optimized_plan(&self) -> PolarsResult<LogicalPlan> {
+    fn optimized_plan(&self) -> PolarsResult<DslPlan> {
         let mut expr_arena = Arena::with_capacity(64);
         let mut lp_arena = Arena::with_capacity(64);
         let lp_top = self.clone().optimize_with_scratch(
@@ -259,12 +259,12 @@ impl LazyFrame {
     ///
     /// # Example
     ///
-    /// Sort DataFrame by 'sepal.width' column:
+    /// Sort DataFrame by 'sepal_width' column:
     /// ```rust
     /// # use polars_core::prelude::*;
     /// # use polars_lazy::prelude::*;
     /// fn sort_by_a(df: DataFrame) -> LazyFrame {
-    ///     df.lazy().sort(["a"], Default::default())
+    ///     df.lazy().sort(["sepal_width"], Default::default())
     /// }
     /// ```
     /// Sort by a single column with specific order:
@@ -273,7 +273,7 @@ impl LazyFrame {
     /// # use polars_lazy::prelude::*;
     /// fn sort_with_specific_order(df: DataFrame, descending: bool) -> LazyFrame {
     ///     df.lazy().sort(
-    ///         ["a"],
+    ///         ["sepal_width"],
     ///         SortMultipleOptions::new()
     ///             .with_order_descending(descending)
     ///     )
@@ -285,7 +285,7 @@ impl LazyFrame {
     /// # use polars_lazy::prelude::*;
     /// fn sort_by_multiple_columns_with_specific_order(df: DataFrame) -> LazyFrame {
     ///     df.lazy().sort(
-    ///         &["a", "b"],
+    ///         &["sepal_width", "sepal_length"],
     ///         SortMultipleOptions::new()
     ///             .with_order_descendings([false, true])
     ///     )
@@ -317,10 +317,10 @@ impl LazyFrame {
     /// use polars_core::prelude::*;
     /// use polars_lazy::prelude::*;
     ///
-    /// /// Sort DataFrame by 'sepal.width' column
+    /// /// Sort DataFrame by 'sepal_width' column
     /// fn example(df: DataFrame) -> LazyFrame {
     ///       df.lazy()
-    ///         .sort_by_exprs(vec![col("sepal.width")], Default::default())
+    ///         .sort_by_exprs(vec![col("sepal_width")], Default::default())
     /// }
     /// ```
     pub fn sort_by_exprs<E: AsRef<[Expr]>>(
@@ -749,7 +749,7 @@ impl LazyFrame {
         ipc_options: IpcWriterOptions,
     ) -> PolarsResult<()> {
         self.opt_state.streaming = true;
-        self.logical_plan = LogicalPlan::Sink {
+        self.logical_plan = DslPlan::Sink {
             input: Arc::new(self.logical_plan),
             payload: SinkType::Cloud {
                 uri: Arc::new(uri),
@@ -804,7 +804,7 @@ impl LazyFrame {
     ))]
     fn sink(mut self, payload: SinkType, msg_alternative: &str) -> Result<(), PolarsError> {
         self.opt_state.streaming = true;
-        self.logical_plan = LogicalPlan::Sink {
+        self.logical_plan = DslPlan::Sink {
             input: Arc::new(self.logical_plan),
             payload,
         };
@@ -830,8 +830,8 @@ impl LazyFrame {
     ///
     /// fn example(df: DataFrame) -> LazyFrame {
     ///       df.lazy()
-    ///         .filter(col("sepal.width").is_not_null())
-    ///         .select(&[col("sepal.width"), col("sepal.length")])
+    ///         .filter(col("sepal_width").is_not_null())
+    ///         .select(&[col("sepal_width"), col("sepal_length")])
     /// }
     /// ```
     pub fn filter(self, predicate: Expr) -> Self {
@@ -1263,7 +1263,7 @@ impl LazyFrame {
     /// fn add_column(df: DataFrame) -> LazyFrame {
     ///     df.lazy()
     ///         .with_column(
-    ///             when(col("sepal.length").lt(lit(5.0)))
+    ///             when(col("sepal_length").lt(lit(5.0)))
     ///             .then(lit(10))
     ///             .otherwise(lit(1))
     ///             .alias("new_column_name"),
@@ -1671,7 +1671,7 @@ impl LazyFrame {
     /// predicate pushdown optimization.
     pub fn with_row_index(mut self, name: &str, offset: Option<IdxSize>) -> LazyFrame {
         let add_row_index_in_map = match &mut self.logical_plan {
-            LogicalPlan::Scan {
+            DslPlan::Scan {
                 file_options: options,
                 file_info,
                 scan_type,
@@ -1741,7 +1741,7 @@ impl LazyFrame {
 /// Utility struct for lazy group_by operation.
 #[derive(Clone)]
 pub struct LazyGroupBy {
-    pub logical_plan: LogicalPlan,
+    pub logical_plan: DslPlan,
     opt_state: OptState,
     keys: Vec<Expr>,
     maintain_order: bool,
@@ -1785,7 +1785,7 @@ impl LazyGroupBy {
     /// ```
     pub fn agg<E: AsRef<[Expr]>>(self, aggs: E) -> LazyFrame {
         #[cfg(feature = "dynamic_group_by")]
-        let lp = LogicalPlanBuilder::from(self.logical_plan)
+        let lp = DslBuilder::from(self.logical_plan)
             .group_by(
                 self.keys,
                 aggs,
@@ -1797,7 +1797,7 @@ impl LazyGroupBy {
             .build();
 
         #[cfg(not(feature = "dynamic_group_by"))]
-        let lp = LogicalPlanBuilder::from(self.logical_plan)
+        let lp = DslBuilder::from(self.logical_plan)
             .group_by(self.keys, aggs, None, self.maintain_order)
             .build();
         LazyFrame::from_logical_plan(lp, self.opt_state)
@@ -1845,7 +1845,7 @@ impl LazyGroupBy {
         #[cfg(not(feature = "dynamic_group_by"))]
         let options = GroupbyOptions { slice: None };
 
-        let lp = LogicalPlan::GroupBy {
+        let lp = DslPlan::GroupBy {
             input: Arc::new(self.logical_plan),
             keys: Arc::new(self.keys),
             aggs: vec![],
