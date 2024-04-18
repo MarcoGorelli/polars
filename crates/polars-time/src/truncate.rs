@@ -104,7 +104,12 @@ impl PolarsTruncate for DateChunked {
 
 #[cfg(feature = "dtype-duration")]
 impl PolarsTruncate for DurationChunked {
-    fn truncate(&self, tz: Option<&Tz>, every: &StringChunked, offset: &str) -> PolarsResult<Self> {
+    fn truncate(
+        &self,
+        _tz: Option<&Tz>,
+        every: &StringChunked,
+        offset: &str,
+    ) -> PolarsResult<Self> {
         let to_i64 = match self.time_unit() {
             TimeUnit::Nanoseconds => Duration::duration_ns,
             TimeUnit::Microseconds => Duration::duration_us,
@@ -145,7 +150,7 @@ impl PolarsTruncate for DurationChunked {
                         !every_duration.negative,
                         ComputeError: "cannot truncate a Duration to a negative duration"
                     );
-                    ensure_is_constant_duration(every_duration, time_zone, "every")?;
+                    ensure_is_constant_duration(every_duration, None, "every")?;
                     let every_units = to_i64(&every_duration);
                     polars_ensure!(
                         every_units != 0,
