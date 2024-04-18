@@ -396,7 +396,7 @@ pub(super) fn truncate(s: &[Series], offset: &str) -> PolarsResult<Series> {
             .duration()?
             .truncate(None, every, offset)?
             .into_series(),
-        dt => polars_bail!(opq = round, got = dt, expected = "date/datetime/duration"),
+        dt => polars_bail!(opq = truncate, got = dt, expected = "date/datetime/duration"),
     };
     out.set_sorted_flag(time_series.is_sorted_flag());
     Ok(out)
