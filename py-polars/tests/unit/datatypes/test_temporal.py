@@ -842,10 +842,12 @@ def test_upsample_index(
         ),
     ],
 )
+@pytest.mark.parametrize("maintain_order", [True, False])
 def test_upsample_index_invalid(
     df: pl.DataFrame,
     every: str,
     offset: str,
+    maintain_order: bool,
 ) -> None:
     df = pl.DataFrame(
         {
@@ -855,9 +857,14 @@ def test_upsample_index_invalid(
     ).set_sorted("index")
     # On Python3.8, mypy complains about combining two context managers into a
     # tuple, so we nest them instead.
-    with pytest.raises(ComputeError, match=r"cannot combine time .* integer"):  # noqa: SIM117
+    with pytest.raises(pl.InvalidOperationError, match=r"must be a parsed integer"):  # noqa: SIM117
         with pytest.deprecated_call():
-            df.upsample(time_column="index", every=every, offset=offset)
+            df.upsample(
+                time_column="index",
+                every=every,
+                offset=offset,
+                maintain_order=maintain_order,
+            )
 
 
 def test_microseconds_accuracy() -> None:
@@ -2298,6 +2305,33 @@ def test_asof_join_by_forward() -> None:
         "value_one": [1, 2, 3, 5, 12],
         "value_two": [3, 3, 3, None, None],
     }
+
+
+def test_truncate_broadcast_left() -> None:
+    df = pl.DataFrame({"every": [None, "1y", "1mo", "1d", "1h"]})
+    out = df.select(
+        date=pl.lit(date(2024, 4, 19)).dt.truncate(pl.col("every")),
+        datetime=pl.lit(datetime(2024, 4, 19, 10, 30, 20)).dt.truncate(pl.col("every")),
+    )
+    expected = pl.DataFrame(
+        {
+            "date": [
+                None,
+                date(2024, 1, 1),
+                date(2024, 4, 1),
+                date(2024, 4, 19),
+                date(2024, 4, 19),
+            ],
+            "datetime": [
+                None,
+                datetime(2024, 1, 1),
+                datetime(2024, 4, 1),
+                datetime(2024, 4, 19),
+                datetime(2024, 4, 19, 10),
+            ],
+        }
+    )
+    assert_frame_equal(out, expected)
 
 
 def test_truncate_expr() -> None:
