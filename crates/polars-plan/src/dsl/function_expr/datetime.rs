@@ -89,7 +89,7 @@ impl TemporalFunction {
             #[cfg(feature = "timezones")]
             ConvertTimeZone(tz) => mapper.try_map_dtype(|dt| match dt {
                 DataType::Datetime(tu, _) => Ok(DataType::Datetime(*tu, Some(tz.clone()))),
-                dtype => polars_bail!(ComputeError: "expected Datetime, got {}", dtype),
+                dtype => polars_bail!(ComputeError: "expected datetime, got {}", dtype),
             }),
             TimeStamp(_) => mapper.with_dtype(DataType::Int64),
             IsLeapYear => mapper.with_dtype(DataType::Boolean),
@@ -98,7 +98,7 @@ impl TemporalFunction {
             Date => mapper.with_dtype(DataType::Date),
             Datetime => mapper.try_map_dtype(|dt| match dt {
                 DataType::Datetime(tu, _) => Ok(DataType::Datetime(*tu, None)),
-                dtype => polars_bail!(ComputeError: "expected Datetime, got {}", dtype),
+                dtype => polars_bail!(ComputeError: "expected datetime, got {}", dtype),
             }),
             Truncate(_) => mapper.with_same_dtype(),
             #[cfg(feature = "date_offset")]
@@ -123,7 +123,7 @@ impl TemporalFunction {
                 DataType::Datetime(_, tz) => Ok(DataType::Datetime(*tu, tz.clone())),
                 DataType::Date => Ok(DataType::Datetime(*tu, None)),
                 dtype => {
-                    polars_bail!(ComputeError: "expected Date or Datetime, got {}", dtype)
+                    polars_bail!(ComputeError: "expected date or datetime, got {}", dtype)
                 },
             }),
         }
@@ -232,7 +232,7 @@ pub(super) fn time(s: &Series) -> PolarsResult<Series> {
         .cast(&DataType::Time),
         DataType::Datetime(_, _) => s.datetime().unwrap().cast(&DataType::Time),
         DataType::Time => Ok(s.clone()),
-        dtype => polars_bail!(ComputeError: "expected Datetime or Time, got {}", dtype),
+        dtype => polars_bail!(ComputeError: "expected datetime or time, got {}", dtype),
     }
 }
 pub(super) fn date(s: &Series) -> PolarsResult<Series> {
@@ -256,7 +256,7 @@ pub(super) fn date(s: &Series) -> PolarsResult<Series> {
         },
         DataType::Datetime(_, _) => s.datetime().unwrap().cast(&DataType::Date),
         DataType::Date => Ok(s.clone()),
-        dtype => polars_bail!(ComputeError: "expected Datetime or Date, got {}", dtype),
+        dtype => polars_bail!(ComputeError: "expected datetime or date, got {}", dtype),
     }
 }
 pub(super) fn datetime(s: &Series) -> PolarsResult<Series> {
@@ -279,7 +279,7 @@ pub(super) fn datetime(s: &Series) -> PolarsResult<Series> {
             Ok(out)
         },
         DataType::Datetime(tu, _) => s.datetime().unwrap().cast(&DataType::Datetime(*tu, None)),
-        dtype => polars_bail!(ComputeError: "expected Datetime, got {}", dtype),
+        dtype => polars_bail!(ComputeError: "expected datetime, got {}", dtype),
     }
 }
 pub(super) fn hour(s: &Series) -> PolarsResult<Series> {
@@ -338,7 +338,7 @@ pub(super) fn convert_time_zone(s: &Series, time_zone: &TimeZone) -> PolarsResul
             ca.set_time_zone(time_zone.clone())?;
             Ok(ca.into_series())
         },
-        dtype => polars_bail!(ComputeError: "expected Datetime, got {}", dtype),
+        dtype => polars_bail!(ComputeError: "expected datetime, got {}", dtype),
     }
 }
 pub(super) fn with_time_unit(s: &Series, tu: TimeUnit) -> PolarsResult<Series> {
