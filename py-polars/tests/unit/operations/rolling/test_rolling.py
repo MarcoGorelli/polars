@@ -249,6 +249,17 @@ def test_rolling_by_non_temporal_window_size() -> None:
     ).sort("a", "b")
     msg = "if `by` argument is passed, then `window_size` must be a temporal window"
     with pytest.raises(InvalidOperationError, match=msg):
+        df.with_columns(pl.col("a").rolling_sum(2, by="b"))
+
+
+def test_parsed_int_with_rolling_by() -> None:
+    df = pl.DataFrame(
+        {"a": [4, 5, 6], "b": [date(2020, 1, 1), date(2020, 1, 2), date(2020, 1, 3)]}
+    ).sort("a", "b")
+    with pytest.raises(
+        InvalidOperationError,
+        match="window size must be constructed using string language",
+    ):
         df.with_columns(pl.col("a").rolling_sum(2, by="b", closed="left"))
 
 

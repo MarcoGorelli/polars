@@ -1243,19 +1243,23 @@ impl Expr {
         self,
         options: RollingOptions,
         rolling_function: fn(RollingOptions) -> RollingFunction,
+    ) -> Expr {
+        self.apply_private(FunctionExpr::RollingExpr(rolling_function(options)))
+    }
+
+    #[cfg(feature = "rolling_window")]
+    #[allow(clippy::type_complexity)]
+    fn finish_rolling_by(
+        self,
+        options: RollingOptions,
         rolling_function_by: fn(RollingOptions) -> RollingFunction,
     ) -> Expr {
-        if let Some(ref by) = options.by {
-            let name = by.clone();
-            self.apply_many_private(
-                FunctionExpr::RollingExpr(rolling_function_by(options)),
-                &[col(&name)],
-                false,
-                false,
-            )
-        } else {
-            self.apply_private(FunctionExpr::RollingExpr(rolling_function(options)))
-        }
+        self.apply_many_private(
+            FunctionExpr::RollingExpr(rolling_function_by(options)),
+            &[col(&name)],
+            false,
+            false,
+        )
     }
 
     /// Apply a rolling minimum.
@@ -1263,7 +1267,11 @@ impl Expr {
     /// See: [`RollingAgg::rolling_min`]
     #[cfg(feature = "rolling_window")]
     pub fn rolling_min(self, options: RollingOptions) -> Expr {
-        self.finish_rolling(options, RollingFunction::Min, RollingFunction::MinBy)
+        if options.by.is_some() {
+            self.finish_rolling_by(options, RollingFunction::MinBy)
+        } else {
+            self.finish_rolling(options, RollingFunction::Min)
+        }
     }
 
     /// Apply a rolling maximum.
@@ -1271,7 +1279,11 @@ impl Expr {
     /// See: [`RollingAgg::rolling_max`]
     #[cfg(feature = "rolling_window")]
     pub fn rolling_max(self, options: RollingOptions) -> Expr {
-        self.finish_rolling(options, RollingFunction::Max, RollingFunction::MaxBy)
+        if options.by.is_some() {
+            self.finish_rolling_by(options, RollingFunction::MaxBy)
+        } else {
+            self.finish_rolling(options, RollingFunction::Max)
+        }
     }
 
     /// Apply a rolling mean.
@@ -1279,7 +1291,20 @@ impl Expr {
     /// See: [`RollingAgg::rolling_mean`]
     #[cfg(feature = "rolling_window")]
     pub fn rolling_mean(self, options: RollingOptions) -> Expr {
-        self.finish_rolling(options, RollingFunction::Mean, RollingFunction::MeanBy)
+        if options.by.is_some() {
+            self.finish_rolling_by(options, RollingFunction::MeanBy)
+        } else {
+            self.finish_rolling(options, RollingFunction::Mean)
+        }
+    }
+
+    #[cfg(feature = "rolling_window")]
+    pub fn rolling_mean_by(self, options: RollingOptions) -> Expr {
+        if options.by.is_some() {
+            self.finish_rolling_by(options, RollingFunction::MeanBy)
+        } else {
+            self.finish_rolling(options, RollingFunction::Mean)
+        }
     }
 
     /// Apply a rolling sum.
@@ -1287,7 +1312,11 @@ impl Expr {
     /// See: [`RollingAgg::rolling_sum`]
     #[cfg(feature = "rolling_window")]
     pub fn rolling_sum(self, options: RollingOptions) -> Expr {
-        self.finish_rolling(options, RollingFunction::Sum, RollingFunction::SumBy)
+        if options.by.is_some() {
+            self.finish_rolling_by(options, RollingFunction::SumBy)
+        } else {
+            self.finish_rolling(options, RollingFunction::Sum)
+        }
     }
 
     /// Apply a rolling median.
@@ -1313,23 +1342,31 @@ impl Expr {
             interpol,
         }) as Arc<dyn Any + Send + Sync>);
 
-        self.finish_rolling(
-            options,
-            RollingFunction::Quantile,
-            RollingFunction::QuantileBy,
-        )
+        if options.by.is_some() {
+            self.finish_rolling_by(options, RollingFunction::QuantileBy)
+        } else {
+            self.finish_rolling(options, RollingFunction::Quantile)
+        }
     }
 
     /// Apply a rolling variance.
     #[cfg(feature = "rolling_window")]
     pub fn rolling_var(self, options: RollingOptions) -> Expr {
-        self.finish_rolling(options, RollingFunction::Var, RollingFunction::VarBy)
+        if options.by.is_some() {
+            self.finish_rolling_by(options, RollingFunction::VarBy)
+        } else {
+            self.finish_rolling(options, RollingFunction::Var)
+        }
     }
 
     /// Apply a rolling std-dev.
     #[cfg(feature = "rolling_window")]
     pub fn rolling_std(self, options: RollingOptions) -> Expr {
-        self.finish_rolling(options, RollingFunction::Std, RollingFunction::StdBy)
+        if options.by.is_some() {
+            self.finish_rolling_by(options, RollingFunction::StdBy)
+        } else {
+            self.finish_rolling(options, RollingFunction::Std)
+        }
     }
 
     /// Apply a rolling skew.
