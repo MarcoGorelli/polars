@@ -145,14 +145,15 @@ def test_group_by_dynamic_startby_5599(tzinfo: ZoneInfo | None) -> None:
         {"date": pl.datetime_range(start, stop, "12h", eager=True)}
     ).with_columns(pl.col("date").dt.weekday().alias("day"))
 
-    result = df.group_by_dynamic(
-        "date",
-        every="1w",
-        period="3d",
-        include_boundaries=True,
-        start_by="monday",
-        label="datapoint",
-    ).agg([pl.len(), pl.col("day").first().alias("data_day")])
+    with pytest.deprecated_call(match="The default value of `offset`"):
+        result = df.group_by_dynamic(
+            "date",
+            every="1w",
+            period="3d",
+            include_boundaries=True,
+            start_by="monday",
+            label="datapoint",
+        ).agg([pl.len(), pl.col("day").first().alias("data_day")])
     assert result.to_dict(as_series=False) == {
         "_lower_boundary": [
             datetime(2022, 1, 3, 0, 0, tzinfo=tzinfo),
@@ -170,14 +171,15 @@ def test_group_by_dynamic_startby_5599(tzinfo: ZoneInfo | None) -> None:
         "data_day": [1, 1],
     }
     # start by saturday
-    result = df.group_by_dynamic(
-        "date",
-        every="1w",
-        period="3d",
-        include_boundaries=True,
-        start_by="saturday",
-        label="datapoint",
-    ).agg([pl.len(), pl.col("day").first().alias("data_day")])
+    with pytest.deprecated_call(match="The default value of `offset`"):
+        result = df.group_by_dynamic(
+            "date",
+            every="1w",
+            period="3d",
+            include_boundaries=True,
+            start_by="saturday",
+            label="datapoint",
+        ).agg([pl.len(), pl.col("day").first().alias("data_day")])
     assert result.to_dict(as_series=False) == {
         "_lower_boundary": [
             datetime(2022, 1, 1, 0, 0, tzinfo=tzinfo),
@@ -325,14 +327,24 @@ def test_group_by_dynamic_slice_pushdown() -> None:
 
 
 def test_rolling_kernels_group_by_dynamic_7548() -> None:
-    assert pl.DataFrame(
-        {"time": pl.arange(0, 4, eager=True), "value": pl.arange(0, 4, eager=True)}
-    ).group_by_dynamic("time", every="1i", period="3i").agg(
-        pl.col("value"),
-        pl.col("value").min().alias("min_value"),
-        pl.col("value").max().alias("max_value"),
-        pl.col("value").sum().alias("sum_value"),
-    ).to_dict(as_series=False) == {
+    with pytest.deprecated_call(match="The default value of `offset`"):  # noqa: SIM117
+        with pytest.warns(UserWarning, match="groups may be out of bounds"):
+            result = (
+                pl.DataFrame(
+                    {
+                        "time": pl.arange(0, 4, eager=True),
+                        "value": pl.arange(0, 4, eager=True),
+                    }
+                )
+                .group_by_dynamic("time", every="1i", period="3i")
+                .agg(
+                    pl.col("value"),
+                    pl.col("value").min().alias("min_value"),
+                    pl.col("value").max().alias("max_value"),
+                    pl.col("value").sum().alias("sum_value"),
+                )
+            )
+    assert result.to_dict(as_series=False) == {
         "time": [-1, 0, 1, 2, 3],
         "value": [[0, 1], [0, 1, 2], [1, 2, 3], [2, 3], [3]],
         "min_value": [0, 0, 1, 2, 3],
@@ -404,20 +416,23 @@ def test_groupby_dynamic_deprecated() -> None:
 def test_group_by_dynamic_elementwise_following_mean_agg_6904(
     time_zone: str | None,
 ) -> None:
-    df = (
-        pl.DataFrame(
-            {
-                "a": [datetime(2021, 1, 1) + timedelta(seconds=2**i) for i in range(5)],
-                "b": [float(i) for i in range(5)],
-            }
+    with pytest.deprecated_call(match="The default value of `offset`"):
+        df = (
+            pl.DataFrame(
+                {
+                    "a": [
+                        datetime(2021, 1, 1) + timedelta(seconds=2**i) for i in range(5)
+                    ],
+                    "b": [float(i) for i in range(5)],
+                }
+            )
+            .with_columns(pl.col("a").dt.replace_time_zone(time_zone))
+            .lazy()
+            .set_sorted("a")
+            .group_by_dynamic("a", every="10s", period="100s")
+            .agg([pl.col("b").mean().sin().alias("c")])
+            .collect()
         )
-        .with_columns(pl.col("a").dt.replace_time_zone(time_zone))
-        .lazy()
-        .set_sorted("a")
-        .group_by_dynamic("a", every="10s", period="100s")
-        .agg([pl.col("b").mean().sin().alias("c")])
-        .collect()
-    )
     assert_frame_equal(
         df,
         pl.DataFrame(
@@ -486,7 +501,7 @@ def test_group_by_dynamic_validation() -> None:
     )
 
     with pytest.raises(pl.ComputeError, match="'every' argument must be positive"):
-        df.group_by_dynamic("index", group_by="group", every="-1i", period="2i").agg(
+        df.group_by_dynamic("index", group_by="group", every="-1i").agg(
             pl.col("weight")
         )
 
@@ -581,9 +596,10 @@ def test_truncate_negative_offset(tzinfo: ZoneInfo | None) -> None:
             .set_sorted("idx")
         )
 
-        out = df.group_by_dynamic(
-            "idx", every="2i", period="3i", include_boundaries=True
-        ).agg(pl.col("A"))
+        with pytest.deprecated_call(match="The default value of `offset`"):
+            out = df.group_by_dynamic(
+                "idx", every="2i", period="3i", include_boundaries=True
+            ).agg(pl.col("A"))
 
         assert out.shape == (4, 4)
         assert out["A"].to_list() == [
@@ -607,11 +623,13 @@ def test_groupy_by_dynamic_median_10695() -> None:
         }
     )
 
-    assert df.group_by_dynamic(
-        index_column="timestamp",
-        every="60s",
-        period="3m",
-    ).agg(pl.col("foo").median()).to_dict(as_series=False) == {
+    with pytest.deprecated_call(match="The default value of `offset`"):
+        result = df.group_by_dynamic(
+            index_column="timestamp",
+            every="60s",
+            period="3m",
+        ).agg(pl.col("foo").median())
+    assert result.to_dict(as_series=False) == {
         "timestamp": [
             datetime(2023, 8, 22, 15, 43),
             datetime(2023, 8, 22, 15, 44),
@@ -925,16 +943,18 @@ def test_group_by_dynamic_12414() -> None:
             "b": [1, 2, 3, 4],
         }
     ).sort("today")
-    assert df.group_by_dynamic(
-        "today",
-        every="6mo",
-        period="3d",
-        closed="left",
-        start_by="datapoint",
-        include_boundaries=True,
-    ).agg(
-        gt_min_count=(pl.col.b >= (pl.col.b.min())).sum(),
-    ).to_dict(as_series=False) == {
+    with pytest.deprecated_call(match="The default value of `offset`"):
+        result = df.group_by_dynamic(
+            "today",
+            every="6mo",
+            period="3d",
+            closed="left",
+            start_by="datapoint",
+            include_boundaries=True,
+        ).agg(
+            gt_min_count=(pl.col.b >= (pl.col.b.min())).sum(),
+        )
+    assert result.to_dict(as_series=False) == {
         "_lower_boundary": [datetime(2023, 3, 3, 0, 0), datetime(2023, 9, 3, 0, 0)],
         "_upper_boundary": [datetime(2023, 3, 6, 0, 0), datetime(2023, 9, 6, 0, 0)],
         "today": [date(2023, 3, 3), date(2023, 9, 3)],
@@ -1053,14 +1073,16 @@ def test_group_by_dynamic_get() -> None:
         }
     )
 
-    assert df.group_by_dynamic(
-        index_column="time",
-        every="2d",
-        period="3d",
-        start_by="datapoint",
-    ).agg(
-        get=pl.col("data").get(1),
-    ).to_dict(as_series=False) == {
+    with pytest.deprecated_call(match="The default value of `offset`"):
+        result = df.group_by_dynamic(
+            index_column="time",
+            every="2d",
+            period="3d",
+            start_by="datapoint",
+        ).agg(
+            get=pl.col("data").get(1),
+        )
+    assert result.to_dict(as_series=False) == {
         "time": [
             date(2021, 1, 1),
             date(2021, 1, 3),

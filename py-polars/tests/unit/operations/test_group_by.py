@@ -496,13 +496,15 @@ def test_unique_order() -> None:
 def test_group_by_dynamic_flat_agg_4814() -> None:
     df = pl.DataFrame({"a": [1, 2, 2], "b": [1, 8, 12]}).set_sorted("a")
 
-    assert df.group_by_dynamic("a", every="1i", period="2i").agg(
-        [
-            (pl.col("b").sum() / pl.col("a").sum()).alias("sum_ratio_1"),
-            (pl.col("b").last() / pl.col("a").last()).alias("last_ratio_1"),
-            (pl.col("b") / pl.col("a")).last().alias("last_ratio_2"),
-        ]
-    ).to_dict(as_series=False) == {
+    with pytest.deprecated_call(match="The default value of `offset`"):
+        result = df.group_by_dynamic("a", every="1i", period="2i").agg(
+            [
+                (pl.col("b").sum() / pl.col("a").sum()).alias("sum_ratio_1"),
+                (pl.col("b").last() / pl.col("a").last()).alias("last_ratio_1"),
+                (pl.col("b") / pl.col("a")).last().alias("last_ratio_2"),
+            ]
+        )
+    assert result.to_dict(as_series=False) == {
         "a": [0, 1, 2],
         "sum_ratio_1": [1.0, 4.2, 5.0],
         "last_ratio_1": [1.0, 6.0, 6.0],
@@ -521,27 +523,28 @@ def test_group_by_dynamic_flat_agg_4814() -> None:
 def test_group_by_dynamic_overlapping_groups_flat_apply_multiple_5038(
     every: str | timedelta, period: str | timedelta, time_zone: str | None
 ) -> None:
-    res = (
-        (
-            pl.DataFrame(
-                {
-                    "a": [
-                        datetime(2021, 1, 1) + timedelta(seconds=2**i)
-                        for i in range(10)
-                    ],
-                    "b": [float(i) for i in range(10)],
-                }
+    with pytest.deprecated_call(match="The default value of `offset`"):
+        res = (
+            (
+                pl.DataFrame(
+                    {
+                        "a": [
+                            datetime(2021, 1, 1) + timedelta(seconds=2**i)
+                            for i in range(10)
+                        ],
+                        "b": [float(i) for i in range(10)],
+                    }
+                )
+                .with_columns(pl.col("a").dt.replace_time_zone(time_zone))
+                .lazy()
+                .set_sorted("a")
+                .group_by_dynamic("a", every=every, period=period)
+                .agg([pl.col("b").var().sqrt().alias("corr")])
             )
-            .with_columns(pl.col("a").dt.replace_time_zone(time_zone))
-            .lazy()
-            .set_sorted("a")
-            .group_by_dynamic("a", every=every, period=period)
-            .agg([pl.col("b").var().sqrt().alias("corr")])
+            .collect()
+            .sum()
+            .to_dict(as_series=False)
         )
-        .collect()
-        .sum()
-        .to_dict(as_series=False)
-    )
 
     assert res["corr"] == pytest.approx([9.148920923684765])
     assert res["a"] == [None]

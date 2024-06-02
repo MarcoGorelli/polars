@@ -3770,6 +3770,19 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         index_column = parse_as_expression(index_column)
         if offset is None:
             offset = negate_duration_string(parse_as_duration_string(every))
+            # The following change of `offset` default only takes effect
+            # if `period > every` or if `closed` is `'right'`.
+            # To not unnecessarily annoy most users, we only raise the warning
+            # in cases where the default change might make a difference.
+            if period is not None or closed == "both":
+                issue_deprecation_warning(
+                    "The default value of `offset` in `group_by_dynamic` will change from "
+                    '"negative `every`" to zero in a future release.\n\n'
+                    "To silence this warning:\n"
+                    "- to keep the current behaviour, pass `offset=-every`"
+                    '- to opt in to the new behaviour, pass `offset="0ns"',
+                    version="1.0.0",
+                )
 
         if period is None:
             period = every
