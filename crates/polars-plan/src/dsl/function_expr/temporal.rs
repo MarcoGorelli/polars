@@ -261,31 +261,40 @@ pub(super) fn date_offset(s: &[Series]) -> PolarsResult<Series> {
                 .cast(&DataType::Date)
         },
         DataType::Datetime(tu, tz) => {
-            let datetime = ts.datetime().unwrap();
-
-            let out = match tz {
-                #[cfg(feature = "timezones")]
-                Some(ref tz) => {
-                    apply_offsets_to_datetime(datetime, offsets, tz.parse::<Tz>().ok().as_ref())?
-                },
-                _ => apply_offsets_to_datetime(datetime, offsets, None)?,
-            };
-            // Sortedness may not be preserved when crossing daylight savings time boundaries
-            // for calendar-aware durations.
-            // Constant durations (e.g. 2 hours) always preserve sortedness.
-            preserve_sortedness = match offsets.len() {
+            let use_fastpath = match offsets.len() {
                 1 => match offsets.get(0) {
                     Some(offset) => {
                         let offset = Duration::parse(offset);
-                        tz.is_none()
-                            || tz.as_deref() == Some("UTC")
-                            || offset.is_constant_duration(tz.as_deref())
+                        offset.is_constant_duration(tz.as_deref())
                     },
                     None => false,
                 },
                 _ => false,
             };
-            out.cast(&DataType::Datetime(*tu, tz.clone()))
+            let datetime = ts.datetime().unwrap();
+
+            let out = match &tz.as_deref() {
+                #[cfg(feature = "timezones")]
+                Some("UTC") => {
+                    apply_offsets_to_datetime(datetime, offsets, None)?.into_datetime(*tu, tz.clone())
+                },
+                #[cfg(feature = "timezones")]
+                Some(tz) => {
+                    if use_fastpath {
+                        apply_offsets_to_datetime(&datetime, offsets, tz.parse::<Tz>().ok().as_ref())?.into_datetime(*tu, Some((*tz.clone()).to_string()))
+                    } else {
+                        let datetime = polars_ops::chunked_array::replace_time_zone(datetime, None, &StringChunked::from_iter(std::iter::once("raise")), NonExistent::Raise).unwrap();
+                        let result = apply_offsets_to_datetime(&datetime, offsets, None)?.into_datetime(*tu, None);
+                        polars_ops::chunked_array::replace_time_zone(&result, Some(tz), &StringChunked::from_iter(std::iter::once("raise")), NonExistent::Raise)?
+                    }
+                },
+                _ => apply_offsets_to_datetime(datetime, offsets, None)?.into_datetime(*tu, None),
+            };
+            // Sortedness may not be preserved when crossing daylight savings time boundaries
+            // for calendar-aware durations.
+            // Constant durations (e.g. 2 hours) always preserve sortedness.
+            preserve_sortedness = (offsets.len() == 1) && (tz.is_none() || tz.as_deref() == Some("UTC") || use_fastpath);
+            Ok(out.into_series())
         },
         dt => polars_bail!(
             ComputeError: "cannot use 'date_offset' on Series of datatype {}", dt,
