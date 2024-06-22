@@ -2,7 +2,7 @@ use std::error::Error;
 
 use arrow::array::{Array, StaticArray};
 use arrow::compute::utils::combine_validities_and;
-use polars_error::PolarsResult;
+use polars_error::{polars_ensure, PolarsResult};
 
 use crate::chunked_array::metadata::MetadataProperties;
 use crate::datatypes::{ArrayCollectIterExt, ArrayFromIter};
@@ -640,7 +640,7 @@ pub fn broadcast_binary_elementwise<T, U, V, F>(
     lhs: &ChunkedArray<T>,
     rhs: &ChunkedArray<U>,
     mut op: F,
-) -> ChunkedArray<V>
+) -> PolarsResult<ChunkedArray<V>>
 where
     T: PolarsDataType,
     U: PolarsDataType,
@@ -653,13 +653,17 @@ where
     match (lhs.len(), rhs.len()) {
         (1, _) => {
             let a = unsafe { lhs.get_unchecked(0) };
-            unary_elementwise(rhs, |b| op(a.clone(), b)).with_name(lhs.name())
+            Ok(unary_elementwise(rhs, |b| op(a.clone(), b)).with_name(lhs.name()))
         },
         (_, 1) => {
             let b = unsafe { rhs.get_unchecked(0) };
-            unary_elementwise(lhs, |a| op(a, b.clone()))
+            Ok(unary_elementwise(lhs, |a| op(a, b.clone())))
         },
-        _ => binary_elementwise(lhs, rhs, op),
+        (lhs_len, rhs_len) => {
+            polars_ensure!(lhs_len == rhs_len, InvalidOperation: "expected left-hand-side and right-hand-side \
+                to either have the same length, or for one of them to be of length 1, got lengths: {} and {}", lhs_len, rhs_len);
+            Ok(binary_elementwise(lhs, rhs, op))
+        },
     }
 }
 
@@ -692,7 +696,7 @@ pub fn broadcast_binary_elementwise_values<T, U, V, F, K>(
     lhs: &ChunkedArray<T>,
     rhs: &ChunkedArray<U>,
     mut op: F,
-) -> ChunkedArray<V>
+) -> PolarsResult<ChunkedArray<V>>
 where
     T: PolarsDataType,
     U: PolarsDataType,
@@ -706,19 +710,23 @@ where
         let len = if min == 1 { max } else { min };
         let arr = V::Array::full_null(len, V::get_dtype().to_arrow(true));
 
-        return ChunkedArray::with_chunk(lhs.name(), arr);
+        return Ok(ChunkedArray::with_chunk(lhs.name(), arr));
     }
 
     match (lhs.len(), rhs.len()) {
         (1, _) => {
             let a = unsafe { lhs.value_unchecked(0) };
-            unary_elementwise_values(rhs, |b| op(a.clone(), b)).with_name(lhs.name())
+            Ok(unary_elementwise_values(rhs, |b| op(a.clone(), b)).with_name(lhs.name()))
         },
         (_, 1) => {
             let b = unsafe { rhs.value_unchecked(0) };
-            unary_elementwise_values(lhs, |a| op(a, b.clone()))
+            Ok(unary_elementwise_values(lhs, |a| op(a, b.clone())))
         },
-        _ => binary_elementwise_values(lhs, rhs, op),
+        (lhs_len, rhs_len) => {
+            polars_ensure!(lhs_len == rhs_len, InvalidOperation: "expected left-hand-side and right-hand-side \
+                to either have the same length, or for one of them to be of length 1, got lengths: {} and {}", lhs_len, rhs_len);
+            Ok(binary_elementwise_values(lhs, rhs, op))
+        },
     }
 }
 

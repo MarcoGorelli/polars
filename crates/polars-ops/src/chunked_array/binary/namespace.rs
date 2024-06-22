@@ -18,12 +18,12 @@ pub trait BinaryNameSpaceImpl: AsBinary {
         ca.apply_values_generic(f)
     }
 
-    fn contains_chunked(&self, lit: &BinaryChunked) -> BooleanChunked {
+    fn contains_chunked(&self, lit: &BinaryChunked) -> PolarsResult<BooleanChunked> {
         let ca = self.as_binary();
         match lit.len() {
             1 => match lit.get(0) {
-                Some(lit) => ca.contains(lit),
-                None => BooleanChunked::full_null(ca.name(), ca.len()),
+                Some(lit) => Ok(ca.contains(lit)),
+                None => Ok(BooleanChunked::full_null(ca.name(), ca.len())),
             },
             _ => broadcast_binary_elementwise_values(ca, lit, |src, lit| find(src, lit).is_some()),
         }
@@ -47,23 +47,23 @@ pub trait BinaryNameSpaceImpl: AsBinary {
         out
     }
 
-    fn starts_with_chunked(&self, prefix: &BinaryChunked) -> BooleanChunked {
+    fn starts_with_chunked(&self, prefix: &BinaryChunked) -> PolarsResult<BooleanChunked> {
         let ca = self.as_binary();
         match prefix.len() {
             1 => match prefix.get(0) {
-                Some(s) => self.starts_with(s),
-                None => BooleanChunked::full_null(ca.name(), ca.len()),
+                Some(s) => Ok(self.starts_with(s)),
+                None => Ok(BooleanChunked::full_null(ca.name(), ca.len())),
             },
             _ => broadcast_binary_elementwise_values(ca, prefix, |s, sub| s.starts_with(sub)),
         }
     }
 
-    fn ends_with_chunked(&self, suffix: &BinaryChunked) -> BooleanChunked {
+    fn ends_with_chunked(&self, suffix: &BinaryChunked) -> PolarsResult<BooleanChunked> {
         let ca = self.as_binary();
         match suffix.len() {
             1 => match suffix.get(0) {
-                Some(s) => self.ends_with(s),
-                None => BooleanChunked::full_null(ca.name(), ca.len()),
+                Some(s) => Ok(self.ends_with(s)),
+                None => Ok(BooleanChunked::full_null(ca.name(), ca.len())),
             },
             _ => broadcast_binary_elementwise_values(ca, suffix, |s, sub| s.ends_with(sub)),
         }

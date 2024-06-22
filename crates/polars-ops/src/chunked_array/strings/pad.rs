@@ -2,6 +2,7 @@ use std::fmt::Write;
 
 use polars_core::prelude::arity::broadcast_binary_elementwise;
 use polars_core::prelude::{StringChunked, UInt64Chunked};
+use polars_error::PolarsResult;
 
 pub(super) fn pad_end<'a>(ca: &'a StringChunked, length: usize, fill_char: char) -> StringChunked {
     // amortize allocation
@@ -87,7 +88,10 @@ fn zfill_fn<'a>(s: Option<&'a str>, len: Option<u64>, buf: &mut String) -> Optio
     }
 }
 
-pub(super) fn zfill<'a>(ca: &'a StringChunked, length: &'a UInt64Chunked) -> StringChunked {
+pub(super) fn zfill<'a>(
+    ca: &'a StringChunked,
+    length: &'a UInt64Chunked,
+) -> PolarsResult<StringChunked> {
     // amortize allocation
     let mut buf = String::new();
     fn infer<F: for<'a> FnMut(Option<&'a str>, Option<u64>) -> Option<&'a str>>(f: F) -> F where {

@@ -455,14 +455,14 @@ pub(super) fn ends_with(s: &[Series]) -> PolarsResult<Series> {
     let ca = &s[0].str()?.as_binary();
     let suffix = &s[1].str()?.as_binary();
 
-    Ok(ca.ends_with_chunked(suffix).into_series())
+    Ok(ca.ends_with_chunked(suffix)?.into_series())
 }
 
 pub(super) fn starts_with(s: &[Series]) -> PolarsResult<Series> {
     let ca = &s[0].str()?.as_binary();
     let prefix = &s[1].str()?.as_binary();
 
-    Ok(ca.starts_with_chunked(prefix).into_series())
+    Ok(ca.starts_with_chunked(prefix)?.into_series())
 }
 
 /// Extract a regex pattern from the a string value.
@@ -496,7 +496,7 @@ pub(super) fn zfill(s: &[Series]) -> PolarsResult<Series> {
     let ca = s[0].str()?;
     let length_s = s[1].strict_cast(&DataType::UInt64)?;
     let length = length_s.u64()?;
-    Ok(ca.zfill(length).into_series())
+    Ok(ca.zfill(length)?.into_series())
 }
 
 pub(super) fn strip_chars(s: &[Series]) -> PolarsResult<Series> {
@@ -520,13 +520,13 @@ pub(super) fn strip_chars_end(s: &[Series]) -> PolarsResult<Series> {
 pub(super) fn strip_prefix(s: &[Series]) -> PolarsResult<Series> {
     let ca = s[0].str()?;
     let prefix = s[1].str()?;
-    Ok(ca.strip_prefix(prefix).into_series())
+    Ok(ca.strip_prefix(prefix)?.into_series())
 }
 
 pub(super) fn strip_suffix(s: &[Series]) -> PolarsResult<Series> {
     let ca = s[0].str()?;
     let suffix = s[1].str()?;
-    Ok(ca.strip_suffix(suffix).into_series())
+    Ok(ca.strip_suffix(suffix)?.into_series())
 }
 
 pub(super) fn extract_all(args: &[Series]) -> PolarsResult<Series> {

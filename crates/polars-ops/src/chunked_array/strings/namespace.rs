@@ -71,7 +71,7 @@ pub trait StringNameSpaceImpl: AsString {
                 _ => None,
             }
         };
-        let out = broadcast_binary_elementwise(ca, base, f);
+        let out = broadcast_binary_elementwise(ca, base, f)?;
         if strict && ca.null_count() != out.null_count() {
             let failure_mask = ca.is_not_null() & out.is_null() & base.is_not_null();
             let all_failures = ca.filter(&failure_mask)?;
@@ -141,9 +141,7 @@ pub trait StringNameSpaceImpl: AsString {
             )),
             _ => {
                 if literal {
-                    Ok(broadcast_binary_elementwise_values(ca, pat, |src, pat| {
-                        src.contains(pat)
-                    }))
+                    broadcast_binary_elementwise_values(ca, pat, |src, pat| src.contains(pat))
                 } else if strict {
                     // A sqrt(n) regex cache is not too small, not too large.
                     let mut reg_cache = FastFixedCache::new((ca.len() as f64).sqrt() as usize);
@@ -160,14 +158,14 @@ pub trait StringNameSpaceImpl: AsString {
                 } else {
                     // A sqrt(n) regex cache is not too small, not too large.
                     let mut reg_cache = FastFixedCache::new((ca.len() as f64).sqrt() as usize);
-                    Ok(broadcast_binary_elementwise(
+                    broadcast_binary_elementwise(
                         ca,
                         pat,
                         infer_re_match(|src, pat| {
                             let reg = reg_cache.try_get_or_insert_with(pat?, |p| Regex::new(p));
                             Some(reg.ok()?.is_match(src?))
                         }),
-                    ))
+                    )
                 }
             },
         }
@@ -194,11 +192,9 @@ pub trait StringNameSpaceImpl: AsString {
             return Ok(UInt32Chunked::full_null(ca.name(), ca.len().max(pat.len())));
         }
         if literal {
-            Ok(broadcast_binary_elementwise(
-                ca,
-                pat,
-                |src: Option<&str>, pat: Option<&str>| src?.find(pat?).map(|idx| idx as u32),
-            ))
+            broadcast_binary_elementwise(ca, pat, |src: Option<&str>, pat: Option<&str>| {
+                src?.find(pat?).map(|idx| idx as u32)
+            })
         } else {
             // note: sqrt(n) regex cache is not too small, not too large.
             let mut rx_cache = FastFixedCache::new((ca.len() as f64).sqrt() as usize);
@@ -254,7 +250,7 @@ pub trait StringNameSpaceImpl: AsString {
     /// Strings with length equal to or greater than the given length are
     /// returned as-is.
     #[cfg(feature = "string_pad")]
-    fn zfill(&self, length: &UInt64Chunked) -> StringChunked {
+    fn zfill(&self, length: &UInt64Chunked) -> PolarsResult<StringChunked> {
         let ca = self.as_string();
         pad::zfill(ca, length)
     }
@@ -421,7 +417,7 @@ pub trait StringNameSpaceImpl: AsString {
         if pat.dtype() == &DataType::Null {
             Ok(ca.apply_generic(|opt_s| opt_s.map(|s| s.trim())))
         } else {
-            Ok(strip_chars(ca, pat.str()?))
+            strip_chars(ca, pat.str()?)
         }
     }
 
@@ -430,7 +426,7 @@ pub trait StringNameSpaceImpl: AsString {
         if pat.dtype() == &DataType::Null {
             return Ok(ca.apply_generic(|opt_s| opt_s.map(|s| s.trim_start())));
         } else {
-            Ok(strip_chars_start(ca, pat.str()?))
+            strip_chars_start(ca, pat.str()?)
         }
     }
 
@@ -439,16 +435,16 @@ pub trait StringNameSpaceImpl: AsString {
         if pat.dtype() == &DataType::Null {
             return Ok(ca.apply_generic(|opt_s| opt_s.map(|s| s.trim_end())));
         } else {
-            Ok(strip_chars_end(ca, pat.str()?))
+            strip_chars_end(ca, pat.str()?)
         }
     }
 
-    fn strip_prefix(&self, prefix: &StringChunked) -> StringChunked {
+    fn strip_prefix(&self, prefix: &StringChunked) -> PolarsResult<StringChunked> {
         let ca = self.as_string();
         strip_prefix(ca, prefix)
     }
 
-    fn strip_suffix(&self, suffix: &StringChunked) -> StringChunked {
+    fn strip_suffix(&self, suffix: &StringChunked) -> PolarsResult<StringChunked> {
         let ca = self.as_string();
         strip_suffix(ca, suffix)
     }
