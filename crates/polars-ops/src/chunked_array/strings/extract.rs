@@ -48,11 +48,11 @@ pub(super) fn extract_groups(
     let reg = Regex::new(pat)?;
     let n_fields = reg.captures_len();
     if n_fields == 1 {
-        return StructChunked::new(ca.name(), &[Series::new_null(ca.name(), ca.len())])
+        return StructChunked2::from_series(ca.name(), &[Series::new_null(ca.name(), ca.len())])
             .map(|ca| ca.into_series());
     }
 
-    let data_type = dtype.try_to_arrow(true)?;
+    let data_type = dtype.try_to_arrow(CompatLevel::newest())?;
     let DataType::Struct(fields) = dtype else {
         unreachable!() // Implementation error if it isn't a struct.
     };

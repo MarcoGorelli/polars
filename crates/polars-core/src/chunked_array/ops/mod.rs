@@ -23,8 +23,6 @@ pub mod float_sorted_arg_max;
 mod for_each;
 pub mod full;
 pub mod gather;
-#[cfg(feature = "interpolate")]
-mod interpolate;
 #[cfg(feature = "zip_with")]
 pub(crate) mod min_max_binary;
 pub(crate) mod nulls;
@@ -40,19 +38,13 @@ pub(crate) mod unique;
 #[cfg(feature = "zip_with")]
 pub mod zip;
 
+use polars_utils::no_call_const;
 #[cfg(feature = "serde-lazy")]
 use serde::{Deserialize, Serialize};
 pub use sort::options::*;
 
-use crate::series::IsSorted;
-
-#[cfg(feature = "to_list")]
-pub trait ToList<T: PolarsDataType> {
-    fn to_list(&self) -> PolarsResult<ListChunked> {
-        polars_bail!(opq = to_list, T::get_dtype());
-    }
-}
-
+use crate::chunked_array::cast::CastOptions;
+use crate::series::{BitRepr, IsSorted};
 #[cfg(feature = "reinterpret")]
 pub trait Reinterpret {
     fn reinterpret_signed(&self) -> Series {
@@ -68,10 +60,7 @@ pub trait Reinterpret {
 /// This is useful in hashing context and reduces no.
 /// of compiled code paths.
 pub(crate) trait ToBitRepr {
-    fn bit_repr_is_large() -> bool;
-
-    fn bit_repr_large(&self) -> UInt64Chunked;
-    fn bit_repr_small(&self) -> UInt32Chunked;
+    fn to_bit_repr(&self) -> BitRepr;
 }
 
 pub trait ChunkAnyValue {
@@ -192,7 +181,13 @@ pub trait ChunkSet<'a, A, B> {
 /// Cast `ChunkedArray<T>` to `ChunkedArray<N>`
 pub trait ChunkCast {
     /// Cast a [`ChunkedArray`] to [`DataType`]
-    fn cast(&self, data_type: &DataType) -> PolarsResult<Series>;
+    fn cast(&self, data_type: &DataType) -> PolarsResult<Series> {
+        self.cast_with_options(data_type, CastOptions::NonStrict)
+    }
+
+    /// Cast a [`ChunkedArray`] to [`DataType`]
+    fn cast_with_options(&self, data_type: &DataType, options: CastOptions)
+        -> PolarsResult<Series>;
 
     /// Does not check if the cast is a valid one and may over/underflow
     ///
@@ -330,23 +325,37 @@ pub trait ChunkCompare<Rhs> {
     fn not_equal_missing(&self, rhs: Rhs) -> Self::Item;
 
     /// Greater than comparison.
-    fn gt(&self, rhs: Rhs) -> Self::Item;
+    #[allow(unused_variables)]
+    fn gt(&self, rhs: Rhs) -> Self::Item {
+        no_call_const!()
+    }
 
     /// Greater than or equal comparison.
-    fn gt_eq(&self, rhs: Rhs) -> Self::Item;
+    #[allow(unused_variables)]
+    fn gt_eq(&self, rhs: Rhs) -> Self::Item {
+        no_call_const!()
+    }
 
     /// Less than comparison.
-    fn lt(&self, rhs: Rhs) -> Self::Item;
+    #[allow(unused_variables)]
+    fn lt(&self, rhs: Rhs) -> Self::Item {
+        no_call_const!()
+    }
 
     /// Less than or equal comparison
-    fn lt_eq(&self, rhs: Rhs) -> Self::Item;
+    #[allow(unused_variables)]
+    fn lt_eq(&self, rhs: Rhs) -> Self::Item {
+        no_call_const!()
+    }
 }
 
 /// Get unique values in a `ChunkedArray`
-pub trait ChunkUnique<T: PolarsDataType> {
+pub trait ChunkUnique {
     // We don't return Self to be able to use AutoRef specialization
     /// Get unique values of a ChunkedArray
-    fn unique(&self) -> PolarsResult<ChunkedArray<T>>;
+    fn unique(&self) -> PolarsResult<Self>
+    where
+        Self: Sized;
 
     /// Get first index of the unique values in a `ChunkedArray`.
     /// This Vec is sorted.
@@ -517,11 +526,37 @@ impl ChunkExpandAtIndex<ListType> for ListChunked {
         match opt_val {
             Some(val) => {
                 let mut ca = ListChunked::full(self.name(), &val, length);
-                unsafe { ca.to_logical(self.inner_dtype()) };
+                unsafe { ca.to_logical(self.inner_dtype().clone()) };
                 ca
             },
-            None => ListChunked::full_null_with_dtype(self.name(), length, &self.inner_dtype()),
+            None => ListChunked::full_null_with_dtype(self.name(), length, self.inner_dtype()),
         }
+    }
+}
+
+#[cfg(feature = "dtype-struct")]
+impl ChunkExpandAtIndex<StructType> for StructChunked2 {
+    fn new_from_index(&self, length: usize, index: usize) -> ChunkedArray<StructType> {
+        let (chunk_idx, idx) = self.index_to_chunked_index(index);
+        let chunk = self.downcast_chunks().get(chunk_idx).unwrap();
+        let chunk = if chunk.is_null(idx) {
+            new_null_array(chunk.data_type().clone(), length)
+        } else {
+            let values = chunk
+                .values()
+                .iter()
+                .map(|arr| {
+                    let s = Series::try_from(("", arr.clone())).unwrap();
+                    let s = s.new_from_index(idx, length);
+                    s.chunks()[0].clone()
+                })
+                .collect::<Vec<_>>();
+
+            StructArray::new(chunk.data_type().clone(), values, None).boxed()
+        };
+
+        // SAFETY: chunks are from self.
+        unsafe { self.copy_with_chunks(vec![chunk]) }
     }
 }
 
@@ -532,13 +567,13 @@ impl ChunkExpandAtIndex<FixedSizeListType> for ArrayChunked {
         match opt_val {
             Some(val) => {
                 let mut ca = ArrayChunked::full(self.name(), &val, length);
-                unsafe { ca.to_logical(self.inner_dtype()) };
+                unsafe { ca.to_logical(self.inner_dtype().clone()) };
                 ca
             },
             None => ArrayChunked::full_null_with_dtype(
                 self.name(),
                 length,
-                &self.inner_dtype(),
+                self.inner_dtype(),
                 self.width(),
             ),
         }

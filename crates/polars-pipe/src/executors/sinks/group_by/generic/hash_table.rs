@@ -215,7 +215,7 @@ impl<const FIXED: bool> AggHashTable<FIXED> {
         let (skip_len, take_len) = if let Some((offset, slice_len)) = slice {
             if *offset as usize >= local_len {
                 *offset -= local_len as i64;
-                return DataFrame::from(self.output_schema.as_ref());
+                return DataFrame::empty_with_schema(&self.output_schema);
             } else {
                 let out = (*offset as usize, *slice_len);
                 *offset = 0;
@@ -261,7 +261,7 @@ impl<const FIXED: bool> AggHashTable<FIXED> {
             .output_schema
             .iter_dtypes()
             .take(self.num_keys)
-            .map(|dtype| dtype.to_physical().to_arrow(true))
+            .map(|dtype| dtype.to_physical().to_arrow(CompatLevel::newest()))
             .collect::<Vec<_>>();
         let fields = vec![Default::default(); self.num_keys];
         let key_columns =

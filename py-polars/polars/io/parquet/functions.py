@@ -5,6 +5,7 @@ import io
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any, Sequence
 
+import polars.functions as F
 from polars._utils.deprecation import deprecate_renamed_parameter
 from polars._utils.unstable import issue_unstable_warning
 from polars._utils.various import (
@@ -13,15 +14,12 @@ from polars._utils.various import (
 )
 from polars._utils.wrap import wrap_df, wrap_ldf
 from polars.convert import from_arrow
-from polars.dependencies import _PYARROW_AVAILABLE
+from polars.dependencies import import_optional
 from polars.io._utils import (
-    is_local_file,
-    is_supported_cloud,
     parse_columns_arg,
     parse_row_index_args,
     prepare_file_arg,
 )
-from polars.io.parquet.anonymous_scan import _scan_parquet_fsspec
 
 with contextlib.suppress(ImportError):
     from polars.polars import PyDataFrame, PyLazyFrame
@@ -29,7 +27,7 @@ with contextlib.suppress(ImportError):
 
 if TYPE_CHECKING:
     from polars import DataFrame, DataType, LazyFrame
-    from polars.type_aliases import ParallelStrategy, SchemaDict
+    from polars._typing import ParallelStrategy, SchemaDict
 
 
 @deprecate_renamed_parameter("row_count_name", "row_index_name", version="0.20.4")
@@ -43,12 +41,14 @@ def read_parquet(
     row_index_offset: int = 0,
     parallel: ParallelStrategy = "auto",
     use_statistics: bool = True,
-    hive_partitioning: bool = True,
+    hive_partitioning: bool | None = None,
+    glob: bool = True,
     hive_schema: SchemaDict | None = None,
-    rechunk: bool = True,
+    try_parse_hive_dates: bool = True,
+    rechunk: bool = False,
     low_memory: bool = False,
     storage_options: dict[str, Any] | None = None,
-    retries: int = 0,
+    retries: int = 2,
     use_pyarrow: bool = False,
     pyarrow_options: dict[str, Any] | None = None,
     memory_map: bool = True,
@@ -59,9 +59,9 @@ def read_parquet(
     Parameters
     ----------
     source
-        Path to a file, or a file-like object (by file-like object, we refer to objects
-        that have a `read()` method, such as a file handler (e.g. via builtin `open`
-        function) or `BytesIO`). If the path is a directory, files in that
+        Path to a file or a file-like object (by "file-like object" we refer to objects
+        that have a `read()` method, such as a file handler like the builtin `open`
+        function, or a `BytesIO` instance). If the path is a directory, files in that
         directory will all be read.
     columns
         Columns to select. Accepts a list of column indices (starting at zero) or a list
@@ -83,7 +83,11 @@ def read_parquet(
         can be skipped from reading.
     hive_partitioning
         Infer statistics and schema from Hive partitioned URL and use them
-        to prune reads.
+        to prune reads. This is unset by default (i.e. `None`), meaning it is
+        automatically enabled when a single directory is passed, and otherwise
+        disabled.
+    glob
+        Expand path given via globbing rules.
     hive_schema
         The column names and data types of the columns by which the data is partitioned.
         If set to `None` (default), the schema of the Hive partitions is inferred.
@@ -91,6 +95,8 @@ def read_parquet(
         .. warning::
             This functionality is considered **unstable**. It may be changed
             at any point without it being considered a breaking change.
+    try_parse_hive_dates
+        Whether to try parsing hive values as date/datetime types.
     rechunk
         Make sure that all columns are contiguous in memory by
         aggregating the chunks into a single array.
@@ -130,14 +136,6 @@ def read_parquet(
     --------
     scan_parquet
     scan_pyarrow_dataset
-
-    Notes
-    -----
-    * When benchmarking:
-        This operation defaults to a `rechunk` operation at the end, meaning that all
-        data will be stored continuously in memory. Set `rechunk=False` if you are
-        benchmarking the parquet-reader as `rechunk` can be an expensive operation
-        that should not contribute to the timings.
     """
     if hive_schema is not None:
         msg = "The `hive_schema` parameter of `read_parquet` is considered unstable."
@@ -160,6 +158,7 @@ def read_parquet(
             storage_options=storage_options,
             pyarrow_options=pyarrow_options,
             memory_map=memory_map,
+            rechunk=rechunk,
         )
 
     # Read file and bytes inputs using `read_parquet`
@@ -186,17 +185,20 @@ def read_parquet(
         use_statistics=use_statistics,
         hive_partitioning=hive_partitioning,
         hive_schema=hive_schema,
+        try_parse_hive_dates=try_parse_hive_dates,
         rechunk=rechunk,
         low_memory=low_memory,
         cache=False,
         storage_options=storage_options,
         retries=retries,
+        glob=glob,
     )
 
     if columns is not None:
         if is_int_sequence(columns):
-            columns = [lf.columns[i] for i in columns]
-        lf = lf.select(columns)
+            lf = lf.select(F.nth(columns))
+        else:
+            lf = lf.select(columns)
 
     return lf.collect()
 
@@ -208,14 +210,13 @@ def _read_parquet_with_pyarrow(
     storage_options: dict[str, Any] | None = None,
     pyarrow_options: dict[str, Any] | None = None,
     memory_map: bool = True,
+    rechunk: bool = True,
 ) -> DataFrame:
-    if not _PYARROW_AVAILABLE:
-        msg = "'pyarrow' is required when using `read_parquet(..., use_pyarrow=True)`"
-        raise ModuleNotFoundError(msg)
-
-    import pyarrow as pa
-    import pyarrow.parquet
-
+    pyarrow_parquet = import_optional(
+        "pyarrow.parquet",
+        err_prefix="",
+        err_suffix="is required when using `read_parquet(..., use_pyarrow=True)`",
+    )
     pyarrow_options = pyarrow_options or {}
 
     with prepare_file_arg(
@@ -223,13 +224,13 @@ def _read_parquet_with_pyarrow(
         use_pyarrow=True,
         storage_options=storage_options,
     ) as source_prep:
-        pa_table = pa.parquet.read_table(
+        pa_table = pyarrow_parquet.read_table(
             source_prep,
             memory_map=memory_map,
             columns=columns,
             **pyarrow_options,
         )
-    return from_arrow(pa_table)  # type: ignore[return-value]
+    return from_arrow(pa_table, rechunk=rechunk)  # type: ignore[return-value]
 
 
 def _read_parquet_binary(
@@ -241,7 +242,7 @@ def _read_parquet_binary(
     row_index_offset: int = 0,
     parallel: ParallelStrategy = "auto",
     use_statistics: bool = True,
-    rechunk: bool = True,
+    rechunk: bool = False,
     low_memory: bool = False,
 ) -> DataFrame:
     projection, columns = parse_columns_arg(columns)
@@ -269,9 +270,9 @@ def read_parquet_schema(source: str | Path | IO[bytes] | bytes) -> dict[str, Dat
     Parameters
     ----------
     source
-        Path to a file or a file-like object (by file-like object, we refer to objects
-        that have a `read()` method, such as a file handler (e.g. via builtin `open`
-        function) or `BytesIO`).
+        Path to a file or a file-like object (by "file-like object" we refer to objects
+        that have a `read()` method, such as a file handler like the builtin `open`
+        function, or a `BytesIO` instance).
 
     Returns
     -------
@@ -279,7 +280,7 @@ def read_parquet_schema(source: str | Path | IO[bytes] | bytes) -> dict[str, Dat
         Dictionary mapping column names to datatypes
     """
     if isinstance(source, (str, Path)):
-        source = normalize_filepath(source)
+        source = normalize_filepath(source, check_not_directory=False)
 
     return _read_parquet_schema(source)
 
@@ -294,13 +295,15 @@ def scan_parquet(
     row_index_offset: int = 0,
     parallel: ParallelStrategy = "auto",
     use_statistics: bool = True,
-    hive_partitioning: bool = True,
+    hive_partitioning: bool | None = None,
+    glob: bool = True,
     hive_schema: SchemaDict | None = None,
+    try_parse_hive_dates: bool = True,
     rechunk: bool = False,
     low_memory: bool = False,
     cache: bool = True,
     storage_options: dict[str, Any] | None = None,
-    retries: int = 0,
+    retries: int = 2,
 ) -> LazyFrame:
     """
     Lazily read from a local or cloud-hosted parquet file (or files).
@@ -329,6 +332,8 @@ def scan_parquet(
     hive_partitioning
         Infer statistics and schema from hive partitioned URL and use them
         to prune reads.
+    glob
+        Expand path given via globbing rules.
     hive_schema
         The column names and data types of the columns by which the data is partitioned.
         If set to `None` (default), the schema of the Hive partitions is inferred.
@@ -336,6 +341,8 @@ def scan_parquet(
         .. warning::
             This functionality is considered **unstable**. It may be changed
             at any point without it being considered a breaking change.
+    try_parse_hive_dates
+        Whether to try parsing hive values as date/datetime types.
     rechunk
         In case of reading multiple files via a glob pattern rechunk the final DataFrame
         into contiguous memory chunks.
@@ -345,8 +352,6 @@ def scan_parquet(
         Cache the result after reading.
     storage_options
         Options that indicate how to connect to a cloud provider.
-        If the cloud provider is not supported by Polars, the storage options
-        are passed to `fsspec.open()`.
 
         The cloud providers currently supported are AWS, GCP, and Azure.
         See supported keys here:
@@ -387,9 +392,11 @@ def scan_parquet(
         issue_unstable_warning(msg)
 
     if isinstance(source, (str, Path)):
-        source = normalize_filepath(source)
+        source = normalize_filepath(source, check_not_directory=False)
     else:
-        source = [normalize_filepath(source) for source in source]
+        source = [
+            normalize_filepath(source, check_not_directory=False) for source in source
+        ]
 
     return _scan_parquet_impl(
         source,
@@ -404,7 +411,9 @@ def scan_parquet(
         use_statistics=use_statistics,
         hive_partitioning=hive_partitioning,
         hive_schema=hive_schema,
+        try_parse_hive_dates=try_parse_hive_dates,
         retries=retries,
+        glob=glob,
     )
 
 
@@ -414,36 +423,23 @@ def _scan_parquet_impl(
     n_rows: int | None = None,
     cache: bool = True,
     parallel: ParallelStrategy = "auto",
-    rechunk: bool = True,
+    rechunk: bool = False,
     row_index_name: str | None = None,
     row_index_offset: int = 0,
     storage_options: dict[str, object] | None = None,
     low_memory: bool = False,
     use_statistics: bool = True,
-    hive_partitioning: bool = True,
+    hive_partitioning: bool | None = None,
+    glob: bool = True,
     hive_schema: SchemaDict | None = None,
-    retries: int = 0,
+    try_parse_hive_dates: bool = True,
+    retries: int = 2,
 ) -> LazyFrame:
     if isinstance(source, list):
         sources = source
         source = None  # type: ignore[assignment]
-        can_use_fsspec = False
     else:
-        can_use_fsspec = True
         sources = []
-
-    # try fsspec scanner
-    if (
-        can_use_fsspec
-        and not is_local_file(source)  # type: ignore[arg-type]
-        and not is_supported_cloud(source)  # type: ignore[arg-type]
-    ):
-        scan = _scan_parquet_fsspec(source, storage_options)  # type: ignore[arg-type]
-        if n_rows:
-            scan = scan.head(n_rows)
-        if row_index_name is not None:
-            scan = scan.with_row_index(row_index_name, row_index_offset)
-        return scan
 
     if storage_options:
         storage_options = list(storage_options.items())  # type: ignore[assignment]
@@ -464,6 +460,8 @@ def _scan_parquet_impl(
         use_statistics=use_statistics,
         hive_partitioning=hive_partitioning,
         hive_schema=hive_schema,
+        try_parse_hive_dates=try_parse_hive_dates,
         retries=retries,
+        glob=glob,
     )
     return wrap_ldf(pylf)

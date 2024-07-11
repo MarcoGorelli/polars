@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
 
 use arrow::array::*;
+use arrow::compute::utils::combine_validities_and;
 
 use crate::prelude::*;
-use crate::utils::index_to_chunked_index;
+use crate::utils::{index_to_chunked_index, index_to_chunked_index_rev};
 
 pub struct Chunks<'a, T> {
     chunks: &'a [ArrayRef],
@@ -69,7 +70,7 @@ impl<T: PolarsDataType> ChunkedArray<T> {
 
     #[inline]
     pub fn downcast_slices(&self) -> Option<impl DoubleEndedIterator<Item = &[T::Physical<'_>]>> {
-        if self.null_count != 0 {
+        if self.null_count() != 0 {
             return None;
         }
         let arr = self.downcast_iter().next().unwrap();
@@ -107,6 +108,12 @@ impl<T: PolarsDataType> ChunkedArray<T> {
     }
 
     #[inline]
+    pub fn downcast_into_array(self) -> T::Array {
+        assert_eq!(self.chunks.len(), 1);
+        self.downcast_get(0).unwrap().clone()
+    }
+
+    #[inline]
     /// # Safety
     /// It is up to the caller to ensure the chunk idx is in-bounds
     pub unsafe fn downcast_get_unchecked(&self, idx: usize) -> &T::Array {
@@ -119,6 +126,7 @@ impl<T: PolarsDataType> ChunkedArray<T> {
     /// Get the index of the chunk and the index of the value in that chunk.
     #[inline]
     pub(crate) fn index_to_chunked_index(&self, index: usize) -> (usize, usize) {
+        // Fast path.
         if self.chunks.len() == 1 {
             // SAFETY: chunks.len() == 1 guarantees this is correct.
             let len = unsafe { self.chunks.get_unchecked(0).len() };
@@ -128,6 +136,28 @@ impl<T: PolarsDataType> ChunkedArray<T> {
                 (1, index - len)
             };
         }
-        index_to_chunked_index(self.downcast_iter().map(|arr| arr.len()), index)
+        let chunk_lens = self.chunk_lengths();
+        let len = self.len();
+        if index <= len / 2 {
+            // Access from lhs.
+            index_to_chunked_index(chunk_lens, index)
+        } else {
+            // Access from rhs.
+            let index_from_back = len - index;
+            index_to_chunked_index_rev(chunk_lens.rev(), index_from_back, self.chunks.len())
+        }
+    }
+
+    /// # Panics
+    /// Panics if chunks don't align
+    pub fn merge_validities(&mut self, chunks: &[ArrayRef]) {
+        assert_eq!(chunks.len(), self.chunks.len());
+        unsafe {
+            for (arr, other) in self.chunks_mut().iter_mut().zip(chunks) {
+                let validity = combine_validities_and(arr.validity(), other.validity());
+                arr.with_validity(validity);
+            }
+        }
+        self.compute_len();
     }
 }

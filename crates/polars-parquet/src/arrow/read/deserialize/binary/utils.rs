@@ -54,6 +54,7 @@ impl<O: Offset> Binary<O> {
 }
 
 impl<'a, O: Offset> Pushable<&'a [u8]> for Binary<O> {
+    type Freeze = ();
     #[inline]
     fn reserve(&mut self, additional: usize) {
         let avg_len = self.values.len() / std::cmp::max(self.offsets.last().to_usize(), 1);
@@ -85,16 +86,20 @@ impl<'a, O: Offset> Pushable<&'a [u8]> for Binary<O> {
     fn extend_null_constant(&mut self, additional: usize) {
         self.extend_constant(additional)
     }
+    fn freeze(self) -> Self::Freeze {
+        unimplemented!()
+    }
 }
 
 #[derive(Debug)]
 pub struct BinaryIter<'a> {
     values: &'a [u8],
+    num_values: usize,
 }
 
 impl<'a> BinaryIter<'a> {
-    pub fn new(values: &'a [u8]) -> Self {
-        Self { values }
+    pub fn new(values: &'a [u8], num_values: usize) -> Self {
+        Self { values, num_values }
     }
 }
 
@@ -103,14 +108,24 @@ impl<'a> Iterator for BinaryIter<'a> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if self.values.is_empty() {
+        if self.num_values == 0 {
+            assert!(self.values.is_empty());
             return None;
         }
+
         let (length, remaining) = self.values.split_at(4);
         let length: [u8; 4] = unsafe { length.try_into().unwrap_unchecked() };
         let length = u32::from_le_bytes(length) as usize;
         let (result, remaining) = remaining.split_at(length);
+        self.num_values -= 1;
         self.values = remaining;
         Some(result)
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.num_values, Some(self.num_values))
+    }
 }
+
+impl<'a> ExactSizeIterator for BinaryIter<'a> {}

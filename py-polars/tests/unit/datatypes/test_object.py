@@ -1,9 +1,18 @@
+import io
 from pathlib import Path
 from uuid import uuid4
 
 import numpy as np
+import pytest
 
 import polars as pl
+from polars.exceptions import ComputeError
+
+
+def test_series_init_instantiated_object() -> None:
+    s = pl.Series([object(), object()], dtype=pl.Object())
+    assert isinstance(s, pl.Series)
+    assert isinstance(s.dtype, pl.Object)
 
 
 def test_object_empty_filter_5911() -> None:
@@ -30,12 +39,8 @@ def test_object_in_struct() -> None:
     np_b = np.array([4, 5, 6])
     df = pl.DataFrame({"A": [1, 2], "B": pl.Series([np_a, np_b], dtype=pl.Object)})
 
-    out = df.select([pl.struct(["B"]).alias("foo")]).to_dict(as_series=False)
-    arr = out["foo"][0]["B"]
-    assert isinstance(arr, np.ndarray)
-    assert (arr == np_a).sum() == 3
-    arr = out["foo"][1]["B"]
-    assert (arr == np_b).sum() == 3
+    with pytest.raises(pl.exceptions.InvalidOperationError):
+        df.select([pl.struct(["B"])])
 
 
 def test_nullable_object_13538() -> None:
@@ -135,6 +140,8 @@ def test_object_apply_to_struct() -> None:
 
 
 def test_null_obj_str_13512() -> None:
+    # https://github.com/pola-rs/polars/issues/13512
+
     df1 = pl.DataFrame(
         {
             "key": [1],
@@ -160,3 +167,26 @@ def test_format_object_series_14267() -> None:
     s = pl.Series([Path(), Path("abc")])
     expected = "shape: (2,)\n" "Series: '' [o][object]\n" "[\n" "\t.\n" "\tabc\n" "]"
     assert str(s) == expected
+
+
+def test_object_raise_writers() -> None:
+    df = pl.DataFrame({"a": object()})
+
+    buf = io.BytesIO()
+
+    with pytest.raises(ComputeError):
+        df.write_parquet(buf)
+    with pytest.raises(ComputeError):
+        df.write_ipc(buf)
+    with pytest.raises(ComputeError):
+        df.write_json(buf)
+    with pytest.raises(ComputeError):
+        df.write_csv(buf)
+    with pytest.raises(ComputeError):
+        df.write_avro(buf)
+
+
+def test_raise_list_object() -> None:
+    # We don't want to support this. Unsafe enough as it is already.
+    with pytest.raises(ValueError):
+        pl.Series([[object()]], dtype=pl.List(pl.Object()))

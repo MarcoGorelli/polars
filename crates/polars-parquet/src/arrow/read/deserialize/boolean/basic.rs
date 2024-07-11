@@ -5,7 +5,6 @@ use arrow::bitmap::utils::BitmapIter;
 use arrow::bitmap::MutableBitmap;
 use arrow::datatypes::ArrowDataType;
 use polars_error::PolarsResult;
-use polars_utils::iter::FallibleIterator;
 
 use super::super::utils::{
     extend_from_decoder, get_selected_rows, next, DecodedState, Decoder,
@@ -23,7 +22,7 @@ struct Values<'a>(BitmapIter<'a>);
 
 impl<'a> Values<'a> {
     pub fn try_new(page: &'a DataPage) -> PolarsResult<Self> {
-        let (_, _, values) = split_buffer(page)?;
+        let values = split_buffer(page)?.values;
 
         Ok(Self(BitmapIter::new(values, 0, values.len() * 8)))
     }
@@ -55,7 +54,7 @@ struct FilteredRequired<'a> {
 
 impl<'a> FilteredRequired<'a> {
     pub fn try_new(page: &'a DataPage) -> PolarsResult<Self> {
-        let (_, _, values) = split_buffer(page)?;
+        let values = split_buffer(page)?.values;
         // todo: replace this by an iterator over slices, for faster deserialization
         let values = BitmapIter::new(values, 0, page.num_values());
 
@@ -139,7 +138,7 @@ impl<'a> Decoder<'a> for BooleanDecoder {
             },
             (Encoding::Rle, true, false) => {
                 let optional = OptionalPageValidity::try_new(page)?;
-                let (_, _, values) = split_buffer(page)?;
+                let values = split_buffer(page)?.values;
                 // For boolean values the length is pre-pended.
                 let (_len_in_bytes, values) = values.split_at(4);
                 let iter = hybrid_rle::Decoder::new(values, 1);
@@ -172,7 +171,7 @@ impl<'a> Decoder<'a> for BooleanDecoder {
                 Some(remaining),
                 values,
                 &mut page_values.0,
-            ),
+            )?,
             State::Required(page) => {
                 let remaining = remaining.min(page.length - page.offset);
                 values.extend_from_slice(page.values, page.offset, remaining);
@@ -191,7 +190,7 @@ impl<'a> Decoder<'a> for BooleanDecoder {
                     Some(remaining),
                     values,
                     page_values.0.by_ref(),
-                );
+                )?;
             },
             State::RleOptional(page_validity, page_values) => {
                 utils::extend_from_decoder(
@@ -200,8 +199,7 @@ impl<'a> Decoder<'a> for BooleanDecoder {
                     Some(remaining),
                     values,
                     &mut *page_values,
-                );
-                page_values.get_result()?;
+                )?;
             },
         }
         Ok(())

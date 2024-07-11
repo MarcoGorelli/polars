@@ -1,10 +1,11 @@
 use std::cell::RefCell;
 
-use serde::ser::SerializeMap;
+use serde::ser::{Error, SerializeMap};
 use serde::{Serialize, Serializer};
 
-use crate::chunked_array::Settings;
+use crate::chunked_array::metadata::MetadataFlags;
 use crate::prelude::*;
+use crate::series::implementations::null::NullChunked;
 
 pub struct IterSer<I>
 where
@@ -47,7 +48,7 @@ fn serialize_impl<T, S>(
     serializer: S,
     name: &str,
     dtype: &DataType,
-    bit_settings: Settings,
+    bit_settings: MetadataFlags,
     ca: &ChunkedArray<T>,
 ) -> std::result::Result<<S as Serializer>::Ok, <S as Serializer>::Error>
 where
@@ -157,7 +158,31 @@ impl Serialize for CategoricalChunked {
 }
 
 #[cfg(feature = "dtype-struct")]
-impl Serialize for StructChunked {
+impl Serialize for StructChunked2 {
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<<S as Serializer>::Ok, <S as Serializer>::Error>
+    where
+        S: Serializer,
+    {
+        {
+            if self.null_count() > 0 {
+                return Err(S::Error::custom(
+                    "serializing struct with outer validity not yet supported",
+                ));
+            }
+
+            let mut state = serializer.serialize_map(Some(3))?;
+            state.serialize_entry("name", self.name())?;
+            state.serialize_entry("datatype", self.dtype())?;
+            state.serialize_entry("values", &self.fields_as_series())?;
+            state.end()
+        }
+    }
+}
+
+impl Serialize for NullChunked {
     fn serialize<S>(
         &self,
         serializer: S,
@@ -169,7 +194,7 @@ impl Serialize for StructChunked {
             let mut state = serializer.serialize_map(Some(3))?;
             state.serialize_entry("name", self.name())?;
             state.serialize_entry("datatype", self.dtype())?;
-            state.serialize_entry("values", self.fields())?;
+            state.serialize_entry("values", &IterSer::new(std::iter::once(self.len())))?;
             state.end()
         }
     }

@@ -6,6 +6,7 @@ use polars_utils::index::check_bounds;
 
 use crate::prelude::*;
 use crate::series::IsSorted;
+use crate::utils::align_chunks_binary;
 
 const BINARY_SEARCH_LIMIT: usize = 8;
 
@@ -141,7 +142,10 @@ unsafe fn gather_idx_array_unchecked<A: StaticArray>(
     }
 }
 
-impl<T: PolarsDataType, I: AsRef<[IdxSize]> + ?Sized> ChunkTakeUnchecked<I> for ChunkedArray<T> {
+impl<T: PolarsDataType, I: AsRef<[IdxSize]> + ?Sized> ChunkTakeUnchecked<I> for ChunkedArray<T>
+where
+    T: PolarsDataType<HasViews = FalseT, IsStruct = FalseT>,
+{
     /// Gather values from ChunkedArray by index.
     unsafe fn take_unchecked(&self, indices: &I) -> Self {
         let rechunked;
@@ -152,7 +156,7 @@ impl<T: PolarsDataType, I: AsRef<[IdxSize]> + ?Sized> ChunkTakeUnchecked<I> for 
         }
         let targets: Vec<_> = ca.downcast_iter().collect();
         let arr = gather_idx_array_unchecked(
-            ca.dtype().to_arrow(true),
+            ca.dtype().to_arrow(CompatLevel::newest()),
             &targets,
             ca.null_count() > 0,
             indices.as_ref(),
@@ -160,29 +164,6 @@ impl<T: PolarsDataType, I: AsRef<[IdxSize]> + ?Sized> ChunkTakeUnchecked<I> for 
         ChunkedArray::from_chunk_iter_like(ca, [arr])
     }
 }
-
-trait NotSpecialized {}
-impl NotSpecialized for Int8Type {}
-impl NotSpecialized for Int16Type {}
-impl NotSpecialized for Int32Type {}
-impl NotSpecialized for Int64Type {}
-#[cfg(feature = "dtype-decimal")]
-impl NotSpecialized for Int128Type {}
-impl NotSpecialized for UInt8Type {}
-impl NotSpecialized for UInt16Type {}
-impl NotSpecialized for UInt32Type {}
-impl NotSpecialized for UInt64Type {}
-impl NotSpecialized for Float32Type {}
-impl NotSpecialized for Float64Type {}
-impl NotSpecialized for BooleanType {}
-impl NotSpecialized for ListType {}
-#[cfg(feature = "dtype-array")]
-impl NotSpecialized for FixedSizeListType {}
-impl NotSpecialized for BinaryOffsetType {}
-#[cfg(feature = "dtype-decimal")]
-impl NotSpecialized for DecimalType {}
-#[cfg(feature = "object")]
-impl<T> NotSpecialized for ObjectType<T> {}
 
 pub fn _update_gather_sorted_flag(sorted_arr: IsSorted, sorted_idx: IsSorted) -> IsSorted {
     use crate::series::IsSorted::*;
@@ -196,7 +177,10 @@ pub fn _update_gather_sorted_flag(sorted_arr: IsSorted, sorted_idx: IsSorted) ->
     }
 }
 
-impl<T: PolarsDataType + NotSpecialized> ChunkTakeUnchecked<IdxCa> for ChunkedArray<T> {
+impl<T: PolarsDataType> ChunkTakeUnchecked<IdxCa> for ChunkedArray<T>
+where
+    T: PolarsDataType<HasViews = FalseT, IsStruct = FalseT>,
+{
     /// Gather values from ChunkedArray by index.
     unsafe fn take_unchecked(&self, indices: &IdxCa) -> Self {
         let rechunked;
@@ -209,7 +193,7 @@ impl<T: PolarsDataType + NotSpecialized> ChunkTakeUnchecked<IdxCa> for ChunkedAr
         let targets: Vec<_> = ca.downcast_iter().collect();
 
         let chunks = indices.downcast_iter().map(|idx_arr| {
-            let dtype = ca.dtype().to_arrow(true);
+            let dtype = ca.dtype().to_arrow(CompatLevel::newest());
             if idx_arr.null_count() == 0 {
                 gather_idx_array_unchecked(dtype, &targets, targets_have_nulls, idx_arr.values())
             } else if targets.len() == 1 {
@@ -272,7 +256,48 @@ impl ChunkTakeUnchecked<IdxCa> for BinaryChunked {
 
 impl ChunkTakeUnchecked<IdxCa> for StringChunked {
     unsafe fn take_unchecked(&self, indices: &IdxCa) -> Self {
-        self.as_binary().take_unchecked(indices).to_string()
+        self.as_binary()
+            .take_unchecked(indices)
+            .to_string_unchecked()
+    }
+}
+
+impl<I: AsRef<[IdxSize]> + ?Sized> ChunkTakeUnchecked<I> for BinaryChunked {
+    /// Gather values from ChunkedArray by index.
+    unsafe fn take_unchecked(&self, indices: &I) -> Self {
+        let indices = IdxCa::mmap_slice("", indices.as_ref());
+        self.take_unchecked(&indices)
+    }
+}
+
+impl<I: AsRef<[IdxSize]> + ?Sized> ChunkTakeUnchecked<I> for StringChunked {
+    /// Gather values from ChunkedArray by index.
+    unsafe fn take_unchecked(&self, indices: &I) -> Self {
+        self.as_binary()
+            .take_unchecked(indices)
+            .to_string_unchecked()
+    }
+}
+
+#[cfg(feature = "dtype-struct")]
+impl ChunkTakeUnchecked<IdxCa> for StructChunked2 {
+    unsafe fn take_unchecked(&self, indices: &IdxCa) -> Self {
+        let (a, b) = align_chunks_binary(self, indices);
+
+        let chunks = a
+            .downcast_iter()
+            .zip(b.downcast_iter())
+            .map(|(arr, idx)| take_unchecked(arr, idx))
+            .collect::<Vec<_>>();
+        self.copy_with_chunks(chunks)
+    }
+}
+
+#[cfg(feature = "dtype-struct")]
+impl<I: AsRef<[IdxSize]> + ?Sized> ChunkTakeUnchecked<I> for StructChunked2 {
+    unsafe fn take_unchecked(&self, indices: &I) -> Self {
+        let idx = IdxCa::mmap_slice("", indices.as_ref());
+        self.take_unchecked(&idx)
     }
 }
 

@@ -1,6 +1,6 @@
 use arrow::compute::cast::cast_unchecked as cast;
 use arrow::datatypes::Metadata;
-#[cfg(any(feature = "dtype-struct", feature = "dtype-categorical"))]
+#[cfg(feature = "dtype-categorical")]
 use arrow::legacy::kernels::concatenate::concatenate_owned_unchecked;
 #[cfg(any(
     feature = "dtype-date",
@@ -11,7 +11,7 @@ use arrow::legacy::kernels::concatenate::concatenate_owned_unchecked;
 use arrow::temporal_conversions::*;
 use polars_error::feature_gated;
 
-use crate::chunked_array::cast::cast_chunks;
+use crate::chunked_array::cast::{cast_chunks, CastOptions};
 #[cfg(feature = "object")]
 use crate::chunked_array::object::extension::polars_extension::PolarsExtension;
 #[cfg(feature = "object")]
@@ -20,9 +20,6 @@ use crate::chunked_array::object::extension::EXTENSION_NAME;
 use crate::chunked_array::temporal::parse_fixed_offset;
 #[cfg(feature = "timezones")]
 use crate::chunked_array::temporal::validate_time_zone;
-#[cfg(all(feature = "dtype-decimal", feature = "python"))]
-use crate::config::decimal_is_active;
-use crate::config::verbose;
 use crate::prelude::*;
 
 impl Series {
@@ -87,9 +84,13 @@ impl Series {
             #[cfg(feature = "dtype-categorical")]
             dt @ (Categorical(rev_map, ordering) | Enum(rev_map, ordering)) => {
                 let cats = UInt32Chunked::from_chunks(name, chunks);
+                let rev_map = rev_map.clone().unwrap_or_else(|| {
+                    assert!(cats.is_empty());
+                    Arc::new(RevMapping::default())
+                });
                 let mut ca = CategoricalChunked::from_cats_and_rev_map_unchecked(
                     cats,
-                    rev_map.clone().unwrap(),
+                    rev_map,
                     matches!(dt, Enum(_, _)),
                     *ordering,
                 );
@@ -102,7 +103,8 @@ impl Series {
             BinaryOffset => BinaryOffsetChunked::from_chunks(name, chunks).into_series(),
             #[cfg(feature = "dtype-struct")]
             Struct(_) => {
-                Series::_try_from_arrow_unchecked(name, chunks, &dtype.to_arrow(true)).unwrap()
+                StructChunked2::from_chunks_and_dtype_unchecked(name, chunks, dtype.clone())
+                    .into_series()
             },
             #[cfg(feature = "object")]
             Object(_, _) => {
@@ -123,7 +125,9 @@ impl Series {
                 }
             },
             Null => new_null(name, &chunks),
-            Unknown => panic!("uh oh, somehow we don't know the dtype?"),
+            Unknown(_) => {
+                panic!("dtype is unknown; consider supplying data-types for all operations")
+            },
             #[allow(unreachable_patterns)]
             _ => unreachable!(),
         }
@@ -152,7 +156,8 @@ impl Series {
         match dtype {
             ArrowDataType::Utf8View => Ok(StringChunked::from_chunks(name, chunks).into_series()),
             ArrowDataType::Utf8 | ArrowDataType::LargeUtf8 => {
-                let chunks = cast_chunks(&chunks, &DataType::String, false).unwrap();
+                let chunks =
+                    cast_chunks(&chunks, &DataType::String, CastOptions::NonStrict).unwrap();
                 Ok(StringChunked::from_chunks(name, chunks).into_series())
             },
             ArrowDataType::BinaryView => Ok(BinaryChunked::from_chunks(name, chunks).into_series()),
@@ -162,11 +167,13 @@ impl Series {
                         return Ok(BinaryOffsetChunked::from_chunks(name, chunks).into_series());
                     }
                 }
-                let chunks = cast_chunks(&chunks, &DataType::Binary, false).unwrap();
+                let chunks =
+                    cast_chunks(&chunks, &DataType::Binary, CastOptions::NonStrict).unwrap();
                 Ok(BinaryChunked::from_chunks(name, chunks).into_series())
             },
             ArrowDataType::Binary => {
-                let chunks = cast_chunks(&chunks, &DataType::Binary, false).unwrap();
+                let chunks =
+                    cast_chunks(&chunks, &DataType::Binary, CastOptions::NonStrict).unwrap();
                 Ok(BinaryChunked::from_chunks(name, chunks).into_series())
             },
             ArrowDataType::List(_) | ArrowDataType::LargeList(_) => {
@@ -202,21 +209,24 @@ impl Series {
             ArrowDataType::Int32 => Ok(Int32Chunked::from_chunks(name, chunks).into_series()),
             ArrowDataType::Int64 => Ok(Int64Chunked::from_chunks(name, chunks).into_series()),
             ArrowDataType::Float16 => {
-                let chunks = cast_chunks(&chunks, &DataType::Float32, false).unwrap();
+                let chunks =
+                    cast_chunks(&chunks, &DataType::Float32, CastOptions::NonStrict).unwrap();
                 Ok(Float32Chunked::from_chunks(name, chunks).into_series())
             },
             ArrowDataType::Float32 => Ok(Float32Chunked::from_chunks(name, chunks).into_series()),
             ArrowDataType::Float64 => Ok(Float64Chunked::from_chunks(name, chunks).into_series()),
             #[cfg(feature = "dtype-date")]
             ArrowDataType::Date32 => {
-                let chunks = cast_chunks(&chunks, &DataType::Int32, false).unwrap();
+                let chunks =
+                    cast_chunks(&chunks, &DataType::Int32, CastOptions::Overflowing).unwrap();
                 Ok(Int32Chunked::from_chunks(name, chunks)
                     .into_date()
                     .into_series())
             },
             #[cfg(feature = "dtype-datetime")]
             ArrowDataType::Date64 => {
-                let chunks = cast_chunks(&chunks, &DataType::Int64, false).unwrap();
+                let chunks =
+                    cast_chunks(&chunks, &DataType::Int64, CastOptions::Overflowing).unwrap();
                 let ca = Int64Chunked::from_chunks(name, chunks);
                 Ok(ca.into_datetime(TimeUnit::Milliseconds, None).into_series())
             },
@@ -231,7 +241,8 @@ impl Series {
                     },
                     _ => canonical_tz,
                 };
-                let chunks = cast_chunks(&chunks, &DataType::Int64, false).unwrap();
+                let chunks =
+                    cast_chunks(&chunks, &DataType::Int64, CastOptions::NonStrict).unwrap();
                 let s = Int64Chunked::from_chunks(name, chunks)
                     .into_datetime(tu.into(), tz)
                     .into_series();
@@ -244,7 +255,8 @@ impl Series {
             },
             #[cfg(feature = "dtype-duration")]
             ArrowDataType::Duration(tu) => {
-                let chunks = cast_chunks(&chunks, &DataType::Int64, false).unwrap();
+                let chunks =
+                    cast_chunks(&chunks, &DataType::Int64, CastOptions::NonStrict).unwrap();
                 let s = Int64Chunked::from_chunks(name, chunks)
                     .into_duration(tu.into())
                     .into_series();
@@ -259,9 +271,11 @@ impl Series {
             ArrowDataType::Time64(tu) | ArrowDataType::Time32(tu) => {
                 let mut chunks = chunks;
                 if matches!(dtype, ArrowDataType::Time32(_)) {
-                    chunks = cast_chunks(&chunks, &DataType::Int32, false).unwrap();
+                    chunks =
+                        cast_chunks(&chunks, &DataType::Int32, CastOptions::NonStrict).unwrap();
                 }
-                let chunks = cast_chunks(&chunks, &DataType::Int64, false).unwrap();
+                let chunks =
+                    cast_chunks(&chunks, &DataType::Int64, CastOptions::NonStrict).unwrap();
                 let s = Int64Chunked::from_chunks(name, chunks)
                     .into_time()
                     .into_series();
@@ -384,122 +398,57 @@ impl Series {
                 Ok(s)
             },
             #[cfg(feature = "dtype-struct")]
-            ArrowDataType::Struct(logical_fields) => {
-                // We don't have to convert inner types, as that already
-                // happens on `Field: Series` construction
-                let arr = if chunks.len() > 1 {
-                    // don't spuriously call this. This triggers a read on memmapped data
-                    concatenate_owned_unchecked(&chunks).unwrap() as ArrayRef
-                } else {
-                    chunks[0].clone()
-                };
-                let mut struct_arr =
-                    std::borrow::Cow::Borrowed(arr.as_any().downcast_ref::<StructArray>().unwrap());
-
-                if let Some(validity) = struct_arr.validity() {
-                    let new_values = struct_arr
-                        .values()
-                        .iter()
-                        .map(|arr| match arr.data_type() {
-                            ArrowDataType::Null => arr.clone(),
-                            _ => match arr.validity() {
-                                None => arr.with_validity(Some(validity.clone())),
-                                Some(arr_validity) => {
-                                    arr.with_validity(Some(arr_validity & validity))
-                                },
-                            },
-                        })
-                        .collect();
-
-                    struct_arr = std::borrow::Cow::Owned(StructArray::new(
-                        struct_arr.data_type().clone(),
-                        new_values,
-                        None,
-                    ));
+            ArrowDataType::Struct(_) => {
+                let (chunks, dtype) = to_physical_and_dtype(chunks, md);
+                unsafe {
+                    Ok(
+                        StructChunked2::from_chunks_and_dtype_unchecked(name, chunks, dtype)
+                            .into_series(),
+                    )
                 }
-
-                // ensure we maintain logical types if proved by the caller
-                let dtype_fields = if logical_fields.is_empty() {
-                    struct_arr.fields()
-                } else {
-                    logical_fields
-                };
-
-                let fields = struct_arr
-                    .values()
-                    .iter()
-                    .zip(dtype_fields)
-                    .map(|(arr, field)| {
-                        Series::_try_from_arrow_unchecked_with_md(
-                            &field.name,
-                            vec![arr.clone()],
-                            &field.data_type,
-                            Some(&field.metadata),
-                        )
-                    })
-                    .collect::<PolarsResult<Vec<_>>>()?;
-                Ok(StructChunked::new_unchecked(name, &fields).into_series())
             },
             ArrowDataType::FixedSizeBinary(_) => {
-                if verbose() {
-                    eprintln!(
-                        "Polars does not support decimal types so the 'Series' are read as Float64"
-                    );
-                }
-                let chunks = cast_chunks(&chunks, &DataType::Binary, true)?;
+                let chunks = cast_chunks(&chunks, &DataType::Binary, CastOptions::NonStrict)?;
                 Ok(BinaryChunked::from_chunks(name, chunks).into_series())
             },
-            #[cfg(feature = "dtype-decimal")]
             ArrowDataType::Decimal(precision, scale)
             | ArrowDataType::Decimal256(precision, scale) => {
-                #[cfg(feature = "python")]
+                #[cfg(not(feature = "dtype-decimal"))]
                 {
-                    let (precision, scale) = (Some(*precision), *scale);
-                    let chunks =
-                        cast_chunks(&chunks, &DataType::Decimal(precision, Some(scale)), false)
-                            .unwrap();
-                    if decimal_is_active() {
+                    panic!("activate 'dtype-decimal'")
+                }
+
+                #[cfg(feature = "dtype-decimal")]
+                {
+                    #[cfg(feature = "python")]
+                    {
+                        let (precision, scale) = (Some(*precision), *scale);
+                        let chunks = cast_chunks(
+                            &chunks,
+                            &DataType::Decimal(precision, Some(scale)),
+                            CastOptions::NonStrict,
+                        )
+                        .unwrap();
                         Ok(Int128Chunked::from_chunks(name, chunks)
                             .into_decimal_unchecked(precision, scale)
                             .into_series())
-                    } else {
-                        if verbose() {
-                            eprintln!(
-                                "Activate beta decimal types to read as decimal. Current behavior casts to Float64."
-                            );
-                        }
-                        Ok(Float64Chunked::from_chunks(
-                            name,
-                            cast_chunks(&chunks, &DataType::Float64, true).unwrap(),
+                    }
+
+                    #[cfg(not(feature = "python"))]
+                    {
+                        let (precision, scale) = (Some(*precision), *scale);
+                        let chunks = cast_chunks(
+                            &chunks,
+                            &DataType::Decimal(precision, Some(scale)),
+                            CastOptions::NonStrict,
                         )
-                        .into_series())
+                        .unwrap();
+                        // or DecimalChunked?
+                        Ok(Int128Chunked::from_chunks(name, chunks)
+                            .into_decimal_unchecked(precision, scale)
+                            .into_series())
                     }
                 }
-
-                #[cfg(not(feature = "python"))]
-                {
-                    let (precision, scale) = (Some(*precision), *scale);
-                    let chunks =
-                        cast_chunks(&chunks, &DataType::Decimal(precision, Some(scale)), false)
-                            .unwrap();
-                    // or DecimalChunked?
-                    Ok(Int128Chunked::from_chunks(name, chunks)
-                        .into_decimal_unchecked(precision, scale)
-                        .into_series())
-                }
-            },
-            #[allow(unreachable_patterns)]
-            ArrowDataType::Decimal256(_, _) | ArrowDataType::Decimal(_, _) => {
-                if verbose() {
-                    eprintln!(
-                        "Polars does not support decimal types so the 'Series' are read as Float64"
-                    );
-                }
-                Ok(Float64Chunked::from_chunks(
-                    name,
-                    cast_chunks(&chunks, &DataType::Float64, true)?,
-                )
-                .into_series())
             },
             ArrowDataType::Map(_, _) => map_arrays_to_series(name, chunks),
             dt => polars_bail!(ComputeError: "cannot create series from {:?}", dt),
@@ -540,11 +489,11 @@ unsafe fn to_physical_and_dtype(
 ) -> (Vec<ArrayRef>, DataType) {
     match arrays[0].data_type() {
         ArrowDataType::Utf8 | ArrowDataType::LargeUtf8 => {
-            let chunks = cast_chunks(&arrays, &DataType::String, false).unwrap();
+            let chunks = cast_chunks(&arrays, &DataType::String, CastOptions::NonStrict).unwrap();
             (chunks, DataType::String)
         },
         ArrowDataType::Binary | ArrowDataType::LargeBinary | ArrowDataType::FixedSizeBinary(_) => {
-            let chunks = cast_chunks(&arrays, &DataType::Binary, false).unwrap();
+            let chunks = cast_chunks(&arrays, &DataType::Binary, CastOptions::NonStrict).unwrap();
             (chunks, DataType::Binary)
         },
         #[allow(unused_variables)]

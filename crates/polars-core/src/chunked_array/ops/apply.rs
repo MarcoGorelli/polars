@@ -1,6 +1,7 @@
 //! Implementations of the ChunkApply Trait.
 use std::borrow::Cow;
 
+use crate::chunked_array::cast::CastOptions;
 use crate::prelude::*;
 use crate::series::IsSorted;
 
@@ -41,13 +42,13 @@ where
                 let out: U::Array = arr
                     .values_iter()
                     .map(&mut op)
-                    .collect_arr_with_dtype(dtype.to_arrow(true));
+                    .collect_arr_with_dtype(dtype.to_arrow(CompatLevel::newest()));
                 out.with_validity_typed(arr.validity().cloned())
             } else {
                 let out: U::Array = arr
                     .iter()
                     .map(|opt| opt.map(&mut op))
-                    .collect_arr_with_dtype(dtype.to_arrow(true));
+                    .collect_arr_with_dtype(dtype.to_arrow(CompatLevel::newest()));
                 out.with_validity_typed(arr.validity().cloned())
             }
         });
@@ -132,7 +133,7 @@ where
         drop(arr);
 
         let compute_immutable = |arr: &PrimitiveArray<S::Native>| {
-            arrow::compute::arity::unary(arr, f, S::get_dtype().to_arrow(true))
+            arrow::compute::arity::unary(arr, f, S::get_dtype().to_arrow(CompatLevel::newest()))
         };
 
         if owned_arr.values().is_sliced() {
@@ -165,7 +166,9 @@ impl<T: PolarsNumericType> ChunkedArray<T> {
         // this will ensure we have a single ref count
         // and we can mutate in place
         let chunks = {
-            let s = self.cast(&S::get_dtype()).unwrap();
+            let s = self
+                .cast_with_options(&S::get_dtype(), CastOptions::Overflowing)
+                .unwrap();
             s.chunks().clone()
         };
         apply_in_place_impl(self.name(), chunks, f)

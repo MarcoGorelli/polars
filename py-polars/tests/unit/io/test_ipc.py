@@ -1,18 +1,23 @@
 from __future__ import annotations
 
 import io
+import os
+import re
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 import pytest
 
 import polars as pl
+from polars.exceptions import ComputeError
+from polars.interchange.protocol import CompatLevel
 from polars.testing import assert_frame_equal
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from polars.type_aliases import IpcCompression
+    from polars._typing import IpcCompression
     from tests.unit.conftest import MemoryUsage
 
 COMPRESSIONS = ["uncompressed", "lz4", "zstd"]
@@ -129,7 +134,7 @@ def test_compressed_simple(compression: IpcCompression, stream: bool) -> None:
     df = pl.DataFrame({"a": [1, 2, 3], "b": [True, False, True], "c": ["a", "b", "c"]})
 
     f = io.BytesIO()
-    write_ipc(df, stream, f, compression)
+    write_ipc(df, stream, f, compression=compression)
     f.seek(0)
 
     df_read = read_ipc(stream, f, use_pyarrow=False)
@@ -230,7 +235,7 @@ def test_from_float16() -> None:
 def test_binview_ipc_mmap(tmp_path: Path) -> None:
     df = pl.DataFrame({"foo": ["aa" * 10, "bb", None, "small", "big" * 20]})
     file_path = tmp_path / "dump.ipc"
-    df.write_ipc(file_path, future=True)
+    df.write_ipc(file_path, compat_level=CompatLevel.newest())
     read = pl.read_ipc(file_path, memory_map=True)
     assert_frame_equal(df, read)
 
@@ -239,7 +244,7 @@ def test_list_nested_enum() -> None:
     dtype = pl.List(pl.Enum(["a", "b", "c"]))
     df = pl.DataFrame(pl.Series("list_cat", [["a", "b", "c", None]], dtype=dtype))
     buffer = io.BytesIO()
-    df.write_ipc(buffer)
+    df.write_ipc(buffer, compat_level=CompatLevel.newest())
     df = pl.read_ipc(buffer)
     assert df.get_column("list_cat").dtype == dtype
 
@@ -252,7 +257,7 @@ def test_struct_nested_enum() -> None:
         )
     )
     buffer = io.BytesIO()
-    df.write_ipc(buffer)
+    df.write_ipc(buffer, compat_level=CompatLevel.newest())
     df = pl.read_ipc(buffer)
     assert df.get_column("struct_cat").dtype == dtype
 
@@ -264,7 +269,7 @@ def test_ipc_view_gc_14448() -> None:
     df = pl.DataFrame(
         pl.Series(["small"] * 10 + ["looooooong string......."] * 750).slice(20, 20)
     )
-    df.write_ipc(f, future=True)
+    df.write_ipc(f, compat_level=CompatLevel.newest())
     f.seek(0)
     assert_frame_equal(pl.read_ipc(f), df)
 
@@ -306,3 +311,57 @@ def test_read_ipc_only_loads_selected_columns(
     # Only one column's worth of memory should be used; 2 columns would be
     # 32_000_000 at least, but there's some overhead.
     assert 16_000_000 < memory_usage_without_pyarrow.get_peak() < 23_000_000
+
+
+@pytest.mark.write_disk()
+def test_ipc_decimal_15920(
+    tmp_path: Path,
+) -> None:
+    tmp_path.mkdir(exist_ok=True)
+
+    base_df = pl.Series(
+        "x",
+        [
+            *[
+                Decimal(x)
+                for x in [
+                    "10.1", "11.2", "12.3", "13.4", "14.5", "15.6", "16.7", "17.8", "18.9", "19.0",
+                    "20.1", "21.2", "22.3", "23.4", "24.5", "25.6", "26.7", "27.8", "28.9", "29.0",
+                    "30.1", "31.2", "32.3", "33.4", "34.5", "35.6", "36.7", "37.8", "38.9", "39.0"
+                ]
+            ],
+            *(50 * [None])
+        ],
+        dtype=pl.Decimal(18, 2),
+    ).to_frame()  # fmt: skip
+
+    for df in [base_df, base_df.drop_nulls()]:
+        path = f"{tmp_path}/data"
+        df.write_ipc(path)
+        assert_frame_equal(pl.read_ipc(path), df)
+
+
+@pytest.mark.write_disk()
+def test_ipc_raise_on_writing_mmap(tmp_path: Path) -> None:
+    p = tmp_path / "foo.ipc"
+    df = pl.DataFrame({"foo": [1, 2, 3]})
+    # first write is allowed
+    df.write_ipc(p)
+
+    # now open as memory mapped
+    df = pl.read_ipc(p, memory_map=True)
+
+    if os.name == "nt":
+        # In Windows, it's the duty of the system to ensure exclusive access
+        with pytest.raises(
+            OSError,
+            match=re.escape(
+                "The requested operation cannot be performed on a file with a user-mapped section open. (os error 1224)"
+            ),
+        ):
+            df.write_ipc(p)
+    else:
+        with pytest.raises(
+            ComputeError, match="cannot write to file: already memory mapped"
+        ):
+            df.write_ipc(p)

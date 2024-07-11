@@ -42,7 +42,7 @@ use arrow::io::ipc::{read, write};
 use polars_core::prelude::*;
 
 use crate::prelude::*;
-use crate::{finish_reader, ArrowReader, WriterFactory};
+use crate::shared::{finish_reader, ArrowReader, WriterFactory};
 
 /// Read Arrows Stream IPC format into a DataFrame
 ///
@@ -124,7 +124,7 @@ impl<R> ArrowReader for read::StreamReader<R>
 where
     R: Read,
 {
-    fn next_record_batch(&mut self) -> PolarsResult<Option<ArrowChunk>> {
+    fn next_record_batch(&mut self) -> PolarsResult<Option<RecordBatch>> {
         self.next().map_or(Ok(None), |v| match v {
             Ok(stream_state) => match stream_state {
                 StreamState::Waiting => Ok(None),
@@ -207,10 +207,10 @@ where
 pub struct IpcStreamWriter<W> {
     writer: W,
     compression: Option<IpcCompression>,
-    pl_flavor: bool,
+    compat_level: CompatLevel,
 }
 
-use polars_core::frame::ArrowChunk;
+use arrow::record_batch::RecordBatch;
 
 use crate::RowIndex;
 
@@ -221,8 +221,8 @@ impl<W> IpcStreamWriter<W> {
         self
     }
 
-    pub fn with_pl_flavor(mut self, pl_flavor: bool) -> Self {
-        self.pl_flavor = pl_flavor;
+    pub fn with_compat_level(mut self, compat_level: CompatLevel) -> Self {
+        self.compat_level = compat_level;
         self
     }
 }
@@ -235,7 +235,7 @@ where
         IpcStreamWriter {
             writer,
             compression: None,
-            pl_flavor: false,
+            compat_level: CompatLevel::oldest(),
         }
     }
 
@@ -247,9 +247,9 @@ where
             },
         );
 
-        ipc_stream_writer.start(&df.schema().to_arrow(self.pl_flavor), None)?;
+        ipc_stream_writer.start(&df.schema().to_arrow(self.compat_level), None)?;
         let df = chunk_df_for_writing(df, 512 * 512)?;
-        let iter = df.iter_chunks(self.pl_flavor);
+        let iter = df.iter_chunks(self.compat_level, true);
 
         for batch in iter {
             ipc_stream_writer.write(&batch, None)?

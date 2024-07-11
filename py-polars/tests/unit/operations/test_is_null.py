@@ -7,7 +7,7 @@ from polars.testing import assert_frame_equal, assert_series_equal
 from polars.testing.parametric import series
 
 
-@given(s=series(null_probability=0.5))
+@given(s=series(allow_null=True))
 def test_is_null_parametric(s: pl.Series) -> None:
     is_null = s.is_null()
     is_not_null = s.is_not_null()
@@ -18,14 +18,7 @@ def test_is_null_parametric(s: pl.Series) -> None:
 
 def test_is_null_struct() -> None:
     df = pl.DataFrame(
-        {
-            "x": [
-                {"a": 1, "b": 2},
-                {"a": 1, "b": None},
-                {"a": None, "b": 2},
-                {"a": None, "b": None},
-            ]
-        }
+        {"x": [{"a": 1, "b": 2}, {"a": None, "b": None}, {"a": None, "b": 2}, None]}
     )
 
     result = df.select(

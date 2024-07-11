@@ -5,6 +5,9 @@ use std::collections::VecDeque;
 use arrow::array::{Array, DictionaryArray, DictionaryKey, PrimitiveArray};
 use arrow::bitmap::MutableBitmap;
 use arrow::datatypes::ArrowDataType;
+pub use nested::next_dict as nested_next_dict;
+use polars_error::{polars_err, PolarsResult};
+use polars_utils::iter::FallibleIterator;
 
 use super::utils::{
     self, dict_indices_decoder, extend_from_decoder, get_selected_rows, DecodedState, Decoder,
@@ -167,7 +170,7 @@ where
                             Err(_) => panic!("The maximum key is too small"),
                         }
                     }),
-                );
+                )?;
                 page.values.get_result()?;
             },
             State::Required(page) => {
@@ -204,7 +207,7 @@ where
                         };
                         x
                     }),
-                );
+                )?;
                 page_values.get_result()?;
             },
             State::FilteredRequired(page) => {
@@ -316,7 +319,3 @@ pub(super) fn next_dict<K: DictionaryKey, I: PagesIter, F: Fn(&DictPage) -> Box<
         },
     }
 }
-
-pub use nested::next_dict as nested_next_dict;
-use polars_error::{polars_err, PolarsResult};
-use polars_utils::iter::FallibleIterator;

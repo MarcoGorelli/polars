@@ -7,7 +7,7 @@ fn cum_fold_dtype() -> GetOutput {
         for fld in &fields[1..] {
             st = get_supertype(&st, &fld.dtype).unwrap();
         }
-        Field::new(
+        Ok(Field::new(
             &fields[0].name,
             DataType::Struct(
                 fields
@@ -15,7 +15,7 @@ fn cum_fold_dtype() -> GetOutput {
                     .map(|fld| Field::new(fld.name(), st.clone()))
                     .collect(),
             ),
-        )
+        ))
     })
 }
 
@@ -124,7 +124,7 @@ where
                     result.push(acc.clone());
                 }
 
-                StructChunked::new(acc.name(), &result).map(|ca| Some(ca.into_series()))
+                StructChunked2::from_series(acc.name(), &result).map(|ca| Some(ca.into_series()))
             },
             None => Err(polars_err!(ComputeError: "`reduce` did not have any expressions to fold")),
         }
@@ -172,7 +172,7 @@ where
             }
         }
 
-        StructChunked::new(acc.name(), &result).map(|ca| Some(ca.into_series()))
+        StructChunked2::from_series(acc.name(), &result).map(|ca| Some(ca.into_series()))
     }) as Arc<dyn SeriesUdf>);
 
     Expr::AnonymousFunction {
@@ -195,26 +195,12 @@ where
 pub fn all_horizontal<E: AsRef<[Expr]>>(exprs: E) -> PolarsResult<Expr> {
     let exprs = exprs.as_ref().to_vec();
     polars_ensure!(!exprs.is_empty(), ComputeError: "cannot return empty fold because the number of output rows is unknown");
-
-    // We prefer this path as the optimizer can better deal with the binary operations.
-    // However if we have a single expression, we might loose information.
-    // E.g. `all().is_null()` would reduce to `all().is_null()` (the & is not needed as there is no rhs (yet)
-    // And upon expansion, it becomes
-    // `col(i).is_null() for i in len(df))`
-    // so we would miss the boolean operator.
-    if exprs.len() > 1 {
-        return Ok(exprs.into_iter().reduce(|l, r| l.logical_and(r)).unwrap());
-    }
-
+    // This will be reduced to `expr & expr` during conversion to IR.
     Ok(Expr::Function {
         input: exprs,
         function: FunctionExpr::Boolean(BooleanFunction::AllHorizontal),
         options: FunctionOptions {
-            collect_groups: ApplyOptions::ElementWise,
             input_wildcard_expansion: true,
-            returns_scalar: false,
-            cast_to_supertypes: false,
-            allow_rename: true,
             ..Default::default()
         },
     })
@@ -226,21 +212,12 @@ pub fn all_horizontal<E: AsRef<[Expr]>>(exprs: E) -> PolarsResult<Expr> {
 pub fn any_horizontal<E: AsRef<[Expr]>>(exprs: E) -> PolarsResult<Expr> {
     let exprs = exprs.as_ref().to_vec();
     polars_ensure!(!exprs.is_empty(), ComputeError: "cannot return empty fold because the number of output rows is unknown");
-
-    // See comment in `all_horizontal`.
-    if exprs.len() > 1 {
-        return Ok(exprs.into_iter().reduce(|l, r| l.logical_or(r)).unwrap());
-    }
-
+    // This will be reduced to `expr | expr` during conversion to IR.
     Ok(Expr::Function {
         input: exprs,
         function: FunctionExpr::Boolean(BooleanFunction::AnyHorizontal),
         options: FunctionOptions {
-            collect_groups: ApplyOptions::ElementWise,
             input_wildcard_expansion: true,
-            returns_scalar: false,
-            cast_to_supertypes: false,
-            allow_rename: true,
             ..Default::default()
         },
     })
@@ -298,7 +275,7 @@ pub fn sum_horizontal<E: AsRef<[Expr]>>(exprs: E) -> PolarsResult<Expr> {
             collect_groups: ApplyOptions::ElementWise,
             input_wildcard_expansion: true,
             returns_scalar: false,
-            cast_to_supertypes: false,
+            cast_to_supertypes: None,
             ..Default::default()
         },
     })
@@ -316,7 +293,7 @@ pub fn mean_horizontal<E: AsRef<[Expr]>>(exprs: E) -> PolarsResult<Expr> {
             collect_groups: ApplyOptions::ElementWise,
             input_wildcard_expansion: true,
             returns_scalar: false,
-            cast_to_supertypes: false,
+            cast_to_supertypes: None,
             ..Default::default()
         },
     })
@@ -332,7 +309,7 @@ pub fn coalesce(exprs: &[Expr]) -> Expr {
         function: FunctionExpr::Coalesce,
         options: FunctionOptions {
             collect_groups: ApplyOptions::ElementWise,
-            cast_to_supertypes: true,
+            cast_to_supertypes: Some(Default::default()),
             input_wildcard_expansion: true,
             ..Default::default()
         },

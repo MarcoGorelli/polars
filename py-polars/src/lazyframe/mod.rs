@@ -1,23 +1,27 @@
 mod exitable;
-
+mod visit;
+pub(crate) mod visitor;
 use std::collections::HashMap;
-use std::io::BufWriter;
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
+mod serde;
 
 pub use exitable::PyInProcessQuery;
-use polars::io::cloud::CloudOptions;
 use polars::io::{HiveOptions, RowIndex};
 use polars::time::*;
 use polars_core::prelude::*;
+#[cfg(feature = "parquet")]
+use polars_parquet::arrow::write::StatisticsOptions;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict, PyList};
+use pyo3::pybacked::PyBackedStr;
+use pyo3::types::{PyDict, PyList};
+pub(crate) use visit::PyExprIR;
 
-use crate::arrow_interop::to_rust::pyarrow_schema_to_rust;
 use crate::error::PyPolarsErr;
 use crate::expr::ToExprs;
-use crate::file::get_file_like;
+use crate::interop::arrow::to_rust::pyarrow_schema_to_rust;
+use crate::lazyframe::visit::NodeTraverser;
 use crate::prelude::*;
 use crate::{PyDataFrame, PyExpr, PyLazyGroupBy};
 
@@ -26,13 +30,6 @@ use crate::{PyDataFrame, PyExpr, PyLazyGroupBy};
 #[derive(Clone)]
 pub struct PyLazyFrame {
     pub ldf: LazyFrame,
-}
-
-impl PyLazyFrame {
-    fn get_schema(&self) -> PyResult<SchemaRef> {
-        let schema = self.ldf.schema().map_err(PyPolarsErr::from)?;
-        Ok(schema)
-    }
 }
 
 impl From<LazyFrame> for PyLazyFrame {
@@ -44,59 +41,6 @@ impl From<LazyFrame> for PyLazyFrame {
 #[pymethods]
 #[allow(clippy::should_implement_trait)]
 impl PyLazyFrame {
-    fn __getstate__(&self, py: Python) -> PyResult<PyObject> {
-        // Used in pickle/pickling
-        let mut writer: Vec<u8> = vec![];
-        ciborium::ser::into_writer(&self.ldf.logical_plan, &mut writer)
-            .map_err(|e| PyPolarsErr::Other(format!("{}", e)))?;
-
-        Ok(PyBytes::new(py, &writer).to_object(py))
-    }
-
-    fn __setstate__(&mut self, py: Python, state: PyObject) -> PyResult<()> {
-        // Used in pickle/pickling
-        match state.extract::<&PyBytes>(py) {
-            Ok(s) => {
-                let lp: DslPlan = ciborium::de::from_reader(s.as_bytes())
-                    .map_err(|e| PyPolarsErr::Other(format!("{}", e)))?;
-                self.ldf = LazyFrame::from(lp);
-                Ok(())
-            },
-            Err(e) => Err(e),
-        }
-    }
-
-    #[cfg(all(feature = "json", feature = "serde_json"))]
-    fn serialize(&self, py_f: PyObject) -> PyResult<()> {
-        let file = BufWriter::new(get_file_like(py_f, true)?);
-        serde_json::to_writer(file, &self.ldf.logical_plan)
-            .map_err(|err| PyValueError::new_err(format!("{err:?}")))?;
-        Ok(())
-    }
-
-    #[staticmethod]
-    #[cfg(feature = "json")]
-    fn deserialize(py_f: PyObject) -> PyResult<Self> {
-        // it is faster to first read to memory and then parse: https://github.com/serde-rs/json/issues/160
-        // so don't bother with files.
-        let mut json = String::new();
-        let _ = get_file_like(py_f, false)?
-            .read_to_string(&mut json)
-            .unwrap();
-
-        // SAFETY:
-        // We skipped the serializing/deserializing of the static in lifetime in `DataType`
-        // so we actually don't have a lifetime at all when serializing.
-
-        // &str still has a lifetime. But it's ok, because we drop it immediately
-        // in this scope.
-        let json = unsafe { std::mem::transmute::<&'_ str, &'static str>(json.as_str()) };
-
-        let lp = serde_json::from_str::<DslPlan>(json)
-            .map_err(|err| PyValueError::new_err(format!("{err:?}")))?;
-        Ok(LazyFrame::from(lp).into())
-    }
-
     #[staticmethod]
     #[cfg(feature = "json")]
     #[allow(clippy::too_many_arguments)]
@@ -113,7 +57,10 @@ impl PyLazyFrame {
         row_index: Option<(String, IdxSize)>,
         ignore_errors: bool,
     ) -> PyResult<Self> {
-        let row_index = row_index.map(|(name, offset)| RowIndex { name, offset });
+        let row_index = row_index.map(|(name, offset)| RowIndex {
+            name: Arc::from(name.as_str()),
+            offset,
+        });
 
         let r = if let Some(path) = &path {
             LazyJsonLineReader::new(path)
@@ -122,7 +69,7 @@ impl PyLazyFrame {
         };
 
         let lf = r
-            .with_infer_schema_length(infer_schema_length)
+            .with_infer_schema_length(infer_schema_length.and_then(NonZeroUsize::new))
             .with_batch_size(batch_size)
             .with_n_rows(n_rows)
             .low_memory(low_memory)
@@ -141,7 +88,8 @@ impl PyLazyFrame {
     #[pyo3(signature = (path, paths, separator, has_header, ignore_errors, skip_rows, n_rows, cache, overwrite_dtype,
         low_memory, comment_prefix, quote_char, null_values, missing_utf8_is_empty_string,
         infer_schema_length, with_schema_modify, rechunk, skip_rows_after_header,
-        encoding, row_index, try_parse_dates, eol_char, raise_if_empty, truncate_ragged_lines, decimal_float, schema
+        encoding, row_index, try_parse_dates, eol_char, raise_if_empty, truncate_ragged_lines, decimal_comma, glob, schema,
+        cloud_options, retries, file_cache_ttl
     )
     )]
     fn new_from_csv(
@@ -153,7 +101,7 @@ impl PyLazyFrame {
         skip_rows: usize,
         n_rows: Option<usize>,
         cache: bool,
-        overwrite_dtype: Option<Vec<(&str, Wrap<DataType>)>>,
+        overwrite_dtype: Option<Vec<(PyBackedStr, Wrap<DataType>)>>,
         low_memory: bool,
         comment_prefix: Option<&str>,
         quote_char: Option<&str>,
@@ -169,21 +117,55 @@ impl PyLazyFrame {
         eol_char: &str,
         raise_if_empty: bool,
         truncate_ragged_lines: bool,
-        decimal_float: bool,
+        decimal_comma: bool,
+        glob: bool,
         schema: Option<Wrap<Schema>>,
+        cloud_options: Option<Vec<(String, String)>>,
+        retries: usize,
+        file_cache_ttl: Option<u64>,
     ) -> PyResult<Self> {
         let null_values = null_values.map(|w| w.0);
         let quote_char = quote_char.map(|s| s.as_bytes()[0]);
         let separator = separator.as_bytes()[0];
         let eol_char = eol_char.as_bytes()[0];
-        let row_index = row_index.map(|(name, offset)| RowIndex { name, offset });
+        let row_index = row_index.map(|(name, offset)| RowIndex {
+            name: Arc::from(name.as_str()),
+            offset,
+        });
 
         let overwrite_dtype = overwrite_dtype.map(|overwrite_dtype| {
             overwrite_dtype
                 .into_iter()
-                .map(|(name, dtype)| Field::new(name, dtype.0))
+                .map(|(name, dtype)| Field::new(&name, dtype.0))
                 .collect::<Schema>()
         });
+
+        #[cfg(feature = "cloud")]
+        let cloud_options = {
+            let first_path = if let Some(path) = &path {
+                path
+            } else {
+                paths
+                    .first()
+                    .ok_or_else(|| PyValueError::new_err("expected a path argument"))?
+            };
+
+            let first_path_url = first_path.to_string_lossy();
+
+            let mut cloud_options = if let Some(opts) = cloud_options {
+                parse_cloud_options(&first_path_url, opts)?
+            } else {
+                Default::default()
+            };
+
+            cloud_options = cloud_options.with_max_retries(retries);
+
+            if let Some(file_cache_ttl) = file_cache_ttl {
+                cloud_options.file_cache_ttl = file_cache_ttl;
+            }
+
+            Some(cloud_options)
+        };
 
         let r = if let Some(path) = path.as_ref() {
             LazyCsvReader::new(path)
@@ -194,17 +176,17 @@ impl PyLazyFrame {
         let mut r = r
             .with_infer_schema_length(infer_schema_length)
             .with_separator(separator)
-            .has_header(has_header)
+            .with_has_header(has_header)
             .with_ignore_errors(ignore_errors)
             .with_skip_rows(skip_rows)
             .with_n_rows(n_rows)
             .with_cache(cache)
             .with_dtype_overwrite(overwrite_dtype.map(Arc::new))
             .with_schema(schema.map(|schema| Arc::new(schema.0)))
-            .low_memory(low_memory)
+            .with_low_memory(low_memory)
             .with_comment_prefix(comment_prefix)
             .with_quote_char(quote_char)
-            .with_end_of_line_char(eol_char)
+            .with_eol_char(eol_char)
             .with_rechunk(rechunk)
             .with_skip_rows_after_header(skip_rows_after_header)
             .with_encoding(encoding.0)
@@ -212,15 +194,17 @@ impl PyLazyFrame {
             .with_try_parse_dates(try_parse_dates)
             .with_null_values(null_values)
             .with_missing_is_null(!missing_utf8_is_empty_string)
-            .truncate_ragged_lines(truncate_ragged_lines)
-            .with_decimal_float(decimal_float)
-            .raise_if_empty(raise_if_empty);
+            .with_truncate_ragged_lines(truncate_ragged_lines)
+            .with_decimal_comma(decimal_comma)
+            .with_glob(glob)
+            .with_raise_if_empty(raise_if_empty)
+            .with_cloud_options(cloud_options);
 
         if let Some(lambda) = with_schema_modify {
             let f = |schema: Schema| {
                 let iter = schema.iter_names().map(|s| s.as_str());
                 Python::with_gil(|py| {
-                    let names = PyList::new(py, iter);
+                    let names = PyList::new_bound(py, iter);
 
                     let out = lambda.call1(py, (names,)).expect("python function failed");
                     let new_names = out
@@ -245,7 +229,7 @@ impl PyLazyFrame {
     #[cfg(feature = "parquet")]
     #[staticmethod]
     #[pyo3(signature = (path, paths, n_rows, cache, parallel, rechunk, row_index,
-        low_memory, cloud_options, use_statistics, hive_partitioning, hive_schema, retries)
+        low_memory, cloud_options, use_statistics, hive_partitioning, hive_schema, try_parse_hive_dates, retries, glob)
     )]
     fn new_from_parquet(
         path: Option<PathBuf>,
@@ -258,9 +242,11 @@ impl PyLazyFrame {
         low_memory: bool,
         cloud_options: Option<Vec<(String, String)>>,
         use_statistics: bool,
-        hive_partitioning: bool,
+        hive_partitioning: Option<bool>,
         hive_schema: Option<Wrap<Schema>>,
+        try_parse_hive_dates: bool,
         retries: usize,
+        glob: bool,
     ) -> PyResult<Self> {
         let parallel = parallel.0;
         let hive_schema = hive_schema.map(|s| Arc::new(s.0));
@@ -273,23 +259,30 @@ impl PyLazyFrame {
                 .ok_or_else(|| PyValueError::new_err("expected a path argument"))?
         };
 
-        let first_path_url = first_path.to_string_lossy();
-        let mut cloud_options = cloud_options
-            .map(|kv| parse_cloud_options(&first_path_url, kv))
-            .transpose()?;
-        if retries > 0 {
-            cloud_options =
-                cloud_options
-                    .or_else(|| Some(CloudOptions::default()))
-                    .map(|mut options| {
-                        options.max_retries = retries;
-                        options
-                    });
-        }
-        let row_index = row_index.map(|(name, offset)| RowIndex { name, offset });
+        #[cfg(feature = "cloud")]
+        let cloud_options = {
+            let first_path_url = first_path.to_string_lossy();
+
+            let mut cloud_options = if let Some(opts) = cloud_options {
+                parse_cloud_options(&first_path_url, opts)?
+            } else {
+                Default::default()
+            };
+
+            cloud_options = cloud_options.with_max_retries(retries);
+
+            Some(cloud_options)
+        };
+
+        let row_index = row_index.map(|(name, offset)| RowIndex {
+            name: Arc::from(name.as_str()),
+            offset,
+        });
         let hive_options = HiveOptions {
             enabled: hive_partitioning,
+            hive_start_idx: 0,
             schema: hive_schema,
+            try_parse_dates: try_parse_hive_dates,
         };
 
         let args = ScanArgsParquet {
@@ -302,6 +295,7 @@ impl PyLazyFrame {
             cloud_options,
             use_statistics,
             hive_options,
+            glob,
         };
 
         let lf = if path.is_some() {
@@ -315,7 +309,7 @@ impl PyLazyFrame {
 
     #[cfg(feature = "ipc")]
     #[staticmethod]
-    #[pyo3(signature = (path, paths, n_rows, cache, rechunk, row_index, memory_map, cloud_options, retries))]
+    #[pyo3(signature = (path, paths, n_rows, cache, rechunk, row_index, memory_map, cloud_options, hive_partitioning, hive_schema, try_parse_hive_dates, retries, file_cache_ttl))]
     fn new_from_ipc(
         path: Option<PathBuf>,
         paths: Vec<PathBuf>,
@@ -325,9 +319,16 @@ impl PyLazyFrame {
         row_index: Option<(String, IdxSize)>,
         memory_map: bool,
         cloud_options: Option<Vec<(String, String)>>,
+        hive_partitioning: Option<bool>,
+        hive_schema: Option<Wrap<Schema>>,
+        try_parse_hive_dates: bool,
         retries: usize,
+        file_cache_ttl: Option<u64>,
     ) -> PyResult<Self> {
-        let row_index = row_index.map(|(name, offset)| RowIndex { name, offset });
+        let row_index = row_index.map(|(name, offset)| RowIndex {
+            name: Arc::from(name.as_str()),
+            offset,
+        });
 
         #[cfg(feature = "cloud")]
         let cloud_options = {
@@ -340,19 +341,27 @@ impl PyLazyFrame {
             };
 
             let first_path_url = first_path.to_string_lossy();
-            let mut cloud_options = cloud_options
-                .map(|kv| parse_cloud_options(&first_path_url, kv))
-                .transpose()?;
-            if retries > 0 {
-                cloud_options =
-                    cloud_options
-                        .or_else(|| Some(CloudOptions::default()))
-                        .map(|mut options| {
-                            options.max_retries = retries;
-                            options
-                        });
+
+            let mut cloud_options = if let Some(opts) = cloud_options {
+                parse_cloud_options(&first_path_url, opts)?
+            } else {
+                Default::default()
+            };
+
+            cloud_options = cloud_options.with_max_retries(retries);
+
+            if let Some(file_cache_ttl) = file_cache_ttl {
+                cloud_options.file_cache_ttl = file_cache_ttl;
             }
-            cloud_options
+
+            Some(cloud_options)
+        };
+
+        let hive_options = HiveOptions {
+            enabled: hive_partitioning,
+            hive_start_idx: 0,
+            schema: hive_schema.map(|x| Arc::new(x.0)),
+            try_parse_dates: try_parse_hive_dates,
         };
 
         let args = ScanArgsIpc {
@@ -363,6 +372,7 @@ impl PyLazyFrame {
             memory_map,
             #[cfg(feature = "cloud")]
             cloud_options,
+            hive_options,
         };
 
         let lf = if let Some(path) = &path {
@@ -376,7 +386,7 @@ impl PyLazyFrame {
 
     #[staticmethod]
     fn scan_from_python_function_arrow_schema(
-        schema: &PyList,
+        schema: &Bound<'_, PyList>,
         scan_fn: PyObject,
         pyarrow: bool,
     ) -> PyResult<Self> {
@@ -386,36 +396,41 @@ impl PyLazyFrame {
 
     #[staticmethod]
     fn scan_from_python_function_pl_schema(
-        schema: Vec<(&str, Wrap<DataType>)>,
+        schema: Vec<(PyBackedStr, Wrap<DataType>)>,
         scan_fn: PyObject,
         pyarrow: bool,
     ) -> PyResult<Self> {
-        let schema = Schema::from_iter(schema.into_iter().map(|(name, dt)| Field::new(name, dt.0)));
+        let schema =
+            Schema::from_iter(schema.into_iter().map(|(name, dt)| Field::new(&name, dt.0)));
         Ok(LazyFrame::scan_from_python_function(schema, scan_fn, pyarrow).into())
     }
 
-    fn describe_plan(&self) -> String {
-        self.ldf.describe_plan()
+    fn describe_plan(&self) -> PyResult<String> {
+        self.ldf
+            .describe_plan()
+            .map_err(PyPolarsErr::from)
+            .map_err(Into::into)
     }
 
     fn describe_optimized_plan(&self) -> PyResult<String> {
-        let result = self
-            .ldf
+        self.ldf
             .describe_optimized_plan()
-            .map_err(PyPolarsErr::from)?;
-        Ok(result)
+            .map_err(PyPolarsErr::from)
+            .map_err(Into::into)
     }
 
-    fn describe_plan_tree(&self) -> String {
-        self.ldf.describe_plan_tree()
+    fn describe_plan_tree(&self) -> PyResult<String> {
+        self.ldf
+            .describe_plan_tree()
+            .map_err(PyPolarsErr::from)
+            .map_err(Into::into)
     }
 
     fn describe_optimized_plan_tree(&self) -> PyResult<String> {
-        let result = self
-            .ldf
+        self.ldf
             .describe_optimized_plan_tree()
-            .map_err(PyPolarsErr::from)?;
-        Ok(result)
+            .map_err(PyPolarsErr::from)
+            .map_err(Into::into)
     }
 
     fn to_dot(&self, optimized: bool) -> PyResult<String> {
@@ -432,8 +447,10 @@ impl PyLazyFrame {
         slice_pushdown: bool,
         comm_subplan_elim: bool,
         comm_subexpr_elim: bool,
+        cluster_with_columns: bool,
         streaming: bool,
         _eager: bool,
+        #[allow(unused_variables)] new_streaming: bool,
     ) -> Self {
         let ldf = self.ldf.clone();
         let mut ldf = ldf
@@ -441,9 +458,15 @@ impl PyLazyFrame {
             .with_predicate_pushdown(predicate_pushdown)
             .with_simplify_expr(simplify_expr)
             .with_slice_pushdown(slice_pushdown)
+            .with_cluster_with_columns(cluster_with_columns)
             .with_streaming(streaming)
             ._with_eager(_eager)
             .with_projection_pushdown(projection_pushdown);
+
+        #[cfg(feature = "new_streaming")]
+        {
+            ldf = ldf.with_new_streaming(new_streaming);
+        }
 
         #[cfg(feature = "cse")]
         {
@@ -467,7 +490,7 @@ impl PyLazyFrame {
             [by_column],
             SortMultipleOptions {
                 descending: vec![descending],
-                nulls_last,
+                nulls_last: vec![nulls_last],
                 multithreaded,
                 maintain_order,
             },
@@ -479,7 +502,7 @@ impl PyLazyFrame {
         &self,
         by: Vec<PyExpr>,
         descending: Vec<bool>,
-        nulls_last: bool,
+        nulls_last: Vec<bool>,
         maintain_order: bool,
         multithreaded: bool,
     ) -> Self {
@@ -497,50 +520,24 @@ impl PyLazyFrame {
         .into()
     }
 
-    fn top_k(
-        &self,
-        k: IdxSize,
-        by: Vec<PyExpr>,
-        descending: Vec<bool>,
-        nulls_last: bool,
-        maintain_order: bool,
-        multithreaded: bool,
-    ) -> Self {
+    fn top_k(&self, k: IdxSize, by: Vec<PyExpr>, reverse: Vec<bool>) -> Self {
         let ldf = self.ldf.clone();
         let exprs = by.to_exprs();
         ldf.top_k(
             k,
             exprs,
-            SortMultipleOptions {
-                descending,
-                nulls_last,
-                maintain_order,
-                multithreaded,
-            },
+            SortMultipleOptions::new().with_order_descending_multi(reverse),
         )
         .into()
     }
 
-    fn bottom_k(
-        &self,
-        k: IdxSize,
-        by: Vec<PyExpr>,
-        descending: Vec<bool>,
-        nulls_last: bool,
-        maintain_order: bool,
-        multithreaded: bool,
-    ) -> Self {
+    fn bottom_k(&self, k: IdxSize, by: Vec<PyExpr>, reverse: Vec<bool>) -> Self {
         let ldf = self.ldf.clone();
         let exprs = by.to_exprs();
         ldf.bottom_k(
             k,
             exprs,
-            SortMultipleOptions {
-                descending,
-                nulls_last,
-                maintain_order,
-                multithreaded,
-            },
+            SortMultipleOptions::new().with_order_descending_multi(reverse),
         )
         .into()
     }
@@ -560,12 +557,42 @@ impl PyLazyFrame {
         Ok((df.into(), time_df.into()))
     }
 
-    fn collect(&self, py: Python) -> PyResult<PyDataFrame> {
+    fn collect(&self, py: Python, lamdba_post_opt: Option<PyObject>) -> PyResult<PyDataFrame> {
         // if we don't allow threads and we have udfs trying to acquire the gil from different
         // threads we deadlock.
         let df = py.allow_threads(|| {
             let ldf = self.ldf.clone();
-            ldf.collect().map_err(PyPolarsErr::from)
+            if let Some(lambda) = lamdba_post_opt {
+                ldf._collect_post_opt(|root, lp_arena, expr_arena| {
+                    Python::with_gil(|py| {
+                        let nt = NodeTraverser::new(
+                            root,
+                            std::mem::take(lp_arena),
+                            std::mem::take(expr_arena),
+                        );
+
+                        // Get a copy of the arena's.
+                        let arenas = nt.get_arenas();
+
+                        // Pass the node visitor which allows the python callback to replace parts of the query plan.
+                        // Remove "cuda" or specify better once we have multiple post-opt callbacks.
+                        lambda.call1(py, (nt,)).map_err(
+                            |e| polars_err!(ComputeError: "'cuda' conversion failed: {}", e),
+                        )?;
+
+                        // Unpack the arena's.
+                        // At this point the `nt` is useless.
+
+                        std::mem::swap(lp_arena, &mut *arenas.0.lock().unwrap());
+                        std::mem::swap(expr_arena, &mut *arenas.1.lock().unwrap());
+
+                        Ok(())
+                    })
+                })
+            } else {
+                ldf.collect()
+            }
+            .map_err(PyPolarsErr::from)
         })?;
         Ok(df.into())
     }
@@ -595,25 +622,25 @@ impl PyLazyFrame {
     }
 
     #[cfg(all(feature = "streaming", feature = "parquet"))]
-    #[pyo3(signature = (path, compression, compression_level, statistics, row_group_size, data_pagesize_limit, maintain_order))]
+    #[pyo3(signature = (path, compression, compression_level, statistics, row_group_size, data_page_size, maintain_order))]
     fn sink_parquet(
         &self,
         py: Python,
         path: PathBuf,
         compression: &str,
         compression_level: Option<i32>,
-        statistics: bool,
+        statistics: Wrap<StatisticsOptions>,
         row_group_size: Option<usize>,
-        data_pagesize_limit: Option<usize>,
+        data_page_size: Option<usize>,
         maintain_order: bool,
     ) -> PyResult<()> {
         let compression = parse_parquet_compression(compression, compression_level)?;
 
         let options = ParquetWriteOptions {
             compression,
-            statistics,
+            statistics: statistics.0,
             row_group_size,
-            data_pagesize_limit,
+            data_page_size,
             maintain_order,
         };
 
@@ -650,7 +677,7 @@ impl PyLazyFrame {
     }
 
     #[cfg(all(feature = "streaming", feature = "csv"))]
-    #[pyo3(signature = (path, include_bom, include_header, separator, line_terminator, quote_char, batch_size, datetime_format, date_format, time_format, float_precision, null_value, quote_style, maintain_order))]
+    #[pyo3(signature = (path, include_bom, include_header, separator, line_terminator, quote_char, batch_size, datetime_format, date_format, time_format, float_scientific, float_precision, null_value, quote_style, maintain_order))]
     fn sink_csv(
         &self,
         py: Python,
@@ -664,6 +691,7 @@ impl PyLazyFrame {
         datetime_format: Option<String>,
         date_format: Option<String>,
         time_format: Option<String>,
+        float_scientific: Option<bool>,
         float_precision: Option<usize>,
         null_value: Option<String>,
         quote_style: Option<Wrap<QuoteStyle>>,
@@ -676,6 +704,7 @@ impl PyLazyFrame {
             date_format,
             time_format,
             datetime_format,
+            float_scientific,
             float_precision,
             separator,
             quote_char,
@@ -758,7 +787,6 @@ impl PyLazyFrame {
         offset: &str,
         closed: Wrap<ClosedWindow>,
         by: Vec<PyExpr>,
-        check_sorted: bool,
     ) -> PyLazyGroupBy {
         let closed_window = closed.0;
         let ldf = self.ldf.clone();
@@ -774,7 +802,6 @@ impl PyLazyFrame {
                 period: Duration::parse(period),
                 offset: Duration::parse(offset),
                 closed_window,
-                check_sorted,
             },
         );
 
@@ -792,7 +819,6 @@ impl PyLazyFrame {
         closed: Wrap<ClosedWindow>,
         group_by: Vec<PyExpr>,
         start_by: Wrap<StartBy>,
-        check_sorted: bool,
     ) -> PyLazyGroupBy {
         let closed_window = closed.0;
         let group_by = group_by
@@ -811,7 +837,6 @@ impl PyLazyFrame {
                 include_boundaries,
                 closed_window,
                 start_by: start_by.0,
-                check_sorted,
                 ..Default::default()
             },
         );
@@ -825,21 +850,27 @@ impl PyLazyFrame {
     }
 
     #[cfg(feature = "asof_join")]
-    #[pyo3(signature = (other, left_on, right_on, left_by, right_by, allow_parallel, force_parallel, suffix, strategy, tolerance, tolerance_str))]
+    #[pyo3(signature = (other, left_on, right_on, left_by, right_by, allow_parallel, force_parallel, suffix, strategy, tolerance, tolerance_str, coalesce))]
     fn join_asof(
         &self,
         other: Self,
         left_on: PyExpr,
         right_on: PyExpr,
-        left_by: Option<Vec<&str>>,
-        right_by: Option<Vec<&str>>,
+        left_by: Option<Vec<PyBackedStr>>,
+        right_by: Option<Vec<PyBackedStr>>,
         allow_parallel: bool,
         force_parallel: bool,
         suffix: String,
         strategy: Wrap<AsofStrategy>,
         tolerance: Option<Wrap<AnyValue<'_>>>,
         tolerance_str: Option<String>,
+        coalesce: Option<bool>,
     ) -> PyResult<Self> {
+        let coalesce = match coalesce {
+            None => JoinCoalesce::JoinSpecific,
+            Some(true) => JoinCoalesce::CoalesceColumns,
+            Some(false) => JoinCoalesce::KeepColumns,
+        };
         let ldf = self.ldf.clone();
         let other = other.ldf;
         let left_on = left_on.inner;
@@ -851,6 +882,7 @@ impl PyLazyFrame {
             .right_on([right_on])
             .allow_parallel(allow_parallel)
             .force_parallel(force_parallel)
+            .coalesce(coalesce)
             .how(JoinType::AsOf(AsOfOptions {
                 strategy: strategy.0,
                 left_by: left_by.map(strings_to_smartstrings),
@@ -874,7 +906,13 @@ impl PyLazyFrame {
         how: Wrap<JoinType>,
         suffix: String,
         validate: Wrap<JoinValidation>,
+        coalesce: Option<bool>,
     ) -> PyResult<Self> {
+        let coalesce = match coalesce {
+            None => JoinCoalesce::JoinSpecific,
+            Some(true) => JoinCoalesce::CoalesceColumns,
+            Some(false) => JoinCoalesce::KeepColumns,
+        };
         let ldf = self.ldf.clone();
         let other = other.ldf;
         let left_on = left_on
@@ -895,6 +933,7 @@ impl PyLazyFrame {
             .force_parallel(force_parallel)
             .join_nulls(join_nulls)
             .how(how.0)
+            .coalesce(coalesce)
             .validate(validate.0)
             .suffix(suffix)
             .finish()
@@ -1030,25 +1069,25 @@ impl PyLazyFrame {
         ldf.tail(n).into()
     }
 
-    #[pyo3(signature = (id_vars, value_vars, value_name, variable_name, streamable))]
-    fn melt(
+    #[pyo3(signature = (on, index, value_name, variable_name, streamable))]
+    fn unpivot(
         &self,
-        id_vars: Vec<String>,
-        value_vars: Vec<String>,
+        on: Vec<String>,
+        index: Vec<String>,
         value_name: Option<String>,
         variable_name: Option<String>,
         streamable: bool,
     ) -> Self {
-        let args = MeltArgs {
-            id_vars: strings_to_smartstrings(id_vars),
-            value_vars: strings_to_smartstrings(value_vars),
+        let args = UnpivotArgs {
+            on: strings_to_smartstrings(on),
+            index: strings_to_smartstrings(index),
             value_name: value_name.map(|s| s.into()),
             variable_name: variable_name.map(|s| s.into()),
             streamable,
         };
 
         let ldf = self.ldf.clone();
-        ldf.melt(args).into()
+        ldf.unpivot(args).into()
     }
 
     fn with_row_index(&self, name: &str, offset: Option<IdxSize>) -> Self {
@@ -1086,14 +1125,19 @@ impl PyLazyFrame {
             .into()
     }
 
-    fn drop(&self, columns: Vec<String>) -> Self {
+    fn drop(&self, columns: Vec<String>, strict: bool) -> Self {
         let ldf = self.ldf.clone();
-        ldf.drop(columns).into()
+        if strict {
+            ldf.drop(columns)
+        } else {
+            ldf.drop_no_validate(columns)
+        }
+        .into()
     }
 
-    fn cast(&self, dtypes: HashMap<&str, Wrap<DataType>>, strict: bool) -> Self {
+    fn cast(&self, dtypes: HashMap<PyBackedStr, Wrap<DataType>>, strict: bool) -> Self {
         let mut cast_map = PlHashMap::with_capacity(dtypes.len());
-        cast_map.extend(dtypes.iter().map(|(k, v)| (*k, v.0.clone())));
+        cast_map.extend(dtypes.iter().map(|(k, v)| (k.as_ref(), v.0.clone())));
         self.ldf.clone().cast(cast_map, strict).into()
     }
 
@@ -1105,24 +1149,10 @@ impl PyLazyFrame {
         self.ldf.clone().into()
     }
 
-    fn columns(&self, py: Python) -> PyResult<PyObject> {
-        let schema = self.get_schema()?;
-        let iter = schema.iter_names().map(|s| s.as_str());
-        Ok(PyList::new(py, iter).to_object(py))
-    }
+    fn collect_schema(&mut self, py: Python) -> PyResult<PyObject> {
+        let schema = self.ldf.schema().map_err(PyPolarsErr::from)?;
 
-    fn dtypes(&self, py: Python) -> PyResult<PyObject> {
-        let schema = self.get_schema()?;
-        let iter = schema
-            .iter_dtypes()
-            .map(|dt| Wrap(dt.clone()).to_object(py));
-        Ok(PyList::new(py, iter).to_object(py))
-    }
-
-    fn schema(&self, py: Python) -> PyResult<PyObject> {
-        let schema = self.get_schema()?;
-        let schema_dict = PyDict::new(py);
-
+        let schema_dict = PyDict::new_bound(py);
         schema.iter_fields().for_each(|fld| {
             schema_dict
                 .set_item(fld.name().as_str(), Wrap(fld.data_type().clone()))
@@ -1133,10 +1163,6 @@ impl PyLazyFrame {
 
     fn unnest(&self, columns: Vec<String>) -> Self {
         self.ldf.clone().unnest(columns).into()
-    }
-
-    fn width(&self) -> PyResult<usize> {
-        Ok(self.get_schema()?.len())
     }
 
     fn count(&self) -> Self {

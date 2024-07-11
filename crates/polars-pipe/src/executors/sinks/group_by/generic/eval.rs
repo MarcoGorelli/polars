@@ -70,19 +70,19 @@ impl Eval {
         let aggregation_series = &mut *self.aggregation_series.get();
 
         for phys_e in self.aggregation_columns_expr.iter() {
-            let s = phys_e.evaluate(chunk, context.execution_state.as_any())?;
+            let s = phys_e.evaluate(chunk, &context.execution_state)?;
             let s = s.to_physical_repr();
             aggregation_series.push(s.into_owned());
         }
         for phys_e in self.key_columns_expr.iter() {
-            let s = phys_e.evaluate(chunk, context.execution_state.as_any())?;
+            let s = phys_e.evaluate(chunk, &context.execution_state)?;
             let s = match s.dtype() {
                 // todo! add binary to physical repr?
                 DataType::String => unsafe { s.cast_unchecked(&DataType::Binary).unwrap() },
                 _ => s.to_physical_repr().into_owned(),
             };
             let s = prepare_key(&s, chunk);
-            keys_columns.push(s.to_arrow(0, true));
+            keys_columns.push(s.to_arrow(0, CompatLevel::newest()));
         }
 
         polars_row::convert_columns_amortized(

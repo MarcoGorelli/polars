@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::iter::{Peekable, Zip};
 
 use arrow::array::Array;
 use arrow::bitmap::MutableBitmap;
@@ -6,239 +7,206 @@ use polars_error::{polars_bail, PolarsResult};
 use polars_utils::slice::GetSaferUnchecked;
 
 use super::super::PagesIter;
-use super::utils::{DecodedState, MaybeNext, PageState};
+use super::utils::{BatchableCollector, DecodedState, MaybeNext, PageState};
 use crate::parquet::encoding::hybrid_rle::HybridRleDecoder;
+use crate::parquet::error::ParquetResult;
 use crate::parquet::page::{split_buffer, DataPage, DictPage, Page};
 use crate::parquet::read::levels::get_bit_width;
+use crate::read::deserialize::utils::BatchedCollector;
 
-/// trait describing deserialized repetition and definition levels
-pub trait Nested: std::fmt::Debug + Send + Sync {
-    fn inner(&mut self) -> (Vec<i64>, Option<MutableBitmap>);
-
-    fn push(&mut self, length: i64, is_valid: bool);
-
-    fn is_nullable(&self) -> bool;
-
-    fn is_repeated(&self) -> bool {
-        false
-    }
-
-    // Whether the Arrow container requires all items to be filled.
-    fn is_required(&self) -> bool;
-
-    /// number of rows
-    fn len(&self) -> usize;
-
-    /// number of values associated to the primitive type this nested tracks
-    fn num_values(&self) -> usize;
-}
-
-#[derive(Debug, Default)]
-pub struct NestedPrimitive {
-    is_nullable: bool,
+#[derive(Debug)]
+pub struct Nested {
+    validity: Option<MutableBitmap>,
     length: usize,
+    content: NestedContent,
+
+    // We batch the collection of valids and invalids to amortize the costs. This only really works
+    // when valids and invalids are grouped or there is a disbalance in the amount of valids vs.
+    // invalids. This, however, is a very common situation.
+    num_valids: usize,
+    num_invalids: usize,
 }
 
-impl NestedPrimitive {
-    pub fn new(is_nullable: bool) -> Self {
+#[derive(Debug)]
+pub enum NestedContent {
+    Primitive,
+    List { offsets: Vec<i64> },
+    FixedSizeList { width: usize },
+    Struct,
+}
+
+impl Nested {
+    fn primitive(is_nullable: bool) -> Self {
+        // @NOTE: We allocate with `0` capacity here since we will not be pushing to this bitmap.
+        // This is because primitive does not keep track of the validity here. It keeps track in
+        // the decoder. We do still want to put something so that we can check for nullability by
+        // looking at the option.
+        let validity = is_nullable.then(|| MutableBitmap::with_capacity(0));
+
         Self {
-            is_nullable,
+            validity,
             length: 0,
+            content: NestedContent::Primitive,
+
+            num_valids: 0,
+            num_invalids: 0,
         }
     }
-}
 
-impl Nested for NestedPrimitive {
-    fn inner(&mut self) -> (Vec<i64>, Option<MutableBitmap>) {
-        (Default::default(), Default::default())
+    fn list_with_capacity(is_nullable: bool, capacity: usize) -> Self {
+        let offsets = Vec::with_capacity(capacity);
+        let validity = is_nullable.then(|| MutableBitmap::with_capacity(capacity));
+        Self {
+            validity,
+            length: 0,
+            content: NestedContent::List { offsets },
+
+            num_valids: 0,
+            num_invalids: 0,
+        }
+    }
+
+    fn fixedlist_with_capacity(is_nullable: bool, width: usize, capacity: usize) -> Self {
+        let validity = is_nullable.then(|| MutableBitmap::with_capacity(capacity));
+        Self {
+            validity,
+            length: 0,
+            content: NestedContent::FixedSizeList { width },
+
+            num_valids: 0,
+            num_invalids: 0,
+        }
+    }
+
+    fn struct_with_capacity(is_nullable: bool, capacity: usize) -> Self {
+        let validity = is_nullable.then(|| MutableBitmap::with_capacity(capacity));
+        Self {
+            validity,
+            length: 0,
+            content: NestedContent::Struct,
+
+            num_valids: 0,
+            num_invalids: 0,
+        }
+    }
+
+    fn take(mut self) -> (Vec<i64>, Option<MutableBitmap>) {
+        if !matches!(self.content, NestedContent::Primitive) {
+            if let Some(validity) = self.validity.as_mut() {
+                validity.extend_constant(self.num_valids, true);
+                validity.extend_constant(self.num_invalids, false);
+            }
+        }
+
+        self.num_valids = 0;
+        self.num_invalids = 0;
+
+        match self.content {
+            NestedContent::Primitive => {
+                debug_assert!(self.validity.map_or(true, |validity| validity.is_empty()));
+                (Vec::new(), None)
+            },
+            NestedContent::List { offsets } => (offsets, self.validity),
+            NestedContent::FixedSizeList { .. } => (Vec::new(), self.validity),
+            NestedContent::Struct => (Vec::new(), self.validity),
+        }
     }
 
     fn is_nullable(&self) -> bool {
-        self.is_nullable
+        self.validity.is_some()
+    }
+
+    fn is_repeated(&self) -> bool {
+        match self.content {
+            NestedContent::Primitive => false,
+            NestedContent::List { .. } => true,
+            NestedContent::FixedSizeList { .. } => true,
+            NestedContent::Struct => false,
+        }
     }
 
     fn is_required(&self) -> bool {
-        false
+        match self.content {
+            NestedContent::Primitive => false,
+            NestedContent::List { .. } => false,
+            NestedContent::FixedSizeList { .. } => false,
+            NestedContent::Struct => true,
+        }
     }
 
-    fn push(&mut self, _value: i64, _is_valid: bool) {
-        self.length += 1
-    }
-
+    /// number of rows
     fn len(&self) -> usize {
         self.length
     }
 
-    fn num_values(&self) -> usize {
-        self.length
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct NestedOptional {
-    pub validity: MutableBitmap,
-    pub offsets: Vec<i64>,
-}
-
-impl Nested for NestedOptional {
-    fn inner(&mut self) -> (Vec<i64>, Option<MutableBitmap>) {
-        let offsets = std::mem::take(&mut self.offsets);
-        let validity = std::mem::take(&mut self.validity);
-        (offsets, Some(validity))
-    }
-
-    fn is_nullable(&self) -> bool {
-        true
-    }
-
-    fn is_repeated(&self) -> bool {
-        true
-    }
-
-    fn is_required(&self) -> bool {
-        // it may be for FixedSizeList
-        false
+    fn invalid_num_values(&self) -> usize {
+        match &self.content {
+            NestedContent::Primitive => 0,
+            NestedContent::List { .. } => 0,
+            NestedContent::FixedSizeList { width } => *width,
+            NestedContent::Struct => 1,
+        }
     }
 
     fn push(&mut self, value: i64, is_valid: bool) {
-        self.offsets.push(value);
-        self.validity.push(is_valid);
-    }
+        let is_primitive = matches!(self.content, NestedContent::Primitive);
 
-    fn len(&self) -> usize {
-        self.offsets.len()
-    }
+        if is_valid && self.num_invalids != 0 {
+            debug_assert!(!is_primitive);
 
-    fn num_values(&self) -> usize {
-        self.offsets.last().copied().unwrap_or(0) as usize
-    }
-}
+            let validity = self.validity.as_mut().unwrap();
+            validity.extend_constant(self.num_valids, true);
+            validity.extend_constant(self.num_invalids, false);
 
-impl NestedOptional {
-    pub fn with_capacity(capacity: usize) -> Self {
-        let offsets = Vec::<i64>::with_capacity(capacity + 1);
-        let validity = MutableBitmap::with_capacity(capacity);
-        Self { validity, offsets }
-    }
-}
+            self.num_valids = 0;
+            self.num_invalids = 0;
+        }
 
-#[derive(Debug, Default)]
-pub struct NestedValid {
-    pub offsets: Vec<i64>,
-}
+        self.num_valids += usize::from(!is_primitive & is_valid);
+        self.num_invalids += usize::from(!is_primitive & !is_valid);
 
-impl Nested for NestedValid {
-    fn inner(&mut self) -> (Vec<i64>, Option<MutableBitmap>) {
-        let offsets = std::mem::take(&mut self.offsets);
-        (offsets, None)
-    }
-
-    fn is_nullable(&self) -> bool {
-        false
-    }
-
-    fn is_repeated(&self) -> bool {
-        true
-    }
-
-    fn is_required(&self) -> bool {
-        // it may be for FixedSizeList
-        false
-    }
-
-    fn push(&mut self, value: i64, _is_valid: bool) {
-        self.offsets.push(value);
-    }
-
-    fn len(&self) -> usize {
-        self.offsets.len()
-    }
-
-    fn num_values(&self) -> usize {
-        self.offsets.last().copied().unwrap_or(0) as usize
-    }
-}
-
-impl NestedValid {
-    pub fn with_capacity(capacity: usize) -> Self {
-        let offsets = Vec::<i64>::with_capacity(capacity + 1);
-        Self { offsets }
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct NestedStructValid {
-    length: usize,
-}
-
-impl NestedStructValid {
-    pub fn new() -> Self {
-        Self { length: 0 }
-    }
-}
-
-impl Nested for NestedStructValid {
-    fn inner(&mut self) -> (Vec<i64>, Option<MutableBitmap>) {
-        (Default::default(), None)
-    }
-
-    fn is_nullable(&self) -> bool {
-        false
-    }
-
-    fn is_required(&self) -> bool {
-        true
-    }
-
-    fn push(&mut self, _value: i64, _is_valid: bool) {
         self.length += 1;
+        if let NestedContent::List { offsets } = &mut self.content {
+            offsets.push(value);
+        }
     }
 
-    fn len(&self) -> usize {
-        self.length
-    }
+    fn push_default(&mut self, length: i64) {
+        debug_assert!(self.validity.is_some());
 
-    fn num_values(&self) -> usize {
-        self.length
-    }
-}
+        let is_primitive = matches!(self.content, NestedContent::Primitive);
+        self.num_invalids += usize::from(!is_primitive);
 
-#[derive(Debug, Default)]
-pub struct NestedStruct {
-    validity: MutableBitmap,
-}
-
-impl NestedStruct {
-    pub fn with_capacity(capacity: usize) -> Self {
-        Self {
-            validity: MutableBitmap::with_capacity(capacity),
+        self.length += 1;
+        if let NestedContent::List { offsets } = &mut self.content {
+            offsets.push(length);
         }
     }
 }
 
-impl Nested for NestedStruct {
-    fn inner(&mut self) -> (Vec<i64>, Option<MutableBitmap>) {
-        (Default::default(), Some(std::mem::take(&mut self.validity)))
+pub struct BatchedNestedDecoder<'a, 'b, 'c, D: NestedDecoder<'a>> {
+    state: &'b mut D::State,
+    decoder: &'c D,
+}
+
+impl<'a, 'b, 'c, D: NestedDecoder<'a>> BatchableCollector<(), D::DecodedState>
+    for BatchedNestedDecoder<'a, 'b, 'c, D>
+{
+    fn reserve(_target: &mut D::DecodedState, _n: usize) {
+        unreachable!()
     }
 
-    fn is_nullable(&self) -> bool {
-        true
+    fn push_n(&mut self, target: &mut D::DecodedState, n: usize) -> ParquetResult<()> {
+        self.decoder.push_n_valid(self.state, target, n)
     }
 
-    fn is_required(&self) -> bool {
-        true
+    fn push_n_nulls(&mut self, target: &mut D::DecodedState, n: usize) -> ParquetResult<()> {
+        self.decoder.push_n_nulls(target, n);
+        Ok(())
     }
 
-    fn push(&mut self, _value: i64, is_valid: bool) {
-        self.validity.push(is_valid)
-    }
-
-    fn len(&self) -> usize {
-        self.validity.len()
-    }
-
-    fn num_values(&self) -> usize {
-        self.validity.len()
+    fn skip_n(&mut self, _n: usize) -> ParquetResult<()> {
+        unreachable!()
     }
 }
 
@@ -257,12 +225,13 @@ pub(super) trait NestedDecoder<'a> {
     /// Initializes a new state
     fn with_capacity(&self, capacity: usize) -> Self::DecodedState;
 
-    fn push_valid(
+    fn push_n_valid(
         &self,
         state: &mut Self::State,
         decoded: &mut Self::DecodedState,
-    ) -> PolarsResult<()>;
-    fn push_null(&self, decoded: &mut Self::DecodedState);
+        n: usize,
+    ) -> ParquetResult<()>;
+    fn push_n_nulls(&self, decoded: &mut Self::DecodedState, n: usize);
 
     fn deserialize_dict(&self, page: &DictPage) -> Self::Dictionary;
 }
@@ -275,52 +244,51 @@ pub enum InitNested {
     Primitive(bool),
     /// List data types
     List(bool),
+    /// Fixed-Size List data types
+    FixedSizeList(bool, usize),
     /// Struct data types
     Struct(bool),
 }
 
 /// Initialize [`NestedState`] from `&[InitNested]`.
 pub fn init_nested(init: &[InitNested], capacity: usize) -> NestedState {
+    use {InitNested as IN, Nested as N};
+
     let container = init
         .iter()
         .map(|init| match init {
-            InitNested::Primitive(is_nullable) => {
-                Box::new(NestedPrimitive::new(*is_nullable)) as Box<dyn Nested>
+            IN::Primitive(is_nullable) => N::primitive(*is_nullable),
+            IN::List(is_nullable) => N::list_with_capacity(*is_nullable, capacity),
+            IN::FixedSizeList(is_nullable, width) => {
+                N::fixedlist_with_capacity(*is_nullable, *width, capacity)
             },
-            InitNested::List(is_nullable) => {
-                if *is_nullable {
-                    Box::new(NestedOptional::with_capacity(capacity)) as Box<dyn Nested>
-                } else {
-                    Box::new(NestedValid::with_capacity(capacity)) as Box<dyn Nested>
-                }
-            },
-            InitNested::Struct(is_nullable) => {
-                if *is_nullable {
-                    Box::new(NestedStruct::with_capacity(capacity)) as Box<dyn Nested>
-                } else {
-                    Box::new(NestedStructValid::new()) as Box<dyn Nested>
-                }
-            },
+            IN::Struct(is_nullable) => N::struct_with_capacity(*is_nullable, capacity),
         })
         .collect();
+
     NestedState::new(container)
 }
 
 pub struct NestedPage<'a> {
-    iter: std::iter::Peekable<std::iter::Zip<HybridRleDecoder<'a>, HybridRleDecoder<'a>>>,
+    iter: Peekable<Zip<HybridRleDecoder<'a>, HybridRleDecoder<'a>>>,
 }
 
 impl<'a> NestedPage<'a> {
     pub fn try_new(page: &'a DataPage) -> PolarsResult<Self> {
-        let (rep_levels, def_levels, _) = split_buffer(page)?;
+        let split = split_buffer(page)?;
+        let rep_levels = split.rep;
+        let def_levels = split.def;
 
         let max_rep_level = page.descriptor.max_rep_level;
         let max_def_level = page.descriptor.max_def_level;
 
         let reps =
-            HybridRleDecoder::try_new(rep_levels, get_bit_width(max_rep_level), page.num_values())?;
+            HybridRleDecoder::new(rep_levels, get_bit_width(max_rep_level), page.num_values());
         let defs =
-            HybridRleDecoder::try_new(def_levels, get_bit_width(max_def_level), page.num_values())?;
+            HybridRleDecoder::new(def_levels, get_bit_width(max_def_level), page.num_values());
+
+        let reps = reps.into_iter();
+        let defs = defs.into_iter();
 
         let iter = reps.zip(defs).peekable();
 
@@ -334,16 +302,20 @@ impl<'a> NestedPage<'a> {
 }
 
 /// The state of nested data types.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct NestedState {
     /// The nesteds composing `NestedState`.
-    pub nested: Vec<Box<dyn Nested>>,
+    nested: Vec<Nested>,
 }
 
 impl NestedState {
     /// Creates a new [`NestedState`].
-    pub fn new(nested: Vec<Box<dyn Nested>>) -> Self {
+    fn new(nested: Vec<Nested>) -> Self {
         Self { nested }
+    }
+
+    pub fn pop(&mut self) -> Option<(Vec<i64>, Option<MutableBitmap>)> {
+        Some(self.nested.pop()?.take())
     }
 
     /// The number of rows in this state
@@ -381,24 +353,33 @@ pub(super) fn extend<'a, D: NestedDecoder<'a>>(
     let chunk_size = chunk_size.unwrap_or(usize::MAX);
     let mut first_item_is_fully_read = false;
     // Amortize the allocations.
-    let mut cum_sum = vec![];
-    let mut cum_rep = vec![];
+    let mut def_levels = vec![];
+    let mut rep_levels = vec![];
 
     loop {
         if let Some((mut nested, mut decoded)) = items.pop_back() {
             let existing = nested.len();
             let additional = (chunk_size - existing).min(*remaining);
 
+            let mut batched_collector = BatchedCollector::new(
+                BatchedNestedDecoder {
+                    state: &mut values_page,
+                    decoder,
+                },
+                &mut decoded,
+            );
+
             let is_fully_read = extend_offsets2(
                 &mut page,
-                &mut values_page,
+                &mut batched_collector,
                 &mut nested.nested,
-                &mut decoded,
-                decoder,
                 additional,
-                &mut cum_sum,
-                &mut cum_rep,
+                &mut def_levels,
+                &mut rep_levels,
             )?;
+
+            batched_collector.finalize()?;
+
             first_item_is_fully_read |= is_fully_read;
             *remaining -= nested.len() - existing;
             items.push_back((nested, decoded));
@@ -425,32 +406,37 @@ pub(super) fn extend<'a, D: NestedDecoder<'a>>(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn extend_offsets2<'a, D: NestedDecoder<'a>>(
+fn extend_offsets2<'a, 'b, 'c, 'd, D: NestedDecoder<'a>>(
     page: &mut NestedPage<'a>,
-    values_state: &mut D::State,
-    nested: &mut [Box<dyn Nested>],
-    decoded: &mut D::DecodedState,
-    decoder: &D,
+    batched_collector: &mut BatchedCollector<
+        'b,
+        (),
+        D::DecodedState,
+        BatchedNestedDecoder<'a, 'c, 'd, D>,
+    >,
+    nested: &mut [Nested],
     additional: usize,
     // Amortized allocations
-    cum_sum: &mut Vec<u32>,
-    cum_rep: &mut Vec<u32>,
+    def_levels: &mut Vec<u32>,
+    rep_levels: &mut Vec<u32>,
 ) -> PolarsResult<bool> {
     let max_depth = nested.len();
 
-    cum_sum.resize(max_depth + 1, 0);
-    cum_rep.resize(max_depth + 1, 0);
+    def_levels.resize(max_depth + 1, 0);
+    rep_levels.resize(max_depth + 1, 0);
     for (i, nest) in nested.iter().enumerate() {
         let delta = nest.is_nullable() as u32 + nest.is_repeated() as u32;
         unsafe {
-            *cum_sum.get_unchecked_release_mut(i + 1) = *cum_sum.get_unchecked_release(i) + delta;
+            *def_levels.get_unchecked_release_mut(i + 1) =
+                *def_levels.get_unchecked_release(i) + delta;
         }
     }
 
     for (i, nest) in nested.iter().enumerate() {
         let delta = nest.is_repeated() as u32;
         unsafe {
-            *cum_rep.get_unchecked_release_mut(i + 1) = *cum_rep.get_unchecked_release(i) + delta;
+            *rep_levels.get_unchecked_release_mut(i + 1) =
+                *rep_levels.get_unchecked_release(i) + delta;
         }
     }
 
@@ -476,37 +462,80 @@ fn extend_offsets2<'a, D: NestedDecoder<'a>>(
 
         let mut is_required = false;
 
-        // SAFETY: only bound check elision.
-        unsafe {
-            for depth in 0..max_depth {
-                let right_level = rep <= *cum_rep.get_unchecked_release(depth)
-                    && def >= *cum_sum.get_unchecked_release(depth);
-                if is_required || right_level {
-                    let length = nested
-                        .get(depth + 1)
+        for depth in 0..max_depth {
+            // Defines whether this element is defined at `depth`
+            //
+            // e.g. [ [ [ 1 ] ] ] is defined at [ ... ], [ [ ... ] ], [ [ [ ... ] ] ] and
+            // [ [ [ 1 ] ] ].
+            let is_defined_at_this_depth = rep <= rep_levels[depth] && def >= def_levels[depth];
+
+            let length = nested
+                .get(depth + 1)
+                .map(|x| x.len() as i64)
+                // the last depth is the leaf, which is always increased by 1
+                .unwrap_or(1);
+
+            let nest = &mut nested[depth];
+
+            let is_valid = !nest.is_nullable() || def > def_levels[depth];
+
+            if is_defined_at_this_depth && !is_valid {
+                let mut num_elements = 1;
+
+                nest.push(length, is_valid);
+
+                for embed_depth in depth..max_depth {
+                    let embed_length = nested
+                        .get(embed_depth + 1)
                         .map(|x| x.len() as i64)
                         // the last depth is the leaf, which is always increased by 1
                         .unwrap_or(1);
 
-                    let nest = nested.get_unchecked_release_mut(depth);
+                    let embed_nest = &mut nested[embed_depth];
 
-                    let is_valid =
-                        nest.is_nullable() && def > *cum_sum.get_unchecked_release(depth);
-                    nest.push(length, is_valid);
-                    is_required = nest.is_required() && !is_valid;
-
-                    if depth == max_depth - 1 {
-                        // the leaf / primitive
-                        let is_valid =
-                            (def != *cum_sum.get_unchecked_release(depth)) || !nest.is_nullable();
-                        if right_level && is_valid {
-                            decoder.push_valid(values_state, decoded)?;
-                        } else {
-                            decoder.push_null(decoded);
+                    if embed_depth > depth {
+                        for _ in 0..num_elements {
+                            embed_nest.push_default(embed_length);
                         }
+                    }
+
+                    if embed_depth == max_depth - 1 {
+                        for _ in 0..num_elements {
+                            batched_collector.push_invalid();
+                        }
+
+                        break;
+                    }
+
+                    let embed_num_values = embed_nest.invalid_num_values();
+
+                    if embed_num_values == 0 {
+                        break;
+                    }
+
+                    num_elements *= embed_num_values;
+                }
+
+                break;
+            }
+
+            if is_required || is_defined_at_this_depth {
+                nest.push(length, is_valid);
+
+                if depth == max_depth - 1 {
+                    // the leaf / primitive
+                    let is_valid = (def != def_levels[depth]) || !nest.is_nullable();
+
+                    if is_valid {
+                        batched_collector.push_valid()?;
+                    } else {
+                        batched_collector.push_invalid();
                     }
                 }
             }
+
+            is_required =
+                (is_required || is_defined_at_this_depth) && nest.is_required() && !is_valid;
         }
 
         if page.iter.len() == 0 {
@@ -544,7 +573,7 @@ where
             }
         },
         Ok(Some(page)) => {
-            let page = match page {
+            let page = match &page {
                 Page::Data(page) => page,
                 Page::Dict(dict_page) => {
                     *dict = Some(decoder.deserialize_dict(dict_page));

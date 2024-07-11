@@ -1,4 +1,4 @@
-use super::{new_empty_array, new_null_array, Array};
+use super::{new_empty_array, new_null_array, Array, Splitable};
 use crate::bitmap::Bitmap;
 use crate::datatypes::{ArrowDataType, Field};
 
@@ -10,6 +10,8 @@ mod iterator;
 mod mutable;
 pub use mutable::*;
 use polars_error::{polars_bail, PolarsResult};
+
+use crate::compute::utils::combine_validities_and;
 
 /// A [`StructArray`] is a nested [`Array`] with an optional validity representing
 /// multiple [`Array`] with the same number of rows.
@@ -192,6 +194,27 @@ impl StructArray {
             .for_each(|x| x.slice_unchecked(offset, length));
     }
 
+    /// Set the outer nulls into the inner arrays, and clear the outer validity.
+    pub fn propagate_nulls(&self) -> StructArray {
+        let has_nulls = self.null_count() > 0;
+        let mut out = self.clone();
+        if !has_nulls {
+            return out;
+        };
+
+        for value_arr in &mut out.values {
+            let new = if has_nulls {
+                let new_validity = combine_validities_and(self.validity(), value_arr.validity());
+                value_arr.with_validity(new_validity)
+            } else {
+                value_arr.clone()
+            };
+
+            *value_arr = new;
+        }
+        out.with_validity(None)
+    }
+
     impl_sliced!();
 
     impl_mut_validity!();
@@ -250,5 +273,37 @@ impl Array for StructArray {
     #[inline]
     fn with_validity(&self, validity: Option<Bitmap>) -> Box<dyn Array> {
         Box::new(self.clone().with_validity(validity))
+    }
+}
+
+impl Splitable for StructArray {
+    fn check_bound(&self, offset: usize) -> bool {
+        offset <= self.len()
+    }
+
+    unsafe fn _split_at_unchecked(&self, offset: usize) -> (Self, Self) {
+        let (lhs_validity, rhs_validity) = unsafe { self.validity.split_at_unchecked(offset) };
+
+        let mut lhs_values = Vec::with_capacity(self.values.len());
+        let mut rhs_values = Vec::with_capacity(self.values.len());
+
+        for v in self.values.iter() {
+            let (lhs, rhs) = unsafe { v.split_at_boxed_unchecked(offset) };
+            lhs_values.push(lhs);
+            rhs_values.push(rhs);
+        }
+
+        (
+            Self {
+                data_type: self.data_type.clone(),
+                values: lhs_values,
+                validity: lhs_validity,
+            },
+            Self {
+                data_type: self.data_type.clone(),
+                values: rhs_values,
+                validity: rhs_validity,
+            },
+        )
     }
 }

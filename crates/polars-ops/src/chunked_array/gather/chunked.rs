@@ -113,7 +113,7 @@ impl TakeChunked for Series {
                 let ca = phys.str().unwrap();
                 let ca = ca.as_binary();
                 let out = take_unchecked_binview(&ca, by, sorted);
-                out.to_string().into_series()
+                out.to_string_unchecked().into_series()
             },
             List(_) => {
                 let ca = phys.list().unwrap();
@@ -128,6 +128,7 @@ impl TakeChunked for Series {
             Struct(_) => {
                 let ca = phys.struct_().unwrap();
                 ca._apply_fields(|s| s.take_chunked_unchecked(by, sorted))
+                    .expect("infallible")
                     .into_series()
             },
             #[cfg(feature = "object")]
@@ -169,7 +170,7 @@ impl TakeChunked for Series {
                 let ca = phys.str().unwrap();
                 let ca = ca.as_binary();
                 let out = take_unchecked_binview_opt(&ca, by);
-                out.to_string().into_series()
+                out.to_string_unchecked().into_series()
             },
             List(_) => {
                 let ca = phys.list().unwrap();
@@ -184,6 +185,7 @@ impl TakeChunked for Series {
             Struct(_) => {
                 let ca = phys.struct_().unwrap();
                 ca._apply_fields(|s| s.take_opt_chunked_unchecked(by))
+                    .expect("infallible")
                     .into_series()
             },
             #[cfg(feature = "object")]
@@ -208,7 +210,7 @@ where
     T::Array: Debug,
 {
     unsafe fn take_chunked_unchecked(&self, by: &[ChunkId], sorted: IsSorted) -> Self {
-        let arrow_dtype = self.dtype().to_arrow(true);
+        let arrow_dtype = self.dtype().to_arrow(CompatLevel::newest());
 
         let mut out = if let Some(iter) = self.downcast_slices() {
             let targets = iter.collect::<Vec<_>>();
@@ -245,7 +247,7 @@ where
 
     // Take function that checks of null state in `ChunkIdx`.
     unsafe fn take_opt_chunked_unchecked(&self, by: &[NullableChunkId]) -> Self {
-        let arrow_dtype = self.dtype().to_arrow(true);
+        let arrow_dtype = self.dtype().to_arrow(CompatLevel::newest());
 
         if let Some(iter) = self.downcast_slices() {
             let targets = iter.collect::<Vec<_>>();

@@ -67,7 +67,7 @@ impl ExprNameNameSpace {
             move |s| {
                 let s = s.struct_()?;
                 let fields = s
-                    .fields()
+                    .fields_as_series()
                     .iter()
                     .map(|fd| {
                         let mut fd = fd.clone();
@@ -75,7 +75,9 @@ impl ExprNameNameSpace {
                         fd
                     })
                     .collect::<Vec<_>>();
-                StructChunked::new(s.name(), &fields).map(|ca| Some(ca.into_series()))
+                let mut out = StructChunked2::from_series(s.name(), &fields)?;
+                out.zip_outer_validity(s);
+                Ok(Some(out.into_series()))
             },
             GetOutput::map_dtype(move |dt| match dt {
                 DataType::Struct(fds) => {
@@ -83,7 +85,7 @@ impl ExprNameNameSpace {
                         .iter()
                         .map(|fd| Field::new(&f(fd.name()), fd.data_type().clone()))
                         .collect();
-                    DataType::Struct(fields)
+                    Ok(DataType::Struct(fields))
                 },
                 _ => panic!("Only struct dtype is supported for `map_fields`."),
             }),

@@ -132,7 +132,7 @@ def prepare_file_arg(
     If encoding is not `utf8` or `utf8-lossy`, decoding is handled by
     fsspec too.
     """
-    storage_options = storage_options or {}
+    storage_options = storage_options.copy() if storage_options else {}
     if storage_options and not _FSSPEC_AVAILABLE:
         msg = "`fsspec` is required for `storage_options` argument"
         raise ImportError(msg)
@@ -279,10 +279,6 @@ def process_file_url(path: str, encoding: str | None = None) -> BytesIO:
 
 def is_glob_pattern(file: str) -> bool:
     return any(char in file for char in ["*", "?", "["])
-
-
-def is_supported_cloud(file: str) -> bool:
-    return bool(re.match("^(s3a?|gs|gcs|file|abfss?|azure|az|adl|https?)://", file))
 
 
 def is_local_file(file: str) -> bool:

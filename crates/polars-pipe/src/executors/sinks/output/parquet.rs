@@ -4,14 +4,15 @@ use std::thread::JoinHandle;
 
 use crossbeam_channel::{bounded, Receiver, Sender};
 use polars_core::prelude::*;
-use polars_io::parquet::{BatchedWriter, ParquetWriter, RowGroupIter};
-use polars_plan::prelude::ParquetWriteOptions;
+use polars_io::parquet::write::{
+    BatchedWriter, ParquetWriteOptions, ParquetWriter, RowGroupIterColumns,
+};
 
 use crate::executors::sinks::output::file_sink::{init_writer_thread, FilesSink, SinkWriter};
 use crate::operators::{DataChunk, FinalizedSink, PExecutionContext, Sink, SinkResult};
 use crate::pipeline::morsels_per_sink;
 
-type RowGroups = Vec<RowGroupIter<'static, PolarsError>>;
+type RowGroups = Vec<RowGroupIterColumns<'static, PolarsError>>;
 
 pub(super) fn init_row_group_writer_thread(
     receiver: Receiver<Option<(IdxSize, RowGroups)>>,
@@ -62,7 +63,7 @@ impl ParquetSink {
         let file = std::fs::File::create(path)?;
         let writer = ParquetWriter::new(file)
             .with_compression(options.compression)
-            .with_data_page_size(options.data_pagesize_limit)
+            .with_data_page_size(options.data_page_size)
             .with_statistics(options.statistics)
             .with_row_group_size(options.row_group_size)
             // This is important! Otherwise we will deadlock
@@ -153,7 +154,7 @@ impl ParquetCloudSink {
         let cloud_writer = polars_io::cloud::CloudWriter::new(uri, cloud_options).await?;
         let writer = ParquetWriter::new(cloud_writer)
             .with_compression(parquet_options.compression)
-            .with_data_page_size(parquet_options.data_pagesize_limit)
+            .with_data_page_size(parquet_options.data_page_size)
             .with_statistics(parquet_options.statistics)
             .with_row_group_size(parquet_options.row_group_size)
             // This is important! Otherwise we will deadlock
@@ -181,7 +182,7 @@ impl ParquetCloudSink {
     }
 }
 
-impl<W: std::io::Write> SinkWriter for polars_io::parquet::BatchedWriter<W> {
+impl<W: std::io::Write> SinkWriter for polars_io::parquet::write::BatchedWriter<W> {
     fn _write_batch(&mut self, df: &DataFrame) -> PolarsResult<()> {
         self.write_batch(df)
     }

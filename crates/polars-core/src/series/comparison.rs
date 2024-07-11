@@ -1,14 +1,11 @@
 //! Comparison operations on Series.
 
-#[cfg(feature = "dtype-struct")]
-use std::ops::Deref;
-
 use crate::prelude::*;
 use crate::series::arithmetic::coerce_lhs_rhs;
 use crate::series::nulls::replace_non_null;
 
 macro_rules! impl_compare {
-    ($self:expr, $rhs:expr, $method:ident) => {{
+    ($self:expr, $rhs:expr, $method:ident, $struct_function:expr) => {{
         use DataType::*;
         let (lhs, rhs) = ($self, $rhs);
         validate_types(lhs.dtype(), rhs.dtype())?;
@@ -39,7 +36,8 @@ macro_rules! impl_compare {
             _ => (),
         };
 
-        let (lhs, rhs) = coerce_lhs_rhs(lhs, rhs).expect("cannot coerce datatypes");
+        let (lhs, rhs) = coerce_lhs_rhs(lhs, rhs).map_err(|_| polars_err!(SchemaMismatch: "could not evaluate comparison between series '{}' of dtype: {} and series '{}' of dtype: {}",
+        lhs.name(), lhs.dtype(), rhs.name(), rhs.dtype()))?;
         let lhs = lhs.to_physical_repr();
         let rhs = rhs.to_physical_repr();
         let mut out = match lhs.dtype() {
@@ -61,10 +59,14 @@ macro_rules! impl_compare {
             #[cfg(feature = "dtype-array")]
             Array(_, _) => lhs.array().unwrap().$method(rhs.array().unwrap()),
             #[cfg(feature = "dtype-struct")]
-            Struct(_) => lhs
+            Struct(_) => {
+                let lhs = lhs
                 .struct_()
-                .unwrap()
-                .$method(rhs.struct_().unwrap().deref()),
+                .unwrap();
+                let rhs = rhs.struct_().unwrap();
+
+                $struct_function(lhs, rhs)?
+            },
             #[cfg(feature = "dtype-decimal")]
             Decimal(_, s1) => {
                 let DataType::Decimal(_, s2) = rhs.dtype() else {
@@ -76,28 +78,38 @@ macro_rules! impl_compare {
                 lhs.0.$method(&rhs.0)
             },
 
-            _ => unimplemented!(),
+            dt => polars_bail!(InvalidOperation: "could not apply comparison on series of dtype '{}; operand names: '{}', '{}'", dt, lhs.name(), rhs.name()),
         };
         out.rename(lhs.name());
-        Ok(out) as PolarsResult<BooleanChunked>
+        PolarsResult::Ok(out)
     }};
+}
+
+#[cfg(feature = "dtype-struct")]
+fn raise_struct(_a: &StructChunked2, _b: &StructChunked2) -> PolarsResult<BooleanChunked> {
+    polars_bail!(InvalidOperation: "order comparison not support for struct dtype")
+}
+
+#[cfg(not(feature = "dtype-struct"))]
+fn raise_struct(_a: &(), _b: &()) -> PolarsResult<BooleanChunked> {
+    unimplemented!()
 }
 
 fn validate_types(left: &DataType, right: &DataType) -> PolarsResult<()> {
     use DataType::*;
-    #[cfg(feature = "dtype-categorical")]
-    {
-        let mismatch = matches!(left, String | Categorical(_, _) | Enum(_, _))
-            && right.is_numeric()
-            || left.is_numeric() && matches!(right, String | Categorical(_, _) | Enum(_, _));
-        polars_ensure!(!mismatch, ComputeError: "cannot compare string with numeric data");
-    }
-    #[cfg(not(feature = "dtype-categorical"))]
-    {
-        let mismatch = matches!(left, String) && right.is_numeric()
-            || left.is_numeric() && matches!(right, String);
-        polars_ensure!(!mismatch, ComputeError: "cannot compare string with numeric data");
-    }
+
+    match (left, right) {
+        (String, dt) | (dt, String) if dt.is_numeric() => {
+            polars_bail!(ComputeError: "cannot compare string with numeric type ({})", dt)
+        },
+        #[cfg(feature = "dtype-categorical")]
+        (Categorical(_, _) | Enum(_, _), dt) | (dt, Categorical(_, _) | Enum(_, _))
+            if !(dt.is_categorical() | dt.is_string() | dt.is_enum()) =>
+        {
+            polars_bail!(ComputeError: "cannot compare categorical with {}", dt);
+        },
+        _ => (),
+    };
     Ok(())
 }
 
@@ -106,42 +118,62 @@ impl ChunkCompare<&Series> for Series {
 
     /// Create a boolean mask by checking for equality.
     fn equal(&self, rhs: &Series) -> PolarsResult<BooleanChunked> {
-        impl_compare!(self, rhs, equal)
+        impl_compare!(
+            self,
+            rhs,
+            equal,
+            |a: &StructChunked2, b: &StructChunked2| PolarsResult::Ok(a.equal(b))
+        )
     }
 
     /// Create a boolean mask by checking for equality.
     fn equal_missing(&self, rhs: &Series) -> PolarsResult<BooleanChunked> {
-        impl_compare!(self, rhs, equal_missing)
+        impl_compare!(
+            self,
+            rhs,
+            equal_missing,
+            |a: &StructChunked2, b: &StructChunked2| PolarsResult::Ok(a.equal_missing(b))
+        )
     }
 
     /// Create a boolean mask by checking for inequality.
     fn not_equal(&self, rhs: &Series) -> PolarsResult<BooleanChunked> {
-        impl_compare!(self, rhs, not_equal)
+        impl_compare!(
+            self,
+            rhs,
+            not_equal,
+            |a: &StructChunked2, b: &StructChunked2| PolarsResult::Ok(a.not_equal(b))
+        )
     }
 
     /// Create a boolean mask by checking for inequality.
     fn not_equal_missing(&self, rhs: &Series) -> PolarsResult<BooleanChunked> {
-        impl_compare!(self, rhs, not_equal_missing)
+        impl_compare!(
+            self,
+            rhs,
+            not_equal_missing,
+            |a: &StructChunked2, b: &StructChunked2| PolarsResult::Ok(a.not_equal_missing(b))
+        )
     }
 
     /// Create a boolean mask by checking if self > rhs.
     fn gt(&self, rhs: &Series) -> PolarsResult<BooleanChunked> {
-        impl_compare!(self, rhs, gt)
+        impl_compare!(self, rhs, gt, raise_struct)
     }
 
     /// Create a boolean mask by checking if self >= rhs.
     fn gt_eq(&self, rhs: &Series) -> PolarsResult<BooleanChunked> {
-        impl_compare!(self, rhs, gt_eq)
+        impl_compare!(self, rhs, gt_eq, raise_struct)
     }
 
     /// Create a boolean mask by checking if self < rhs.
     fn lt(&self, rhs: &Series) -> PolarsResult<BooleanChunked> {
-        impl_compare!(self, rhs, lt)
+        impl_compare!(self, rhs, lt, raise_struct)
     }
 
     /// Create a boolean mask by checking if self <= rhs.
     fn lt_eq(&self, rhs: &Series) -> PolarsResult<BooleanChunked> {
-        impl_compare!(self, rhs, lt_eq)
+        impl_compare!(self, rhs, lt_eq, raise_struct)
     }
 }
 

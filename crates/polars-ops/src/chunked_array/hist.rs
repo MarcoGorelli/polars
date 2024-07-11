@@ -135,7 +135,7 @@ where
         fields.push(categories);
     };
     if include_breakpoint {
-        fields.insert(0, Series::new("break_point", breaks))
+        fields.insert(0, Series::new("breakpoint", breaks))
     }
 
     let count = Series::new("count", count);
@@ -145,7 +145,7 @@ where
         let out = fields.pop().unwrap();
         out.with_name(ca.name())
     } else {
-        StructChunked::new(ca.name(), &fields)
+        StructChunked2::from_series(ca.name(), &fields)
             .unwrap()
             .into_series()
     }

@@ -34,6 +34,8 @@ use smartstring::alias::String as SmartString;
 #[cfg(feature = "cloud")]
 use url::Url;
 
+#[cfg(feature = "file_cache")]
+use crate::file_cache::get_env_file_cache_ttl;
 #[cfg(feature = "aws")]
 use crate::pl_async::with_concurrency_budget;
 #[cfg(feature = "aws")]
@@ -56,19 +58,23 @@ type Configs<T> = Vec<(T, String)>;
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 /// Options to connect to various cloud providers.
 pub struct CloudOptions {
+    pub max_retries: usize,
+    #[cfg(feature = "file_cache")]
+    pub file_cache_ttl: u64,
     #[cfg(feature = "aws")]
     aws: Option<Configs<AmazonS3ConfigKey>>,
     #[cfg(feature = "azure")]
     azure: Option<Configs<AzureConfigKey>>,
     #[cfg(feature = "gcp")]
     gcp: Option<Configs<GoogleConfigKey>>,
-    pub max_retries: usize,
 }
 
 impl Default for CloudOptions {
     fn default() -> Self {
         Self {
             max_retries: 2,
+            #[cfg(feature = "file_cache")]
+            file_cache_ttl: get_env_file_cache_ttl(),
             #[cfg(feature = "aws")]
             aws: Default::default(),
             #[cfg(feature = "azure")]
@@ -188,20 +194,18 @@ fn read_config(
             continue;
         }
 
-        let mut config = std::fs::File::open(&resolve_homedir(path)).ok()?;
+        let mut config = std::fs::File::open(resolve_homedir(path)).ok()?;
         let mut buf = vec![];
         config.read_to_end(&mut buf).ok()?;
         let content = std::str::from_utf8(buf.as_ref()).ok()?;
 
         for (pattern, key) in keys.iter() {
-            let local = std::mem::take(builder);
-
             if builder.get_config_value(key).is_none() {
                 let reg = Regex::new(pattern).unwrap();
                 let cap = reg.captures(content)?;
                 let m = cap.get(1)?;
                 let parsed = m.as_str();
-                *builder = local.with_config(*key, parsed)
+                *builder = std::mem::take(builder).with_config(*key, parsed);
             }
         }
     }
@@ -209,6 +213,12 @@ fn read_config(
 }
 
 impl CloudOptions {
+    /// Set the maximum number of retries.
+    pub fn with_max_retries(mut self, max_retries: usize) -> Self {
+        self.max_retries = max_retries;
+        self
+    }
+
     /// Set the configuration for AWS connections. This is the preferred API from rust.
     #[cfg(feature = "aws")]
     pub fn with_aws<I: IntoIterator<Item = (AmazonS3ConfigKey, impl Into<String>)>>(
@@ -429,10 +439,10 @@ impl CloudOptions {
 #[cfg(feature = "cloud")]
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::parse_url;
 
     #[test]
-    fn test_parse_path() {
+    fn test_parse_url() {
         assert_eq!(
             parse_url(r"http://Users/Jane Doe/data.csv")
                 .unwrap()

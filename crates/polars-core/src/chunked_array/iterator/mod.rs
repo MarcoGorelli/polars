@@ -3,6 +3,7 @@ use arrow::array::*;
 use crate::prelude::*;
 #[cfg(feature = "dtype-struct")]
 use crate::series::iterator::SeriesIter;
+use crate::utils::Container;
 
 pub mod par;
 
@@ -224,7 +225,7 @@ impl<'a> IntoIterator for &'a ListChunked {
                             Some(Series::from_chunks_and_dtype_unchecked(
                                 "",
                                 vec![arr],
-                                &dtype,
+                                dtype,
                             ))
                         }),
                 )
@@ -238,7 +239,7 @@ impl<'a> IntoIterator for &'a ListChunked {
                         .trust_my_length(self.len())
                         .map(move |arr| {
                             arr.map(|arr| {
-                                Series::from_chunks_and_dtype_unchecked("", vec![arr], &dtype)
+                                Series::from_chunks_and_dtype_unchecked("", vec![arr], dtype)
                             })
                         }),
                 )
@@ -258,7 +259,7 @@ impl ListChunked {
         unsafe {
             self.downcast_iter()
                 .flat_map(|arr| arr.values_iter())
-                .map(move |arr| Series::from_chunks_and_dtype_unchecked("", vec![arr], &inner_type))
+                .map(move |arr| Series::from_chunks_and_dtype_unchecked("", vec![arr], inner_type))
                 .trust_my_length(self.len())
         }
     }
@@ -282,7 +283,7 @@ impl<'a> IntoIterator for &'a ArrayChunked {
                             Some(Series::from_chunks_and_dtype_unchecked(
                                 "",
                                 vec![arr],
-                                &dtype,
+                                dtype,
                             ))
                         }),
                 )
@@ -296,7 +297,7 @@ impl<'a> IntoIterator for &'a ArrayChunked {
                         .trust_my_length(self.len())
                         .map(move |arr| {
                             arr.map(|arr| {
-                                Series::from_chunks_and_dtype_unchecked("", vec![arr], &dtype)
+                                Series::from_chunks_and_dtype_unchecked("", vec![arr], dtype)
                             })
                         }),
                 )
@@ -420,16 +421,25 @@ impl<T: PolarsObject> ObjectChunked<T> {
     }
 }
 
-// Make sure to call `rechunk` first!
+// TODO: STRUCT REFACTOR: REMOVE THIS
 #[cfg(feature = "dtype-struct")]
-impl<'a> IntoIterator for &'a StructChunked {
-    type Item = &'a [AnyValue<'a>];
-    type IntoIter = StructIter<'a>;
+impl<'a> IntoIterator for &'a StructChunked2 {
+    type Item = Option<&'a [AnyValue<'a>]>;
+    type IntoIter = StructIter2<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let field_iter = self.fields().iter().map(|s| s.iter()).collect();
+        assert_eq!(self.n_chunks(), 1);
+        let fields = self.fields_as_series();
+        let field_iter = fields
+            .iter()
+            .map(|s| {
+                let iter = s.iter();
+                // SAFETY: this works as the reference is to the heap, and not to the struct.
+                unsafe { std::mem::transmute::<SeriesIter<'_>, SeriesIter<'a>>(iter) }
+            })
+            .collect();
 
-        StructIter {
+        StructIter2 {
             field_iter,
             buf: vec![],
         }
@@ -437,14 +447,14 @@ impl<'a> IntoIterator for &'a StructChunked {
 }
 
 #[cfg(feature = "dtype-struct")]
-pub struct StructIter<'a> {
+pub struct StructIter2<'a> {
     field_iter: Vec<SeriesIter<'a>>,
     buf: Vec<AnyValue<'a>>,
 }
 
 #[cfg(feature = "dtype-struct")]
-impl<'a> Iterator for StructIter<'a> {
-    type Item = &'a [AnyValue<'a>];
+impl<'a> Iterator for StructIter2<'a> {
+    type Item = Option<&'a [AnyValue<'a>]>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.buf.clear();
@@ -452,12 +462,13 @@ impl<'a> Iterator for StructIter<'a> {
         for it in &mut self.field_iter {
             self.buf.push(it.next()?);
         }
+
         // SAFETY:
         // Lifetime is bound to struct, we just cannot set the lifetime for the iterator trait
         unsafe {
-            Some(std::mem::transmute::<&'_ [AnyValue], &'a [AnyValue]>(
+            Some(Some(std::mem::transmute::<&'_ [AnyValue], &'a [AnyValue]>(
                 &self.buf,
-            ))
+            )))
         }
     }
 }

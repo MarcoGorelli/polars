@@ -13,7 +13,7 @@ where
 {
     Box::new(iter.map(|x| {
         x.map(|(mut nested, array)| {
-            let _ = nested.nested.pop().unwrap(); // the primitive
+            let _ = nested.pop().unwrap(); // the primitive
             (nested, array)
         })
     }))
@@ -28,7 +28,7 @@ where
 {
     Box::new(iter.map(|x| {
         x.map(|(mut nested, array)| {
-            let _ = nested.nested.pop().unwrap(); // the primitive
+            let _ = nested.pop().unwrap(); // the primitive
             (nested, Box::new(array) as _)
         })
     }))
@@ -239,10 +239,25 @@ where
                     dict_read::<$K, _>(iter, init, type_, data_type, num_rows, chunk_size)
                 })?
             },
-            ArrowDataType::List(inner)
-            | ArrowDataType::LargeList(inner)
-            | ArrowDataType::FixedSizeList(inner, _) => {
+            ArrowDataType::List(inner) | ArrowDataType::LargeList(inner) => {
                 init.push(InitNested::List(field.is_nullable));
+                let iter = columns_to_iter_recursive(
+                    columns,
+                    types,
+                    inner.as_ref().clone(),
+                    init,
+                    num_rows,
+                    chunk_size,
+                )?;
+                let iter = iter.map(move |x| {
+                    let (mut nested, array) = x?;
+                    let array = create_list(field.data_type().clone(), &mut nested, array);
+                    Ok((nested, array))
+                });
+                Box::new(iter) as _
+            },
+            ArrowDataType::FixedSizeList(inner, width) => {
+                init.push(InitNested::FixedSizeList(field.is_nullable, *width));
                 let iter = columns_to_iter_recursive(
                     columns,
                     types,
@@ -307,7 +322,7 @@ where
                                 validity,
                             )?);
 
-                            let _ = nested.nested.pop().unwrap(); // the primitive
+                            let _ = nested.pop().unwrap(); // the primitive
 
                             Ok((nested, array))
                         });
@@ -365,7 +380,7 @@ where
                                 validity,
                             )?);
 
-                            let _ = nested.nested.pop().unwrap(); // the primitive
+                            let _ = nested.pop().unwrap(); // the primitive
 
                             Ok((nested, array))
                         });
@@ -396,7 +411,7 @@ where
                                 validity,
                             )?);
 
-                            let _ = nested.nested.pop().unwrap(); // the primitive
+                            let _ = nested.pop().unwrap(); // the primitive
 
                             Ok((nested, array))
                         });

@@ -8,9 +8,12 @@ use polars_error::PolarsResult;
 use polars_utils::iter::FallibleIterator;
 
 use super::super::binary::decoders::*;
+use crate::parquet::encoding::hybrid_rle::DictionaryTranslator;
 use crate::parquet::page::{DataPage, DictPage};
-use crate::read::deserialize::utils;
-use crate::read::deserialize::utils::{extend_from_decoder, next, DecodedState, MaybeNext};
+use crate::read::deserialize::utils::{
+    self, binary_views_dict, extend_from_decoder, next, DecodedState, MaybeNext,
+    TranslatedHybridRle,
+};
 use crate::read::{PagesIter, PrimitiveLogicalType};
 
 type DecodedStateTuple = (MutableBinaryViewArray<[u8]>, MutableBitmap);
@@ -69,7 +72,7 @@ impl<'a> utils::Decoder<'a> for BinViewDecoder {
                 Some(additional),
                 values,
                 page_values,
-            ),
+            )?,
             BinaryState::Required(page) => {
                 for x in page.values.by_ref().take(additional) {
                     values.push_value_ignore_validity(x)
@@ -87,7 +90,7 @@ impl<'a> utils::Decoder<'a> for BinViewDecoder {
                     Some(additional),
                     values,
                     page_values,
-                );
+                )?;
             },
             BinaryState::FilteredRequired(page) => {
                 for x in page.values.by_ref().take(additional) {
@@ -102,33 +105,36 @@ impl<'a> utils::Decoder<'a> for BinViewDecoder {
             BinaryState::OptionalDictionary(page_validity, page_values) => {
                 // Already done on the dict.
                 validate_utf8 = false;
+
                 let page_dict = &page_values.dict;
+                let views_dict = binary_views_dict(values, page_dict);
+                let translator = DictionaryTranslator(&views_dict);
+                let collector = TranslatedHybridRle::new(&mut page_values.values, &translator);
+
                 utils::extend_from_decoder(
                     validity,
                     page_validity,
                     Some(additional),
                     values,
-                    &mut page_values
-                        .values
-                        .by_ref()
-                        .map(|index| page_dict.value(index as usize)),
-                );
-                page_values.values.get_result()?;
+                    collector,
+                )?;
             },
             BinaryState::RequiredDictionary(page) => {
                 // Already done on the dict.
                 validate_utf8 = false;
-                let page_dict = &page.dict;
 
-                for x in page
-                    .values
-                    .by_ref()
-                    .map(|index| page_dict.value(index as usize))
-                    .take(additional)
-                {
-                    values.push_value_ignore_validity(x)
+                let page_dict = &page.dict;
+                let views_dict = binary_views_dict(values, page_dict);
+                let translator = DictionaryTranslator(&views_dict);
+
+                page.values.translate_and_collect_n_into(
+                    values.views_mut(),
+                    additional,
+                    &translator,
+                )?;
+                if let Some(validity) = values.validity() {
+                    validity.extend_constant(additional, true);
                 }
-                page.values.get_result()?;
             },
             BinaryState::FilteredOptional(page_validity, page_values) => {
                 extend_from_decoder(
@@ -137,7 +143,7 @@ impl<'a> utils::Decoder<'a> for BinViewDecoder {
                     Some(additional),
                     values,
                     page_values.by_ref(),
-                );
+                )?;
             },
             BinaryState::FilteredOptionalDelta(page_validity, page_values) => {
                 extend_from_decoder(
@@ -146,7 +152,7 @@ impl<'a> utils::Decoder<'a> for BinViewDecoder {
                     Some(additional),
                     values,
                     page_values.by_ref(),
-                );
+                )?;
             },
             BinaryState::FilteredRequiredDictionary(page) => {
                 // TODO! directly set the dict as buffers and only insert the proper views.
@@ -179,7 +185,7 @@ impl<'a> utils::Decoder<'a> for BinViewDecoder {
                         .values
                         .by_ref()
                         .map(|index| page_dict.value(index as usize)),
-                );
+                )?;
                 page_values.values.get_result()?;
             },
             BinaryState::OptionalDeltaByteArray(page_validity, page_values) => extend_from_decoder(
@@ -188,7 +194,7 @@ impl<'a> utils::Decoder<'a> for BinViewDecoder {
                 Some(additional),
                 values,
                 page_values,
-            ),
+            )?,
             BinaryState::DeltaByteArray(page_values) => {
                 for x in page_values.take(additional) {
                     values.push_value_ignore_validity(x)
@@ -273,17 +279,7 @@ pub(super) fn finish(
     }
 
     match data_type.to_physical_type() {
-        PhysicalType::BinaryView => unsafe {
-            Ok(BinaryViewArray::new_unchecked(
-                data_type.clone(),
-                array.views().clone(),
-                array.data_buffers().clone(),
-                array.validity().cloned(),
-                array.total_bytes_len(),
-                array.total_buffer_len(),
-            )
-            .boxed())
-        },
+        PhysicalType::BinaryView => Ok(array.boxed()),
         PhysicalType::Utf8View => {
             // SAFETY: we already checked utf8
             unsafe {
