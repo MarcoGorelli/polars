@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import partial
 from math import ceil
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
 import pytest
@@ -11,8 +12,6 @@ import polars as pl
 from polars.testing.asserts.frame import assert_frame_equal
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from polars._typing import SchemaDict
 
 
@@ -28,8 +27,11 @@ def _enable_force_async(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("POLARS_FORCE_ASYNC", "1")
 
 
-def _assert_force_async(capfd: Any) -> None:
+def _assert_force_async(capfd: Any, data_file_extension: str) -> None:
     """Calls `capfd.readouterr`, consuming the captured output so far."""
+    if data_file_extension == ".ndjson":
+        return
+
     captured = capfd.readouterr().err
     assert captured.count("ASYNC READING FORCED") == 1
 
@@ -43,47 +45,47 @@ def _scan(
     row_index_name = None if row_index is None else row_index.name
     row_index_offset = 0 if row_index is None else row_index.offset
 
-    if suffix == ".ipc":
-        result = pl.scan_ipc(
+    if (
+        scan_func := {
+            ".ipc"     : pl.scan_ipc,
+            ".parquet" : pl.scan_parquet,
+            ".csv"     : pl.scan_csv,
+            ".ndjson"  : pl.scan_ndjson,
+        }.get(suffix)
+    ) is not None:  # fmt: skip
+        result = scan_func(
             file_path,
             row_index_name=row_index_name,
             row_index_offset=row_index_offset,
-        )
-    elif suffix == ".parquet":
-        result = pl.scan_parquet(
-            file_path,
-            row_index_name=row_index_name,
-            row_index_offset=row_index_offset,
-        )
-    elif suffix == ".csv":
-        result = pl.scan_csv(
-            file_path,
-            schema=schema,
-            row_index_name=row_index_name,
-            row_index_offset=row_index_offset,
-        )
+        )  # type: ignore[operator]
+
     else:
         msg = f"Unknown suffix {suffix}"
         raise NotImplementedError(msg)
 
-    return result
+    return result  # type: ignore[no-any-return]
 
 
 def _write(df: pl.DataFrame, file_path: Path) -> None:
     suffix = file_path.suffix
-    if suffix == ".ipc":
-        return df.write_ipc(file_path)
-    if suffix == ".parquet":
-        return df.write_parquet(file_path)
-    if suffix == ".csv":
-        return df.write_csv(file_path)
+
+    if (
+        write_func := {
+            ".ipc"     : pl.DataFrame.write_ipc,
+            ".parquet" : pl.DataFrame.write_parquet,
+            ".csv"     : pl.DataFrame.write_csv,
+            ".ndjson"  : pl.DataFrame.write_ndjson,
+        }.get(suffix)
+    ) is not None:  # fmt: skip
+        return write_func(df, file_path)  # type: ignore[operator, no-any-return]
+
     msg = f"Unknown suffix {suffix}"
     raise NotImplementedError(msg)
 
 
 @pytest.fixture(
     scope="session",
-    params=["csv", "ipc", "parquet"],
+    params=["csv", "ipc", "parquet", "ndjson"],
 )
 def data_file_extension(request: pytest.FixtureRequest) -> str:
     return f".{request.param}"
@@ -198,7 +200,7 @@ def test_scan(
     df = _scan(data_file.path, data_file.df.schema).collect()
 
     if force_async:
-        _assert_force_async(capfd)
+        _assert_force_async(capfd, data_file.path.suffix)
 
     assert_frame_equal(df, data_file.df)
 
@@ -213,7 +215,7 @@ def test_scan_with_limit(
     df = _scan(data_file.path, data_file.df.schema).limit(4483).collect()
 
     if force_async:
-        _assert_force_async(capfd)
+        _assert_force_async(capfd, data_file.path.suffix)
 
     assert_frame_equal(
         df,
@@ -239,7 +241,7 @@ def test_scan_with_filter(
     )
 
     if force_async:
-        _assert_force_async(capfd)
+        _assert_force_async(capfd, data_file.path.suffix)
 
     assert_frame_equal(
         df,
@@ -266,7 +268,7 @@ def test_scan_with_filter_and_limit(
     )
 
     if force_async:
-        _assert_force_async(capfd)
+        _assert_force_async(capfd, data_file.path.suffix)
 
     assert_frame_equal(
         df,
@@ -293,7 +295,7 @@ def test_scan_with_limit_and_filter(
     )
 
     if force_async:
-        _assert_force_async(capfd)
+        _assert_force_async(capfd, data_file.path.suffix)
 
     assert_frame_equal(
         df,
@@ -319,7 +321,7 @@ def test_scan_with_row_index_and_limit(
     )
 
     if force_async:
-        _assert_force_async(capfd)
+        _assert_force_async(capfd, data_file.path.suffix)
 
     assert_frame_equal(
         df,
@@ -347,7 +349,7 @@ def test_scan_with_row_index_and_filter(
     )
 
     if force_async:
-        _assert_force_async(capfd)
+        _assert_force_async(capfd, data_file.path.suffix)
 
     assert_frame_equal(
         df,
@@ -376,7 +378,7 @@ def test_scan_with_row_index_limit_and_filter(
     )
 
     if force_async:
-        _assert_force_async(capfd)
+        _assert_force_async(capfd, data_file.path.suffix)
 
     assert_frame_equal(
         df,
@@ -408,7 +410,7 @@ def test_scan_with_row_index_projected_out(
     )
 
     if force_async:
-        _assert_force_async(capfd)
+        _assert_force_async(capfd, data_file.path.suffix)
 
     assert_frame_equal(df, data_file.df.select(subset))
 
@@ -431,7 +433,7 @@ def test_scan_with_row_index_filter_and_limit(
     )
 
     if force_async:
-        _assert_force_async(capfd)
+        _assert_force_async(capfd, data_file.path.suffix)
 
     assert_frame_equal(
         df,
@@ -570,3 +572,96 @@ def test_scan_single_dir_differing_file_extensions_raises_17436(tmp_path: Path) 
         match="parquet: File out of specification: The file must end with PAR1",
     ):
         pl.scan_parquet(tmp_path / "*").collect()
+
+
+@pytest.mark.parametrize("format", ["parquet", "csv", "ndjson", "ipc"])
+def test_scan_nonexistent_path(format: str) -> None:
+    path_str = f"my-nonexistent-data.{format}"
+    path = Path(path_str)
+    assert not path.exists()
+
+    scan_function = getattr(pl, f"scan_{format}")
+
+    # Just calling the scan function should not raise any errors
+    result = scan_function(path)
+    assert isinstance(result, pl.LazyFrame)
+
+    # Upon collection, it should fail
+    with pytest.raises(FileNotFoundError):
+        result.collect()
+
+
+@pytest.mark.write_disk()
+@pytest.mark.parametrize(
+    ("scan_func", "write_func"),
+    [
+        (pl.scan_parquet, pl.DataFrame.write_parquet),
+        (pl.scan_ipc, pl.DataFrame.write_ipc),
+        (pl.scan_csv, pl.DataFrame.write_csv),
+    ],
+)
+@pytest.mark.parametrize(
+    "streaming",
+    [True, False],
+)
+def test_scan_include_file_name(
+    tmp_path: Path,
+    scan_func: Callable[[Any], pl.LazyFrame],
+    write_func: Callable[[pl.DataFrame, Path], None],
+    streaming: bool,
+) -> None:
+    tmp_path.mkdir(exist_ok=True)
+    paths: list[Path] = []
+    dfs: list[pl.DataFrame] = []
+
+    for x in ["1", "2"]:
+        paths.append(Path(f"{tmp_path}/{x}.bin").absolute())
+        dfs.append(pl.DataFrame({"x": x}))
+        write_func(dfs[-1], paths[-1])
+
+    df = pl.concat(dfs).with_columns(
+        pl.Series("path", map(str, paths), dtype=pl.String)
+    )
+
+    assert df.columns == ["x", "path"]
+
+    with pytest.raises(
+        pl.exceptions.DuplicateError,
+        match=r'column name for file paths "x" conflicts with column name from file',
+    ):
+        scan_func(tmp_path, include_file_paths="x").collect(streaming=streaming)  # type: ignore[call-arg]
+
+    f = scan_func
+    if scan_func is pl.scan_csv:
+        f = partial(f, schema=df.drop("path").schema)
+
+    lf: pl.LazyFrame = f(tmp_path, include_file_paths="path")  # type: ignore[call-arg]
+    assert_frame_equal(lf.collect(streaming=streaming), df)
+
+    # TODO: Support this with CSV
+    if scan_func is not pl.scan_csv:
+        # Test projecting only the path column
+        assert_frame_equal(
+            lf.select("path").collect(streaming=streaming),
+            df.select("path"),
+        )
+
+    # Test predicates
+    for predicate in [pl.col("path") != pl.col("x"), pl.col("path") != ""]:
+        assert_frame_equal(
+            lf.filter(predicate).collect(streaming=streaming),
+            df,
+        )
+
+    # Test codepaths that materialize empty DataFrames
+    assert_frame_equal(lf.head(0).collect(streaming=streaming), df.head(0))
+
+
+@pytest.mark.write_disk()
+def test_async_path_expansion_bracket_17629(tmp_path: Path) -> None:
+    path = tmp_path / "data.parquet"
+
+    df = pl.DataFrame({"x": 1})
+    df.write_parquet(path)
+
+    assert_frame_equal(pl.scan_parquet(tmp_path / "[d]ata.parquet").collect(), df)

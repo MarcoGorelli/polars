@@ -1083,26 +1083,40 @@ def test_hybrid_rle() -> None:
     assert_frame_equal(pl.read_parquet(f), df)
 
 
-@pytest.mark.skip(
-    reason="This test causes too many panics in other parts of the code base"
-)
 @given(
     df=dataframes(
-        include_dtypes=[pl.List, pl.Array, pl.Int8, pl.Struct],
-        min_size=90,
-        max_size=110,
+        allowed_dtypes=[
+            pl.List,
+            pl.Array,
+            pl.Int8,
+            pl.UInt8,
+            pl.UInt32,
+            pl.Int64,
+            # pl.Date, # Turned off because of issue #17599
+            # pl.Time, # Turned off because of issue #17599
+            pl.Binary,
+            pl.Float32,
+            pl.Float64,
+            pl.String,
+            pl.Boolean,
+        ],
+        min_size=1,
+        max_size=5000,
     )
 )
 @pytest.mark.slow()
+@pytest.mark.write_disk()
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_roundtrip_parametric(df: pl.DataFrame, tmp_path: Path) -> None:
     # delete if exists
     path = tmp_path / "data.parquet"
 
+    print(df)
+
     df.write_parquet(path)
     result = pl.read_parquet(path)
 
-    assert str(df) == str(result)
+    assert_frame_equal(df, result)
 
 
 def test_parquet_statistics_uint64_16683() -> None:

@@ -1,5 +1,6 @@
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
+use std::sync::RwLock;
 
 use polars_core::prelude::*;
 use polars_io::RowIndex;
@@ -96,7 +97,7 @@ impl LazyFileListReader for LazyJsonLineReader {
             return self.finish_no_glob();
         }
 
-        let paths = self.expand_paths_default()?;
+        let paths = self.paths;
 
         let file_options = FileScanOptions {
             n_rows: self.n_rows,
@@ -106,6 +107,8 @@ impl LazyFileListReader for LazyJsonLineReader {
             rechunk: self.rechunk,
             file_counter: 0,
             hive_options: Default::default(),
+            glob: true,
+            include_file_paths: None,
         };
 
         let options = NDJsonReadOptions {
@@ -121,7 +124,7 @@ impl LazyFileListReader for LazyJsonLineReader {
 
         Ok(LazyFrame::from(DslPlan::Scan {
             paths,
-            file_info: None,
+            file_info: Arc::new(RwLock::new(None)),
             hive_parts: None,
             predicate: None,
             file_options,
@@ -138,6 +141,8 @@ impl LazyFileListReader for LazyJsonLineReader {
             rechunk: self.rechunk,
             file_counter: 0,
             hive_options: Default::default(),
+            glob: false,
+            include_file_paths: None,
         };
 
         let options = NDJsonReadOptions {
@@ -153,7 +158,7 @@ impl LazyFileListReader for LazyJsonLineReader {
 
         Ok(LazyFrame::from(DslPlan::Scan {
             paths: self.paths,
-            file_info: None,
+            file_info: Arc::new(RwLock::new(None)),
             hive_parts: None,
             predicate: None,
             file_options,

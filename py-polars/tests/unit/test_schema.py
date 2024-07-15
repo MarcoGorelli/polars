@@ -1,3 +1,5 @@
+import pickle
+
 import polars as pl
 
 
@@ -32,3 +34,34 @@ def test_schema_equality() -> None:
     assert s1 != s2
     assert s1 != s3
     assert s2 != s3
+
+
+def test_schema_picklable() -> None:
+    s = pl.Schema({"foo": pl.Int8(), "bar": pl.String()})
+
+    pickled = pickle.dumps(s)
+    s2 = pickle.loads(pickled)
+
+    assert s == s2
+
+
+def test_schema_in_map_elements_returns_scalar() -> None:
+    schema = pl.Schema([("portfolio", pl.String()), ("irr", pl.Float64())])
+
+    ldf = pl.LazyFrame(
+        {
+            "portfolio": ["A", "A", "B", "B"],
+            "amounts": [100.0, -110.0] * 2,
+        }
+    )
+
+    q = ldf.group_by("portfolio").agg(
+        pl.col("amounts")
+        .map_elements(
+            lambda x: float(x.sum()), return_dtype=pl.Float64, returns_scalar=True
+        )
+        .alias("irr")
+    )
+
+    assert (q.collect_schema()) == schema
+    assert q.collect().schema == schema

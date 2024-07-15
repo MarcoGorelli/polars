@@ -1,3 +1,5 @@
+use std::sync::RwLock;
+
 use polars_core::prelude::*;
 #[cfg(any(feature = "parquet", feature = "ipc", feature = "csv"))]
 use polars_io::cloud::CloudOptions;
@@ -51,11 +53,13 @@ impl DslBuilder {
                 enabled: Some(false),
                 ..Default::default()
             },
+            glob: false,
+            include_file_paths: None,
         };
 
         Ok(DslPlan::Scan {
             paths: Arc::new([]),
-            file_info: Some(file_info),
+            file_info: Arc::new(RwLock::new(Some(file_info))),
             hive_parts: None,
             predicate: None,
             file_options,
@@ -83,6 +87,8 @@ impl DslBuilder {
         cloud_options: Option<CloudOptions>,
         use_statistics: bool,
         hive_options: HiveOptions,
+        glob: bool,
+        include_file_paths: Option<Arc<str>>,
     ) -> PolarsResult<Self> {
         let paths = paths.into();
 
@@ -94,10 +100,12 @@ impl DslBuilder {
             row_index,
             file_counter: Default::default(),
             hive_options,
+            glob,
+            include_file_paths,
         };
         Ok(DslPlan::Scan {
             paths,
-            file_info: None,
+            file_info: Arc::new(RwLock::new(None)),
             hive_parts: None,
             predicate: None,
             file_options: options,
@@ -125,12 +133,13 @@ impl DslBuilder {
         rechunk: bool,
         cloud_options: Option<CloudOptions>,
         hive_options: HiveOptions,
+        include_file_paths: Option<Arc<str>>,
     ) -> PolarsResult<Self> {
         let paths = paths.into();
 
         Ok(DslPlan::Scan {
             paths,
-            file_info: None,
+            file_info: Arc::new(RwLock::new(None)),
             hive_parts: None,
             file_options: FileScanOptions {
                 with_columns: None,
@@ -140,6 +149,8 @@ impl DslBuilder {
                 row_index,
                 file_counter: Default::default(),
                 hive_options,
+                glob: true,
+                include_file_paths,
             },
             predicate: None,
             scan_type: FileScan::Ipc {
@@ -158,6 +169,8 @@ impl DslBuilder {
         read_options: CsvReadOptions,
         cache: bool,
         cloud_options: Option<CloudOptions>,
+        glob: bool,
+        include_file_paths: Option<Arc<str>>,
     ) -> PolarsResult<Self> {
         let paths = paths.into();
 
@@ -176,10 +189,12 @@ impl DslBuilder {
                 enabled: Some(false),
                 ..Default::default()
             },
+            glob,
+            include_file_paths,
         };
         Ok(DslPlan::Scan {
             paths,
-            file_info: None,
+            file_info: Arc::new(RwLock::new(None)),
             hive_parts: None,
             file_options: options,
             predicate: None,

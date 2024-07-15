@@ -645,8 +645,8 @@ impl ChunkCompare<&ListChunked> for ListChunked {
 
 #[cfg(feature = "dtype-struct")]
 fn struct_helper<F, R>(
-    a: &StructChunked2,
-    b: &StructChunked2,
+    a: &StructChunked,
+    b: &StructChunked,
     op: F,
     reduce: R,
     value: bool,
@@ -656,6 +656,7 @@ where
     R: Fn(BooleanChunked, BooleanChunked) -> BooleanChunked,
 {
     if a.len() != b.len() || a.struct_fields().len() != b.struct_fields().len() {
+        // polars_ensure!(a.len() == 1 || b.len() == 1, ShapeMismatch: "length lhs: {}, length rhs: {}", a.len(), b.len());
         BooleanChunked::full("", value, a.len())
     } else {
         let (a, b) = align_chunks_binary(a, b);
@@ -680,9 +681,9 @@ where
 }
 
 #[cfg(feature = "dtype-struct")]
-impl ChunkCompare<&StructChunked2> for StructChunked2 {
+impl ChunkCompare<&StructChunked> for StructChunked {
     type Item = BooleanChunked;
-    fn equal(&self, rhs: &StructChunked2) -> BooleanChunked {
+    fn equal(&self, rhs: &StructChunked) -> BooleanChunked {
         struct_helper(
             self,
             rhs,
@@ -692,7 +693,7 @@ impl ChunkCompare<&StructChunked2> for StructChunked2 {
         )
     }
 
-    fn equal_missing(&self, rhs: &StructChunked2) -> BooleanChunked {
+    fn equal_missing(&self, rhs: &StructChunked) -> BooleanChunked {
         struct_helper(
             self,
             rhs,
@@ -702,22 +703,22 @@ impl ChunkCompare<&StructChunked2> for StructChunked2 {
         )
     }
 
-    fn not_equal(&self, rhs: &StructChunked2) -> BooleanChunked {
+    fn not_equal(&self, rhs: &StructChunked) -> BooleanChunked {
         struct_helper(
             self,
             rhs,
             |l, r| l.not_equal(r).unwrap(),
-            |a, b| a.not_equal(&b).unique().unwrap(),
+            |a, b| a | b,
             true,
         )
     }
 
-    fn not_equal_missing(&self, rhs: &StructChunked2) -> BooleanChunked {
+    fn not_equal_missing(&self, rhs: &StructChunked) -> BooleanChunked {
         struct_helper(
             self,
             rhs,
             |l, r| l.not_equal_missing(r).unwrap(),
-            |a, b| a.not_equal_missing(&b).unique().unwrap(),
+            |a, b| a | b,
             true,
         )
     }

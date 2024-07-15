@@ -47,7 +47,6 @@ def test_apply_unnest() -> None:
     assert_frame_equal(df, expected)
 
 
-@pytest.mark.skip(reason="struct-refactor")
 def test_struct_equality() -> None:
     # equal struct dimensions, equal values
     s1 = pl.Series("misc", [{"x": "a", "y": 0}, {"x": "b", "y": 0}])
@@ -685,8 +684,18 @@ def test_empty_with_schema_struct() -> None:
             assert df.schema == frame_schema
             assert df.unnest("y").columns == ["x", "a", "b", "c"]
             assert df.rows() == [
-                (10, {"a": None, "b": None, "c": None}),
-                (20, {"a": None, "b": None, "c": None}),
+                (
+                    10,
+                    {"a": None, "b": None, "c": None}
+                    if empty_structs[0] is not None  # type: ignore[index]
+                    else None,
+                ),
+                (
+                    20,
+                    {"a": None, "b": None, "c": None}
+                    if empty_structs[1] is not None  # type: ignore[index]
+                    else None,
+                ),
             ]
 
 
@@ -925,3 +934,28 @@ def test_struct_wildcard_expansion_and_exclude() -> None:
         df.lazy().select(
             pl.col("meta_data").struct.with_fields(pl.field("*").exclude("user_data"))
         ).collect()
+
+
+def test_struct_chunked_gather_17603() -> None:
+    df = pl.DataFrame(
+        {
+            "id": [0, 0, 1, 1],
+            "a": [0, 1, 2, 3],
+        }
+    ).select("id", pl.struct("a"))
+    df = pl.concat((df, df))
+
+    assert df.select(pl.col("a").map_batches(lambda s: s).over("id")).to_dict(
+        as_series=False
+    ) == {
+        "a": [
+            {"a": 0},
+            {"a": 1},
+            {"a": 2},
+            {"a": 3},
+            {"a": 0},
+            {"a": 1},
+            {"a": 2},
+            {"a": 3},
+        ]
+    }

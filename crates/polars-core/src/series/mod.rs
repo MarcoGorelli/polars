@@ -604,14 +604,10 @@ impl Series {
                     .iter()
                     .map(|s| s.to_physical_repr().into_owned())
                     .collect();
-                let mut ca = StructChunked2::from_series(self.name(), &fields).unwrap();
+                let mut ca = StructChunked::from_series(self.name(), &fields).unwrap();
 
                 if arr.null_count() > 0 {
-                    unsafe {
-                        ca.downcast_iter_mut()
-                            .zip(arr.downcast_iter().map(|arr| arr.validity()))
-                            .for_each(|(arr, validity)| arr.set_validity(validity.cloned()))
-                    }
+                    ca.zip_outer_validity(arr);
                 }
                 Cow::Owned(ca.into_series())
             },

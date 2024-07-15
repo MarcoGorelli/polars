@@ -59,7 +59,7 @@ fn map_cats(
                 ._with_fast_unique(label_has_value.iter().all(bool::clone))
                 .into_series(),
         ];
-        Ok(StructChunked2::from_series(out_name, &outvals)?.into_series())
+        Ok(StructChunked::from_series(out_name, &outvals)?.into_series())
     } else {
         Ok(bld
             .drain_iter_and_finish(s_iter.map(|opt| {
@@ -159,7 +159,7 @@ pub fn qcut(
 }
 
 mod test {
-    // STRUCT REFACTOR
+    // This need metadata in fields
     #[ignore]
     #[test]
     fn test_map_cats_fast_unique() {

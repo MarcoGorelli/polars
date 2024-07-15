@@ -113,6 +113,19 @@ def test_normalize_filepath(io_files_path: Path) -> None:
     )
 
 
+def test_infer_schema_false() -> None:
+    csv = textwrap.dedent(
+        """\
+        a,b,c
+        1,2,3
+        1,2,3
+        """
+    )
+    f = io.StringIO(csv)
+    df = pl.read_csv(f, infer_schema=False)
+    assert df.dtypes == [pl.String, pl.String, pl.String]
+
+
 def test_csv_null_values() -> None:
     csv = textwrap.dedent(
         """\
@@ -2172,12 +2185,14 @@ def test_fsspec_not_available(monkeypatch: pytest.MonkeyPatch) -> None:
     os.environ.get("POLARS_FORCE_ASYNC") == "1" or sys.platform == "win32",
     reason="only local",
 )
-def test_no_glob(tmpdir: Path) -> None:
+def test_read_csv_no_glob(tmpdir: Path) -> None:
     df = pl.DataFrame({"foo": 1})
+
     p = tmpdir / "*.csv"
     df.write_csv(str(p))
     p = tmpdir / "*1.csv"
     df.write_csv(str(p))
+
     p = tmpdir / "*.csv"
     assert_frame_equal(pl.read_csv(str(p), glob=False), df)
 
@@ -2240,10 +2255,12 @@ def test_write_csv_raise_on_non_utf8_17328(
 
 
 @pytest.mark.write_disk()
-def test_write_csv_appending_17328(tmp_path: Path) -> None:
+def test_write_csv_appending_17543(tmp_path: Path) -> None:
     tmp_path.mkdir(exist_ok=True)
+    df = pl.DataFrame({"col": ["value"]})
     with (tmp_path / "append.csv").open("w") as f:
         f.write("# test\n")
-        pl.DataFrame({"col": ["value"]}).write_csv(f)
+        df.write_csv(f)
     with (tmp_path / "append.csv").open("r") as f:
-        assert f.read() == "# test\ncol\nvalue\n"
+        assert f.readline() == "# test\n"
+        assert pl.read_csv(f).equals(df)

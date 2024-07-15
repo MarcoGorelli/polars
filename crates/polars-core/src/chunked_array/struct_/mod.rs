@@ -3,7 +3,6 @@ mod frame;
 use std::fmt::Write;
 
 use arrow::array::StructArray;
-use arrow::bitmap::Bitmap;
 use arrow::compute::utils::combine_validities_and;
 use arrow::legacy::utils::CustomIterTools;
 use polars_error::{polars_ensure, PolarsResult};
@@ -14,11 +13,11 @@ use crate::chunked_array::ChunkedArray;
 use crate::prelude::sort::arg_sort_multiple::{_get_rows_encoded_arr, _get_rows_encoded_ca};
 use crate::prelude::*;
 use crate::series::Series;
-use crate::utils::{index_to_chunked_index, Container};
+use crate::utils::Container;
 
-pub type StructChunked2 = ChunkedArray<StructType>;
+pub type StructChunked = ChunkedArray<StructType>;
 
-fn constructor(name: &str, fields: &[Series]) -> PolarsResult<StructChunked2> {
+fn constructor(name: &str, fields: &[Series]) -> PolarsResult<StructChunked> {
     // Different chunk lengths: rechunk and recurse.
     if !fields.iter().map(|s| s.n_chunks()).all_equal() {
         let fields = fields.iter().map(|s| s.rechunk()).collect::<Vec<_>>();
@@ -48,7 +47,7 @@ fn constructor(name: &str, fields: &[Series]) -> PolarsResult<StructChunked2> {
         Ok(chunks) => {
             // SAFETY: invariants checked above.
             unsafe {
-                Ok(StructChunked2::from_chunks_and_dtype_unchecked(
+                Ok(StructChunked::from_chunks_and_dtype_unchecked(
                     name, chunks, dtype,
                 ))
             }
@@ -61,7 +60,7 @@ fn constructor(name: &str, fields: &[Series]) -> PolarsResult<StructChunked2> {
     }
 }
 
-impl StructChunked2 {
+impl StructChunked {
     pub fn from_series(name: &str, fields: &[Series]) -> PolarsResult<Self> {
         let mut names = PlHashSet::with_capacity(fields.len());
         let first_len = fields.first().map(|s| s.len()).unwrap_or(0);
@@ -171,7 +170,11 @@ impl StructChunked2 {
                     })
                     .collect::<PolarsResult<Vec<_>>>()?;
 
-                Self::from_series(self.name(), &new_fields).map(|ca| ca.into_series())
+                let mut out = Self::from_series(self.name(), &new_fields)?;
+                if self.null_count > 0 {
+                    out.zip_outer_validity(self);
+                }
+                Ok(out.into_series())
             },
             DataType::String => {
                 let ca = self.clone();
@@ -223,7 +226,11 @@ impl StructChunked2 {
                         }
                     })
                     .collect::<PolarsResult<Vec<_>>>()?;
-                Self::from_series(self.name(), &fields).map(|ca| ca.into_series())
+                let mut out = Self::from_series(self.name(), &fields)?;
+                if self.null_count > 0 {
+                    out.zip_outer_validity(self);
+                }
+                Ok(out.into_series())
             },
         }
     }
@@ -246,27 +253,6 @@ impl StructChunked2 {
 
     pub fn cast(&self, dtype: &DataType) -> PolarsResult<Series> {
         self.cast_with_options(dtype, CastOptions::NonStrict)
-    }
-
-    /// Gets AnyValue from LogicalType
-    pub(crate) fn get_any_value(&self, i: usize) -> PolarsResult<AnyValue<'_>> {
-        polars_ensure!(i < self.len(), oob = i, self.len());
-        unsafe { Ok(self.get_any_value_unchecked(i)) }
-    }
-
-    pub(crate) unsafe fn get_any_value_unchecked(&self, i: usize) -> AnyValue<'_> {
-        let (chunk_idx, idx) = index_to_chunked_index(self.chunks.iter().map(|c| c.len()), i);
-        if let DataType::Struct(flds) = self.dtype() {
-            // SAFETY: we already have a single chunk and we are
-            // guarded by the type system.
-            unsafe {
-                let arr = &**self.chunks.get_unchecked(chunk_idx);
-                let arr = &*(arr as *const dyn Array as *const StructArray);
-                AnyValue::Struct(idx, arr, flds)
-            }
-        } else {
-            unreachable!()
-        }
     }
 
     pub fn _apply_fields<F>(&self, mut func: F) -> PolarsResult<Self>
@@ -325,9 +311,19 @@ impl StructChunked2 {
     }
 
     /// Combine the validities of two structs.
-    /// # Panics
-    /// Panics if the chunks don't align.
-    pub fn zip_outer_validity(&mut self, other: &StructChunked2) {
+    pub fn zip_outer_validity(&mut self, other: &StructChunked) {
+        if self.chunks.len() != other.chunks.len()
+            || !self
+                .chunks
+                .iter()
+                .zip(other.chunks.iter())
+                .map(|(a, b)| a.len() == b.len())
+                .all_equal()
+        {
+            *self = self.rechunk();
+            let other = other.rechunk();
+            return self.zip_outer_validity(&other);
+        }
         if other.null_count > 0 {
             // SAFETY:
             // We keep length and dtypes the same.
@@ -337,15 +333,6 @@ impl StructChunked2 {
                     a.set_validity(new)
                 }
             }
-        }
-        self.compute_len();
-    }
-
-    pub(crate) fn set_outer_validity(&mut self, validity: Option<Bitmap>) {
-        assert_eq!(self.chunks().len(), 1);
-        unsafe {
-            let arr = self.downcast_iter_mut().next().unwrap();
-            arr.set_validity(validity)
         }
         self.compute_len();
     }

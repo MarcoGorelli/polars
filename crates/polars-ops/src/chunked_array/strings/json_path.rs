@@ -189,8 +189,6 @@ mod tests {
         assert_eq!(ca.json_infer(Some(2)).unwrap(), expected_dtype);
     }
 
-    // STRUCT REFACTOR
-    #[ignore]
     #[test]
     fn test_json_decode() {
         let s = Series::new(
@@ -204,7 +202,7 @@ mod tests {
         );
         let ca = s.str().unwrap();
 
-        let expected_series = StructChunked2::from_series(
+        let expected_series = StructChunked::from_series(
             "",
             &[
                 Series::new("a", &[None, Some(1), Some(2), None]),
@@ -212,6 +210,7 @@ mod tests {
             ],
         )
         .unwrap()
+        .with_outer_validity_chunked(BooleanChunked::new("", [false, true, true, false]))
         .into_series();
         let expected_dtype = expected_series.dtype().clone();
 

@@ -4094,32 +4094,31 @@ class Expr:
         This functionality is especially useful for defining a new group for every time
         a column's value changes, rather than for every distinct value of that column.
 
+        Examples
+        --------
+        >>> df = pl.DataFrame(
+        ...     {
+        ...         "a": [1, 2, 1, 1, 1],
+        ...         "b": ["x", "x", None, "y", "y"],
+        ...     }
+        ... )
+        >>> df.with_columns(
+        ...     rle_id_a=pl.col("a").rle_id(),
+        ...     rle_id_ab=pl.struct("a", "b").rle_id(),
+        ... )
+        shape: (5, 4)
+        ┌─────┬──────┬──────────┬───────────┐
+        │ a   ┆ b    ┆ rle_id_a ┆ rle_id_ab │
+        │ --- ┆ ---  ┆ ---      ┆ ---       │
+        │ i64 ┆ str  ┆ u32      ┆ u32       │
+        ╞═════╪══════╪══════════╪═══════════╡
+        │ 1   ┆ x    ┆ 0        ┆ 0         │
+        │ 2   ┆ x    ┆ 1        ┆ 1         │
+        │ 1   ┆ null ┆ 2        ┆ 2         │
+        │ 1   ┆ y    ┆ 2        ┆ 3         │
+        │ 1   ┆ y    ┆ 2        ┆ 3         │
+        └─────┴──────┴──────────┴───────────┘
         """
-        # STRUCT REFACTOR
-        # Examples
-        # --------
-        # >>> df = pl.DataFrame(
-        # ...     {
-        # ...         "a": [1, 2, 1, 1, 1],
-        # ...         "b": ["x", "x", None, "y", "y"],
-        # ...     }
-        # ... )
-        # >>> df.with_columns(
-        # ...     rle_id_a=pl.col("a").rle_id(),
-        # ...     rle_id_ab=pl.struct("a", "b").rle_id(),
-        # ... )
-        # shape: (5, 4)
-        # ┌─────┬──────┬──────────┬───────────┐
-        # │ a   ┆ b    ┆ rle_id_a ┆ rle_id_ab │
-        # │ --- ┆ ---  ┆ ---      ┆ ---       │
-        # │ i64 ┆ str  ┆ u32      ┆ u32       │
-        # ╞═════╪══════╪══════════╪═══════════╡
-        # │ 1   ┆ x    ┆ 0        ┆ 0         │
-        # │ 2   ┆ x    ┆ 1        ┆ 1         │
-        # │ 1   ┆ null ┆ 2        ┆ 2         │
-        # │ 1   ┆ y    ┆ 2        ┆ 3         │
-        # │ 1   ┆ y    ┆ 2        ┆ 3         │
-        # └─────┴──────┴──────────┴───────────┘
         return self._from_pyexpr(self._pyexpr.rle_id())
 
     def filter(
@@ -4414,6 +4413,7 @@ class Expr:
         skip_nulls: bool = True,
         pass_name: bool = False,
         strategy: MapElementsStrategy = "thread_local",
+        returns_scalar: bool = False,
     ) -> Expr:
         """
         Map a custom/user-defined function (UDF) to each element of a column.
@@ -4460,6 +4460,10 @@ class Expr:
             Don't map the function over values that contain nulls (this is faster).
         pass_name
             Pass the Series name to the custom function (this is more expensive).
+        returns_scalar
+            If the function passed does a reduction
+            (e.g. sum, min, etc), Polars must be informed of this otherwise
+            the schema might be incorrect.
         strategy : {'thread_local', 'threading'}
             The threading strategy to use.
 
@@ -4638,14 +4642,22 @@ class Expr:
                     )
 
         if strategy == "thread_local":
-            return self.map_batches(wrap_f, agg_list=True, return_dtype=return_dtype)
+            return self.map_batches(
+                wrap_f,
+                agg_list=True,
+                return_dtype=return_dtype,
+                returns_scalar=returns_scalar,
+            )
         elif strategy == "threading":
 
             def wrap_threading(x: Series) -> Series:
                 def get_lazy_promise(df: DataFrame) -> LazyFrame:
                     return df.lazy().select(
                         F.col("x").map_batches(
-                            wrap_f, agg_list=True, return_dtype=return_dtype
+                            wrap_f,
+                            agg_list=True,
+                            return_dtype=return_dtype,
+                            returns_scalar=returns_scalar,
                         )
                     )
 
@@ -4679,7 +4691,10 @@ class Expr:
                 return F.concat(out, rechunk=False)
 
             return self.map_batches(
-                wrap_threading, agg_list=True, return_dtype=return_dtype
+                wrap_threading,
+                agg_list=True,
+                return_dtype=return_dtype,
+                returns_scalar=returns_scalar,
             )
         else:
             msg = f"strategy {strategy!r} is not supported"

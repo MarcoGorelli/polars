@@ -56,6 +56,8 @@ def read_ipc(
         that have a `read()` method, such as a file handler like the builtin `open`
         function, or a `BytesIO` instance). If `fsspec` is installed, it will be used
         to open remote files.
+        For file-like objects,
+        stream position may not be updated accordingly after reading.
     columns
         Columns to select. Accepts a list of column indices (starting at zero) or a list
         of column names.
@@ -199,6 +201,8 @@ def read_ipc_stream(
         that have a `read()` method, such as a file handler like the builtin `open`
         function, or a `BytesIO` instance). If `fsspec` is installed, it will be used
         to open remote files.
+        For file-like objects,
+        stream position may not be updated accordingly after reading.
     columns
         Columns to select. Accepts a list of column indices (starting at zero) or a list
         of column names.
@@ -287,6 +291,8 @@ def read_ipc_schema(source: str | Path | IO[bytes] | bytes) -> dict[str, DataTyp
         Path to a file or a file-like object (by "file-like object" we refer to objects
         that have a `read()` method, such as a file handler like the builtin `open`
         function, or a `BytesIO` instance).
+        For file-like objects,
+        stream position may not be updated accordingly after reading.
 
     Returns
     -------
@@ -316,6 +322,7 @@ def scan_ipc(
     hive_partitioning: bool | None = None,
     hive_schema: SchemaDict | None = None,
     try_parse_hive_dates: bool = True,
+    include_file_paths: str | None = None,
 ) -> LazyFrame:
     """
     Lazily read from an Arrow IPC (Feather v2) file or multiple files via glob patterns.
@@ -374,6 +381,8 @@ def scan_ipc(
             at any point without it being considered a breaking change.
     try_parse_hive_dates
         Whether to try parsing hive values as date/datetime types.
+    include_file_paths
+        Include the path of the source file(s) as a column with this name.
     """
     if isinstance(source, (str, Path)):
         source = normalize_filepath(source, check_not_directory=False)
@@ -398,5 +407,6 @@ def scan_ipc(
         hive_partitioning=hive_partitioning,
         hive_schema=hive_schema,
         try_parse_hive_dates=try_parse_hive_dates,
+        include_file_paths=include_file_paths,
     )
     return wrap_ldf(pylf)

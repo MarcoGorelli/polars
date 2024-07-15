@@ -80,27 +80,15 @@ def test_is_in_struct() -> None:
     }
 
 
-@pytest.mark.skip(reason="struct-refactor")
 def test_is_in_null_prop() -> None:
     assert pl.Series([None], dtype=pl.Float32).is_in(pl.Series([42])).item() is None
-    assert (
-        pl.Series([{"a": None}], dtype=pl.Struct({"a": pl.Float32}))
-        .is_in(pl.Series([{"a": 42}]))
-        .item()
-        is None
-    )
-    with pytest.raises(
-        InvalidOperationError,
-        match="`is_in` cannot check for Int64 values in Boolean data",
-    ):
-        _res = pl.Series([None], dtype=pl.Boolean).is_in(pl.Series([42])).item()
+    assert pl.Series([{"a": None}, None], dtype=pl.Struct({"a": pl.Float32})).is_in(
+        pl.Series([{"a": 42}])
+    ).to_list() == [False, None]
 
-    assert (
-        pl.Series([{"a": None}], dtype=pl.Struct({"a": pl.Boolean}))
-        .is_in(pl.Series([{"a": 42}]))
-        .item()
-        is None
-    )
+    assert pl.Series([{"a": None}, None], dtype=pl.Struct({"a": pl.Boolean})).is_in(
+        pl.Series([{"a": 42}])
+    ).to_list() == [False, None]
 
 
 def test_is_in_9070() -> None:
@@ -402,3 +390,17 @@ def test_cat_list_is_in_from_single_str(val: str | None, expected: list[bool]) -
     res = df.select(pl.col("li").list.contains(pl.lit(val, dtype=pl.String)))
     expected_df = pl.DataFrame({"li": expected})
     assert_frame_equal(res, expected_df)
+
+
+def is_in_struct_enum_17618() -> None:
+    df = pl.DataFrame()
+    dtype = pl.Enum(categories=["HBS"])
+    df = df.insert_column(0, pl.Series("category", [], dtype=dtype))
+    assert df.filter(
+        pl.struct("category").is_in(
+            pl.Series(
+                [{"category": "HBS"}],
+                dtype=pl.Struct({"category": df["category"].dtype}),
+            )
+        )
+    ).shape == (0, 1)
