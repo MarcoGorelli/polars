@@ -143,55 +143,53 @@ impl PolarsTruncate for DurationChunked {
         _tz: Option<&Tz>,
         every: &StringChunked,
     ) -> PolarsResult<Self> {
-        let to_i64 = match self.time_unit() {
-            TimeUnit::Nanoseconds => Duration::duration_ns,
-            TimeUnit::Microseconds => Duration::duration_us,
-            TimeUnit::Milliseconds => Duration::duration_ms,
-        };
-
-        let out = if every.len() == 1 {
+        if every.len() == 1 {
             if let Some(every) = every.get(0) {
-                let every_duration = Duration::parse(every);
-
-                polars_ensure!(
-                    !every_duration.negative,
-                    ComputeError: "cannot truncate a Duration to a negative duration"
-                );
-                ensure_is_constant_duration(every_duration, None, "every")?;
-                let every_units = to_i64(&every_duration);
-                polars_ensure!(
-                    every_units != 0,
-                    InvalidOperation: "`every` duration cannot be zero"
-                );
-
-                Ok(self
-                    .0
-                    .apply_values(|duration| duration - duration % every_units))
+                let every_parsed = Duration::parse(every);
+                polars_ensure!(!every_parsed.negative, InvalidOperation: "cannot round a Duration to a negative duration");
+                polars_ensure!(every_parsed.is_constant_duration(None), InvalidOperation:"cannot round a Duration to a non-constant duration (i.e. one that involves weeks / months)");
+                let every = match self.time_unit() {
+                    TimeUnit::Milliseconds => every_parsed.duration_ms(),
+                    TimeUnit::Microseconds => every_parsed.duration_us(),
+                    TimeUnit::Nanoseconds => every_parsed.duration_ns(),
+                };
+                return Ok(self
+                    .apply_values(|t| {
+                        // Round half-way values away from zero
+                        let half_away = t.signum() * every / 2;
+                        t + half_away - (t + half_away) % every
+                    })
+                    .into_duration(self.time_unit()));
             } else {
-                Ok(Int64Chunked::full_null(self.name(), self.len()))
+                return Ok(Int64Chunked::full_null(self.name(), self.len())
+                    .into_duration(self.time_unit()));
             }
-        } else {
-            broadcast_try_binary_elementwise(self, every, |opt_duration, opt_every| {
-                if let (Some(duration), Some(every)) = (opt_duration, opt_every) {
-                    let every_duration = Duration::parse(every);
+        }
 
-                    polars_ensure!(
-                        !every_duration.negative,
-                        ComputeError: "cannot truncate a Duration to a negative duration"
-                    );
-                    ensure_is_constant_duration(every_duration, None, "every")?;
-                    let every_units = to_i64(&every_duration);
-                    polars_ensure!(
-                        every_units != 0,
-                        InvalidOperation: "`every` duration cannot be zero"
-                    );
+        // A sqrt(n) cache is not too small, not too large.
+        let mut duration_cache = FastFixedCache::new((every.len() as f64).sqrt() as usize);
 
-                    Ok(Some(duration - duration % every_units))
-                } else {
-                    Ok(None)
-                }
-            })
-        };
-        out.map(|s| s.into_duration(self.time_unit()))
+        let out = broadcast_try_binary_elementwise(self, every, |opt_timestamp, opt_every| match (
+            opt_timestamp,
+            opt_every,
+        ) {
+            (Some(t), Some(every)) => {
+                let every_parsed =
+                    *duration_cache.get_or_insert_with(every, |every| Duration::parse(every));
+                polars_ensure!(!every_parsed.negative, InvalidOperation: "cannot round a Duration to a negative duration");
+                polars_ensure!(every_parsed.is_constant_duration(None), InvalidOperation:"cannot round a Duration to a non-constant duration (i.e. one that involves weeks / months)");
+                let every = match self.time_unit() {
+                    TimeUnit::Milliseconds => every_parsed.duration_ms(),
+                    TimeUnit::Microseconds => every_parsed.duration_us(),
+                    TimeUnit::Nanoseconds => every_parsed.duration_ns(),
+                };
+                // Round half-way values away from zero
+                let half_away = t.signum() * every / 2;
+                Ok(Some(t + half_away - (t + half_away) % every))
+            },
+            _ => Ok(None),
+        });
+        Ok(out?.into_duration(self.time_unit()))
+
     }
 }

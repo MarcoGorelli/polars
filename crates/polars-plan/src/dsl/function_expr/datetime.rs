@@ -398,11 +398,11 @@ pub(super) fn truncate(s: &[Series]) -> PolarsResult<Series> {
         },
         DataType::Date => time_series
             .date()?
-            .truncate(None, every, offset)?
+            .truncate(None, every)?
             .into_series(),
         DataType::Duration(_) => time_series
             .duration()?
-            .truncate(None, every, offset)?
+            .truncate(None, every)?
             .into_series(),
         dt => polars_bail!(
             opq = truncate,
@@ -512,7 +512,7 @@ pub(super) fn round(s: &[Series]) -> PolarsResult<Series> {
         DataType::Duration(_) => time_series
             .duration()
             .unwrap()
-            .round(every, offset, None)?
+            .round(every, None)?
             .into_series(),
         dt => polars_bail!(opq = round, got = dt, expected = "date/datetime/duration"),
     })
