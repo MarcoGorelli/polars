@@ -1,5 +1,6 @@
 use polars_core::prelude::arity::{binary_elementwise, ternary_elementwise, unary_elementwise};
 use polars_core::prelude::{Int64Chunked, StringChunked, UInt64Chunked};
+use std::fmt::Write;
 
 fn head_binary(opt_str_val: Option<&str>, opt_n: Option<i64>) -> Option<&str> {
     if let (Some(str_val), Some(n)) = (opt_str_val, opt_n) {
@@ -197,7 +198,12 @@ pub(super) fn tail(ca: &StringChunked, n: &Int64Chunked) -> StringChunked {
         (_, 1) => {
             // SAFETY: `n` was verified to have at least 1 element.
             let n = unsafe { n.get_unchecked(0) };
-            unary_elementwise(ca, |str_val| tail_binary(str_val, n)).with_name(ca.name())
+            // unary_elementwise(ca, |str_val| tail_binary(str_val, n)).with_name(ca.name())
+            ca.apply_to_buffer(|val, buf| {
+                if let Some(output) = tail_binary(Some(val), n) {
+                    write!(buf, "{}", output).unwrap()
+                }
+            })
         },
         (1, _) => {
             // SAFETY: `ca` was verified to have at least 1 element.
