@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use arrow::array::ValueSize;
 use arrow::legacy::kernels::string::*;
 #[cfg(feature = "string_encoding")]
@@ -354,7 +356,13 @@ pub trait StringNameSpaceImpl: AsString {
     fn replace_all(&self, pat: &str, val: &str) -> PolarsResult<StringChunked> {
         let ca = self.as_string();
         let reg = Regex::new(pat)?;
-        Ok(ca.apply_values(|s| reg.replace_all(s, val)))
+
+        use std::fmt::Write;
+        let out: StringChunked = ca.apply_to_buffer(|cur_val, buf| {
+            write!(buf, "{}", reg.replace_all(cur_val, val)).unwrap();
+        });
+        Ok(out)
+        // Ok(ca.apply_values(|s| reg.replace_all(s, val)))
     }
 
     /// Replace all matching literal (sub)strings with another string
