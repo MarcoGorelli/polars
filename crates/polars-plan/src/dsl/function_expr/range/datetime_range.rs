@@ -20,9 +20,6 @@ pub(super) fn datetime_range(
     time_zone: Option<TimeZone>,
 ) -> PolarsResult<Series> {
     let mut start = s[0].clone();
-    let mut end = s[1].clone();
-
-    ensure_range_bounds_contain_exactly_one_value(&start, Some(&end))?;
 
     // Note: `start` and `end` have already been cast to their supertype,
     // so only `start`'s dtype needs to be matched against.
@@ -55,12 +52,12 @@ pub(super) fn datetime_range(
 
     if start.dtype() == &DataType::Date {
         start = start.cast(&DataType::Datetime(TimeUnit::Milliseconds, None))?;
-        end = end.cast(&DataType::Datetime(TimeUnit::Milliseconds, None))?;
     }
 
     // If `start` and `end` are naive, but a time zone was specified,
     // then first localize them
-    let (start, end) = match (start.dtype(), time_zone) {
+    let start_dtype = start.dtype();
+    let start = match (start_dtype, &time_zone) {
         #[cfg(feature = "timezones")]
         (DataType::Datetime(_, None), Some(tz)) => (
             polars_ops::prelude::replace_time_zone(
@@ -70,24 +67,42 @@ pub(super) fn datetime_range(
                 NonExistent::Raise,
             )?
             .cast(&dtype)?
-            .into_series(),
-            polars_ops::prelude::replace_time_zone(
-                end.datetime().unwrap(),
-                Some(&tz),
-                &StringChunked::from_iter(std::iter::once("raise")),
-                NonExistent::Raise,
-            )?
-            .cast(&dtype)?
-            .into_series(),
+            .into_series()
         ),
-        _ => (start.cast(&dtype)?, end.cast(&dtype)?),
+        _ => start.cast(&dtype)?
     };
 
     let name = start.name();
+
+    let end = if let Some(periods) = periods {
+        ensure_range_bounds_contain_exactly_one_value(&start, None)?;
+        None
+    } else {
+        let mut end = s[1].clone();
+        ensure_range_bounds_contain_exactly_one_value(&start, Some(&end))?;
+        if end.dtype() == &DataType::Date {
+            end = end.cast(&DataType::Datetime(TimeUnit::Milliseconds, None))?;
+        }
+        let end = match (start_dtype, &time_zone) {
+            #[cfg(feature = "timezones")]
+            (DataType::Datetime(_, None), Some(tz)) => (
+                polars_ops::prelude::replace_time_zone(
+                    end.datetime().unwrap(),
+                    Some(&tz),
+                    &StringChunked::from_iter(std::iter::once("raise")),
+                    NonExistent::Raise,
+                )?
+                .cast(&dtype)?
+                .into_series()
+            ),
+            _ => end.cast(&dtype)?
+        };
+        let end = temporal_series_to_i64_scalar(&end)
+            .ok_or_else(|| polars_err!(ComputeError: "end is an out-of-range time."))?;
+        Some(end)
+    };
     let start = temporal_series_to_i64_scalar(&start)
         .ok_or_else(|| polars_err!(ComputeError: "start is an out-of-range time."))?;
-    let end = temporal_series_to_i64_scalar(&end)
-        .ok_or_else(|| polars_err!(ComputeError: "end is an out-of-range time."))?;
 
     let result = match dtype {
         DataType::Datetime(tu, ref tz) => {
@@ -96,7 +111,7 @@ pub(super) fn datetime_range(
                 Some(tz) => Some(parse_time_zone(tz)?),
                 _ => None,
             };
-            datetime_range_impl(name, start, Some(end), None, interval, closed, tu, tz.as_ref())?
+            datetime_range_impl(name, start, end, periods, interval, closed, tu, tz.as_ref())?
         },
         _ => unimplemented!(),
     };

@@ -187,7 +187,7 @@ def datetime_range(
     end_pyexpr = parse_into_expression(end) if end is not None else None
     result = wrap_expr(
         plr.datetime_range(
-            start_pyexpr, end_pyexpr, interval, closed, time_unit, time_zone
+            start_pyexpr, end_pyexpr, periods, interval, closed, time_unit, time_zone
         )
     )
 
