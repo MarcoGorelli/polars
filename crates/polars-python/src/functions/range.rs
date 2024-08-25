@@ -107,11 +107,11 @@ pub fn datetime_range(
     time_zone: Option<TimeZone>,
 ) -> PyExpr {
     let start = start.inner;
-    let end = end.inner;
+    let end = end.map(|x| x.inner);
     let interval = Duration::parse(interval);
     let closed = closed.0;
     let time_unit = time_unit.map(|x| x.0);
-    dsl::datetime_range(start, end, interval, closed, time_unit, time_zone).into()
+    dsl::datetime_range(start, end, periods, interval, closed, time_unit, time_zone).into()
 }
 
 #[pyfunction]

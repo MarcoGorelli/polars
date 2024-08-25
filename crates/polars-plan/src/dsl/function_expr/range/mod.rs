@@ -41,6 +41,7 @@ pub enum RangeFunction {
     },
     #[cfg(feature = "dtype-datetime")]
     DatetimeRange {
+        periods: Option<i64>,
         interval: Duration,
         closed: ClosedWindow,
         time_unit: Option<TimeUnit>,
@@ -77,6 +78,7 @@ impl RangeFunction {
             DateRanges { .. } => mapper.with_dtype(DataType::List(Box::new(DataType::Date))),
             #[cfg(feature = "dtype-datetime")]
             DatetimeRange {
+                periods: _,
                 interval: _,
                 closed: _,
                 time_unit,
@@ -150,6 +152,7 @@ impl From<RangeFunction> for SpecialEq<Arc<dyn SeriesUdf>> {
             },
             #[cfg(feature = "dtype-datetime")]
             DatetimeRange {
+                periods,
                 interval,
                 closed,
                 time_unit,
@@ -157,6 +160,7 @@ impl From<RangeFunction> for SpecialEq<Arc<dyn SeriesUdf>> {
             } => {
                 map_as_slice!(
                     datetime_range::datetime_range,
+                    periods,
                     interval,
                     closed,
                     time_unit,

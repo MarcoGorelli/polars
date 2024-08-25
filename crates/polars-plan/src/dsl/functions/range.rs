@@ -71,17 +71,23 @@ pub fn date_ranges(start: Expr, end: Expr, interval: Duration, closed: ClosedWin
 #[cfg(feature = "dtype-datetime")]
 pub fn datetime_range(
     start: Expr,
-    end: Expr,
+    end: Option<Expr>,
+    periods: Option<i64>,
     interval: Duration,
     closed: ClosedWindow,
     time_unit: Option<TimeUnit>,
     time_zone: Option<TimeZone>,
 ) -> Expr {
-    let input = vec![start, end];
+    let input = if let Some(end) = end {
+        vec![start, end]
+    } else {
+        vec![start]
+    };
 
     Expr::Function {
         input,
         function: FunctionExpr::Range(RangeFunction::DatetimeRange {
+            periods,
             interval,
             closed,
             time_unit,

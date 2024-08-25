@@ -13,6 +13,7 @@ const CAPACITY_FACTOR: usize = 5;
 
 pub(super) fn datetime_range(
     s: &[Series],
+    periods: Option<i64>,
     interval: Duration,
     closed: ClosedWindow,
     time_unit: Option<TimeUnit>,
