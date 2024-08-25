@@ -96,38 +96,39 @@ pub fn date_ranges(
 }
 
 #[pyfunction]
+#[pyo3(signature = (start, end, periods=None, interval="1d", closed=Wrap(ClosedWindow::Both), time_unit=None, time_zone=None))]
 pub fn datetime_range(
     start: PyExpr,
     end: Option<PyExpr>,
     periods: Option<i64>,
-    every: &str,
+    interval: &str,
     closed: Wrap<ClosedWindow>,
     time_unit: Option<Wrap<TimeUnit>>,
     time_zone: Option<TimeZone>,
 ) -> PyExpr {
     let start = start.inner;
     let end = end.inner;
-    let every = Duration::parse(every);
+    let interval = Duration::parse(interval);
     let closed = closed.0;
     let time_unit = time_unit.map(|x| x.0);
-    dsl::datetime_range(start, end, every, closed, time_unit, time_zone).into()
+    dsl::datetime_range(start, end, interval, closed, time_unit, time_zone).into()
 }
 
 #[pyfunction]
 pub fn datetime_ranges(
     start: PyExpr,
     end: PyExpr,
-    every: &str,
+    interval: &str,
     closed: Wrap<ClosedWindow>,
     time_unit: Option<Wrap<TimeUnit>>,
     time_zone: Option<TimeZone>,
 ) -> PyExpr {
     let start = start.inner;
     let end = end.inner;
-    let every = Duration::parse(every);
+    let interval = Duration::parse(interval);
     let closed = closed.0;
     let time_unit = time_unit.map(|x| x.0);
-    dsl::datetime_ranges(start, end, every, closed, time_unit, time_zone).into()
+    dsl::datetime_ranges(start, end, interval, closed, time_unit, time_zone).into()
 }
 
 #[pyfunction]
