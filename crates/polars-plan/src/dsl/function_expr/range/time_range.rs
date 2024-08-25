@@ -17,7 +17,7 @@ pub(super) fn time_range(
     let end = &s[1];
     let name = start.name();
 
-    ensure_range_bounds_contain_exactly_one_value(start, end)?;
+    ensure_range_bounds_contain_exactly_one_value(start, Some(end))?;
 
     let dtype = DataType::Time;
     let start = temporal_series_to_i64_scalar(&start.cast(&dtype)?)

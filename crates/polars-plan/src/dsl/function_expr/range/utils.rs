@@ -8,16 +8,18 @@ pub(super) fn temporal_series_to_i64_scalar(s: &Series) -> Option<i64> {
 }
 pub(super) fn ensure_range_bounds_contain_exactly_one_value(
     start: &Series,
-    end: &Series,
+    end: Option<&Series>,
 ) -> PolarsResult<()> {
     polars_ensure!(
         start.len() == 1,
         ComputeError: "`start` must contain exactly one value, got {} values", start.len()
     );
-    polars_ensure!(
-        end.len() == 1,
-        ComputeError: "`end` must contain exactly one value, got {} values", end.len()
-    );
+    if let Some(end) = end {
+        polars_ensure!(
+            end.len() == 1,
+            ComputeError: "`end` must contain exactly one value, got {} values", end.len()
+        );
+    }
     Ok(())
 }
 

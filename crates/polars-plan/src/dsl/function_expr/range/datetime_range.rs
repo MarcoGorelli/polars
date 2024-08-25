@@ -21,7 +21,7 @@ pub(super) fn datetime_range(
     let mut start = s[0].clone();
     let mut end = s[1].clone();
 
-    ensure_range_bounds_contain_exactly_one_value(&start, &end)?;
+    ensure_range_bounds_contain_exactly_one_value(&start, Some(&end))?;
 
     // Note: `start` and `end` have already been cast to their supertype,
     // so only `start`'s dtype needs to be matched against.
@@ -95,7 +95,7 @@ pub(super) fn datetime_range(
                 Some(tz) => Some(parse_time_zone(tz)?),
                 _ => None,
             };
-            datetime_range_impl(name, start, end, None, interval, closed, tu, tz.as_ref())?
+            datetime_range_impl(name, start, Some(end), None, interval, closed, tu, tz.as_ref())?
         },
         _ => unimplemented!(),
     };
@@ -201,7 +201,7 @@ pub(super) fn datetime_ranges(
                 _ => None,
             };
             let range_impl = |start, end, builder: &mut ListPrimitiveChunkedBuilder<Int64Type>| {
-                let rng = datetime_range_impl("", start, end, None, interval, closed, tu, tz.as_ref())?;
+                let rng = datetime_range_impl("", start, Some(end), None, interval, closed, tu, tz.as_ref())?;
                 builder.append_slice(rng.cont_slice().unwrap());
                 Ok(())
             };

@@ -203,7 +203,7 @@ fn upsample_single_impl(
                     let range = datetime_range_impl(
                         index_col_name,
                         first,
-                        last,
+                        Some(last),
                         None,
                         every,
                         ClosedWindow::Both,

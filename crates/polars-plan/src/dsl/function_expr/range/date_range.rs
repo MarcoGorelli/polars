@@ -16,23 +16,27 @@ pub(super) fn date_range(
     closed: ClosedWindow,
 ) -> PolarsResult<Series> {
     let start = &s[0];
-    let end = &s[1];
 
-    ensure_range_bounds_contain_exactly_one_value(start, end)?;
+    let name = start.name();
+    let end = if periods.is_some() {
+        ensure_range_bounds_contain_exactly_one_value(start, None)?;
+        None
+    } else {
+        let end = &s[1].strict_cast(&DataType::Date)?;
+        ensure_range_bounds_contain_exactly_one_value(start, Some(end))?;
+        let end = temporal_series_to_i64_scalar(&end)
+            .ok_or_else(|| polars_err!(ComputeError: "start is an out-of-range time."))?
+            * MILLISECONDS_IN_DAY;
+        Some(end)
+    };
     let start = start.strict_cast(&DataType::Date)?;
-    let end = end.strict_cast(&DataType::Date)?;
+    let start = temporal_series_to_i64_scalar(&start)
+        .ok_or_else(|| polars_err!(ComputeError: "start is an out-of-range time."))?
+        * MILLISECONDS_IN_DAY;
     polars_ensure!(
         interval.is_full_days(),
         ComputeError: "`interval` input for `date_range` must consist of full days, got: {interval}"
     );
-
-    let name = start.name();
-    let start = temporal_series_to_i64_scalar(&start)
-        .ok_or_else(|| polars_err!(ComputeError: "start is an out-of-range time."))?
-        * MILLISECONDS_IN_DAY;
-    let end = temporal_series_to_i64_scalar(&end)
-        .ok_or_else(|| polars_err!(ComputeError: "end is an out-of-range time."))?
-        * MILLISECONDS_IN_DAY;
 
     let out = datetime_range_impl(
         name,
@@ -79,7 +83,7 @@ pub(super) fn date_ranges(
         let rng = datetime_range_impl(
             "",
             start,
-            end,
+            Some(end),
             None,
             interval,
             closed,

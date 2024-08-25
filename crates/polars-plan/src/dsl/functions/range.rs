@@ -37,8 +37,8 @@ pub fn int_ranges(start: Expr, end: Expr, step: Expr) -> Expr {
 
 /// Create a date range from a `start` and `stop` expression.
 #[cfg(feature = "temporal")]
-pub fn date_range(start: Expr, end: Expr, periods: Option<i64>, interval: Duration, closed: ClosedWindow) -> Expr {
-    let input = vec![start, end];
+pub fn date_range(start: Expr, end: Option<Expr>, periods: Option<i64>, interval: Duration, closed: ClosedWindow) -> Expr {
+    let input = if let Some(end) = end {vec![start, end]} else {vec![start]};
 
     Expr::Function {
         input,

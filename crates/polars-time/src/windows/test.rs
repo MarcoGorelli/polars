@@ -17,7 +17,7 @@ fn test_date_range() {
         .unwrap();
     let dates = datetime_range_i64(
         start.and_utc().timestamp_nanos_opt().unwrap(),
-        end.and_utc().timestamp_nanos_opt().unwrap(),
+        Some(end.and_utc().timestamp_nanos_opt().unwrap()),
         None,
         Duration::parse("1mo"),
         ClosedWindow::Both,
@@ -55,7 +55,7 @@ fn test_feb_date_range() {
         .unwrap();
     let dates = datetime_range_i64(
         start.and_utc().timestamp_nanos_opt().unwrap(),
-        end.and_utc().timestamp_nanos_opt().unwrap(),
+        Some(end.and_utc().timestamp_nanos_opt().unwrap()),
         None,
         Duration::parse("1mo"),
         ClosedWindow::Both,
@@ -195,7 +195,7 @@ fn test_boundaries() {
 
     let ts = datetime_range_i64(
         start.and_utc().timestamp_nanos_opt().unwrap(),
-        stop.and_utc().timestamp_nanos_opt().unwrap(),
+        Some(stop.and_utc().timestamp_nanos_opt().unwrap()),
         None,
         Duration::parse("30m"),
         ClosedWindow::Both,
@@ -381,7 +381,7 @@ fn test_boundaries_2() {
 
     let ts = datetime_range_i64(
         start.and_utc().timestamp_nanos_opt().unwrap(),
-        stop.and_utc().timestamp_nanos_opt().unwrap(),
+        Some(stop.and_utc().timestamp_nanos_opt().unwrap()),
         None,
         Duration::parse("30m"),
         ClosedWindow::Both,
@@ -515,7 +515,7 @@ fn test_boundaries_ms() {
 
     let ts = datetime_range_i64(
         start.and_utc().timestamp_millis(),
-        stop.and_utc().timestamp_millis(),
+        Some(stop.and_utc().timestamp_millis()),
         None,
         Duration::parse("30m"),
         ClosedWindow::Both,
@@ -701,7 +701,7 @@ fn test_rolling_lookback() {
         .unwrap();
     let dates = datetime_range_i64(
         start.and_utc().timestamp_millis(),
-        end.and_utc().timestamp_millis(),
+        Some(end.and_utc().timestamp_millis()),
         None,
         Duration::parse("30m"),
         ClosedWindow::Both,

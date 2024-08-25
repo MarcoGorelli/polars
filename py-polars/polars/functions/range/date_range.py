@@ -54,7 +54,7 @@ def date_range(
 
 def date_range(
     start: date | datetime | IntoExprColumn,
-    end: date | datetime | IntoExprColumn,
+    end: date | datetime | IntoExprColumn | None = None,
     interval: str | timedelta = "1d",
     periods: int | None = None,
     *,
@@ -145,7 +145,7 @@ def date_range(
     interval = parse_interval_argument(interval)
 
     start_pyexpr = parse_into_expression(start)
-    end_pyexpr = parse_into_expression(end)
+    end_pyexpr = parse_into_expression(end) if end is not None else end
     result = wrap_expr(plr.date_range(start_pyexpr, end_pyexpr, periods, interval, closed))
 
     if eager:

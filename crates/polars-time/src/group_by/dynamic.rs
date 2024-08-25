@@ -809,7 +809,7 @@ mod test {
         let range = datetime_range_impl(
             "date",
             start,
-            stop,
+            Some(stop),
             None,
             Duration::parse("30m"),
             ClosedWindow::Both,
@@ -864,7 +864,7 @@ mod test {
         let range = datetime_range_impl(
             "_upper_boundary",
             start,
-            stop,
+            Some(stop),
             None,
             Duration::parse("1h"),
             ClosedWindow::Both,
@@ -890,7 +890,7 @@ mod test {
         let range = datetime_range_impl(
             "_lower_boundary",
             start,
-            stop,
+            Some(stop),
             None,
             Duration::parse("1h"),
             ClosedWindow::Both,
@@ -932,7 +932,7 @@ mod test {
         let range = datetime_range_impl(
             "date",
             start,
-            stop,
+            Some(stop),
             None,
             Duration::parse("1d"),
             ClosedWindow::Both,

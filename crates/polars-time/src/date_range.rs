@@ -15,7 +15,7 @@ pub fn in_nanoseconds_window(ndt: &NaiveDateTime) -> bool {
 pub fn date_range(
     name: &str,
     start: NaiveDateTime,
-    end: NaiveDateTime,
+    end: Option<NaiveDateTime>,
     periods: Option<i64>,
     interval: Duration,
     closed: ClosedWindow,
@@ -25,15 +25,15 @@ pub fn date_range(
     let (start, end) = match tu {
         TimeUnit::Nanoseconds => (
             start.and_utc().timestamp_nanos_opt().unwrap(),
-            end.and_utc().timestamp_nanos_opt().unwrap(),
+            end.map(|x| x.and_utc().timestamp_nanos_opt().unwrap()),
         ),
         TimeUnit::Microseconds => (
             start.and_utc().timestamp_micros(),
-            end.and_utc().timestamp_micros(),
+            end.map(|x| x.and_utc().timestamp_micros()),
         ),
         TimeUnit::Milliseconds => (
             start.and_utc().timestamp_millis(),
-            end.and_utc().timestamp_millis(),
+            end.map(|x| x.and_utc().timestamp_millis()),
         ),
     };
     datetime_range_impl(name, start, end, periods, interval, closed, tu, tz)
@@ -43,7 +43,7 @@ pub fn date_range(
 pub fn datetime_range_impl(
     name: &str,
     start: i64,
-    end: i64,
+    end: Option<i64>,
     periods: Option<i64>,
     interval: Duration,
     closed: ClosedWindow,
@@ -87,7 +87,7 @@ pub fn time_range_impl(
 ) -> PolarsResult<TimeChunked> {
     let mut out = Int64Chunked::new_vec(
         name,
-        datetime_range_i64(start, end, None, interval, closed, TimeUnit::Nanoseconds, None)?,
+        datetime_range_i64(start, Some(end), None, interval, closed, TimeUnit::Nanoseconds, None)?,
     )
     .into_time();
 
@@ -95,29 +95,30 @@ pub fn time_range_impl(
     Ok(out)
 }
 
-fn period_stopping_condition(_t: i64, i: i64, _end: i64, periods: Option<i64>) -> bool {
-    Some(i) <= periods
+fn period_stopping_condition(_t: i64, i: i64, _end: Option<i64>, periods: Option<i64>) -> bool {
+    i <= periods.unwrap()
 }
-fn end_inclusive_stopping_condition(t: i64, _i: i64, end: i64, _periods: Option<i64>) -> bool {
-    t <= end
+fn end_inclusive_stopping_condition(t: i64, _i: i64, end: Option<i64>, _periods: Option<i64>) -> bool {
+    t <= end.unwrap()
 }
-fn end_exclusive_stopping_condition(t: i64, _i: i64, end: i64, _periods: Option<i64>) -> bool {
-    t < end
+fn end_exclusive_stopping_condition(t: i64, _i: i64, end: Option<i64>, _periods: Option<i64>) -> bool {
+    t < end.unwrap()
 }
 
 /// vector of i64 representing temporal values
 pub(crate) fn datetime_range_i64(
     start: i64,
-    end: i64,
+    end: Option<i64>,
     periods: Option<i64>,
     interval: Duration,
     closed: ClosedWindow,
     tu: TimeUnit,
     tz: Option<&Tz>,
 ) -> PolarsResult<Vec<i64>> {
-    if start > end {
+    if let Some(end) = end {
+        if start > end {
         return Ok(Vec::new());
-    }
+    }}
     polars_ensure!(
         !interval.negative && !interval.is_zero(),
         ComputeError: "`interval` must be positive"
@@ -128,15 +129,27 @@ pub(crate) fn datetime_range_i64(
 
     match tu {
         TimeUnit::Nanoseconds => {
-            size = ((end - start) / interval.duration_ns() + 1) as usize;
+            if let Some(periods) = periods {
+                size = periods as usize;
+            } else {
+                size = ((end.unwrap() - start) / interval.duration_ns() + 1) as usize;
+            }
             offset_fn = Duration::add_ns;
         },
         TimeUnit::Microseconds => {
-            size = ((end - start) / interval.duration_us() + 1) as usize;
+            if let Some(periods) = periods {
+                size = periods as usize;
+            } else {
+                size = ((end.unwrap() - start) / interval.duration_us() + 1) as usize;
+            }
             offset_fn = Duration::add_us;
         },
         TimeUnit::Milliseconds => {
-            size = ((end - start) / interval.duration_ms() + 1) as usize;
+            if let Some(periods) = periods {
+                size = periods as usize;
+            } else {
+                size = ((end.unwrap() - start) / interval.duration_ms() + 1) as usize;
+            }
             offset_fn = Duration::add_ms;
         },
     }
@@ -148,7 +161,7 @@ pub(crate) fn datetime_range_i64(
     };
     let mut t = offset_fn(&(interval * i), start, tz)?;
 
-    let stopping_condition: fn(i64, i64, i64, Option<i64>) -> bool;
+    let stopping_condition: fn(i64, i64, Option<i64>, Option<i64>) -> bool;
     if periods.is_some() {
         stopping_condition = period_stopping_condition
     } else {
