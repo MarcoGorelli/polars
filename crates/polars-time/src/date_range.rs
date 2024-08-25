@@ -16,6 +16,7 @@ pub fn date_range(
     name: &str,
     start: NaiveDateTime,
     end: NaiveDateTime,
+    periods: Option<i64>,
     interval: Duration,
     closed: ClosedWindow,
     tu: TimeUnit,
@@ -35,7 +36,7 @@ pub fn date_range(
             end.and_utc().timestamp_millis(),
         ),
     };
-    datetime_range_impl(name, start, end, interval, closed, tu, tz)
+    datetime_range_impl(name, start, end, periods, interval, closed, tu, tz)
 }
 
 #[doc(hidden)]
@@ -43,6 +44,7 @@ pub fn datetime_range_impl(
     name: &str,
     start: i64,
     end: i64,
+    periods: Option<i64>,
     interval: Duration,
     closed: ClosedWindow,
     tu: TimeUnit,
@@ -50,7 +52,7 @@ pub fn datetime_range_impl(
 ) -> PolarsResult<DatetimeChunked> {
     let out = Int64Chunked::new_vec(
         name,
-        datetime_range_i64(start, end, interval, closed, tu, tz)?,
+        datetime_range_i64(start, end, periods, interval, closed, tu, tz)?,
     );
     let mut out = match tz {
         #[cfg(feature = "timezones")]
@@ -85,7 +87,7 @@ pub fn time_range_impl(
 ) -> PolarsResult<TimeChunked> {
     let mut out = Int64Chunked::new_vec(
         name,
-        datetime_range_i64(start, end, interval, closed, TimeUnit::Nanoseconds, None)?,
+        datetime_range_i64(start, end, None, interval, closed, TimeUnit::Nanoseconds, None)?,
     )
     .into_time();
 
@@ -93,10 +95,21 @@ pub fn time_range_impl(
     Ok(out)
 }
 
+fn period_stopping_condition(_t: i64, i: i64, _end: i64, periods: Option<i64>) -> bool {
+    Some(i) <= periods
+}
+fn end_inclusive_stopping_condition(t: i64, _i: i64, end: i64, _periods: Option<i64>) -> bool {
+    t <= end
+}
+fn end_exclusive_stopping_condition(t: i64, _i: i64, end: i64, _periods: Option<i64>) -> bool {
+    t < end
+}
+
 /// vector of i64 representing temporal values
 pub(crate) fn datetime_range_i64(
     start: i64,
     end: i64,
+    periods: Option<i64>,
     interval: Duration,
     closed: ClosedWindow,
     tu: TimeUnit,
@@ -134,22 +147,22 @@ pub(crate) fn datetime_range_i64(
         ClosedWindow::Right | ClosedWindow::None => 1,
     };
     let mut t = offset_fn(&(interval * i), start, tz)?;
+
+    let stopping_condition: fn(i64, i64, i64, Option<i64>) -> bool;
+    if periods.is_some() {
+        stopping_condition = period_stopping_condition
+    } else {
+        stopping_condition = match closed {
+            ClosedWindow::Both | ClosedWindow::Right => end_inclusive_stopping_condition,
+            ClosedWindow::Left | ClosedWindow::None => end_exclusive_stopping_condition,
+        }
+    };
+    
     i += 1;
-    match closed {
-        ClosedWindow::Both | ClosedWindow::Right => {
-            while t <= end {
-                ts.push(t);
-                t = offset_fn(&(interval * i), start, tz)?;
-                i += 1;
-            }
-        },
-        ClosedWindow::Left | ClosedWindow::None => {
-            while t < end {
-                ts.push(t);
-                t = offset_fn(&(interval * i), start, tz)?;
-                i += 1;
-            }
-        },
+    while stopping_condition(t, i, end, periods) {
+        ts.push(t);
+        t = offset_fn(&(interval * i), start, tz)?;
+        i += 1;
     }
     debug_assert!(size >= ts.len());
     Ok(ts)

@@ -95,7 +95,7 @@ pub(super) fn datetime_range(
                 Some(tz) => Some(parse_time_zone(tz)?),
                 _ => None,
             };
-            datetime_range_impl(name, start, end, interval, closed, tu, tz.as_ref())?
+            datetime_range_impl(name, start, end, None, interval, closed, tu, tz.as_ref())?
         },
         _ => unimplemented!(),
     };
@@ -201,7 +201,7 @@ pub(super) fn datetime_ranges(
                 _ => None,
             };
             let range_impl = |start, end, builder: &mut ListPrimitiveChunkedBuilder<Int64Type>| {
-                let rng = datetime_range_impl("", start, end, interval, closed, tu, tz.as_ref())?;
+                let rng = datetime_range_impl("", start, end, None, interval, closed, tu, tz.as_ref())?;
                 builder.append_slice(rng.cont_slice().unwrap());
                 Ok(())
             };

@@ -204,6 +204,7 @@ fn upsample_single_impl(
                         index_col_name,
                         first,
                         last,
+                        None,
                         every,
                         ClosedWindow::Both,
                         *tu,

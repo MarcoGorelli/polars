@@ -11,6 +11,7 @@ const CAPACITY_FACTOR: usize = 5;
 
 pub(super) fn date_range(
     s: &[Series],
+    periods: Option<i64>,
     interval: Duration,
     closed: ClosedWindow,
 ) -> PolarsResult<Series> {
@@ -37,6 +38,7 @@ pub(super) fn date_range(
         name,
         start,
         end,
+        periods,
         interval,
         closed,
         TimeUnit::Milliseconds,
@@ -78,6 +80,7 @@ pub(super) fn date_ranges(
             "",
             start,
             end,
+            None,
             interval,
             closed,
             TimeUnit::Milliseconds,

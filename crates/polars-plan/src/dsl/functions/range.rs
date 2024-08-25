@@ -37,12 +37,12 @@ pub fn int_ranges(start: Expr, end: Expr, step: Expr) -> Expr {
 
 /// Create a date range from a `start` and `stop` expression.
 #[cfg(feature = "temporal")]
-pub fn date_range(start: Expr, end: Expr, interval: Duration, closed: ClosedWindow) -> Expr {
+pub fn date_range(start: Expr, end: Expr, periods: Option<i64>, interval: Duration, closed: ClosedWindow) -> Expr {
     let input = vec![start, end];
 
     Expr::Function {
         input,
-        function: FunctionExpr::Range(RangeFunction::DateRange { interval, closed }),
+        function: FunctionExpr::Range(RangeFunction::DateRange { periods, interval, closed }),
         options: FunctionOptions {
             collect_groups: ApplyOptions::GroupWise,
             flags: FunctionFlags::default() | FunctionFlags::ALLOW_RENAME,

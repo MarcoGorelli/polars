@@ -66,9 +66,11 @@ pub fn int_ranges(
 }
 
 #[pyfunction]
+#[pyo3(signature = (start, end, periods=None, interval="1d", closed=Wrap(ClosedWindow::Both)))]
 pub fn date_range(
     start: PyExpr,
     end: PyExpr,
+    periods: Option<i64>,
     interval: &str,
     closed: Wrap<ClosedWindow>,
 ) -> PyExpr {
@@ -76,7 +78,7 @@ pub fn date_range(
     let end = end.inner;
     let interval = Duration::parse(interval);
     let closed = closed.0;
-    dsl::date_range(start, end, interval, closed).into()
+    dsl::date_range(start, end, periods, interval, closed).into()
 }
 
 #[pyfunction]
