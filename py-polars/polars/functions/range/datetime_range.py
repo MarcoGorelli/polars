@@ -60,7 +60,8 @@ def datetime_range(
 
 def datetime_range(
     start: datetime | date | IntoExprColumn,
-    end: datetime | date | IntoExprColumn,
+    end: datetime | date | IntoExprColumn | None = None,
+    periods: int | None = None,
     interval: str | timedelta = "1d",
     *,
     closed: ClosedInterval = "both",
@@ -183,7 +184,7 @@ def datetime_range(
         time_unit = "ns"
 
     start_pyexpr = parse_into_expression(start)
-    end_pyexpr = parse_into_expression(end)
+    end_pyexpr = parse_into_expression(end) if end is not None else None
     result = wrap_expr(
         plr.datetime_range(
             start_pyexpr, end_pyexpr, interval, closed, time_unit, time_zone

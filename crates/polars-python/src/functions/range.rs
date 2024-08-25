@@ -98,7 +98,8 @@ pub fn date_ranges(
 #[pyfunction]
 pub fn datetime_range(
     start: PyExpr,
-    end: PyExpr,
+    end: Option<PyExpr>,
+    periods: Option<i64>,
     every: &str,
     closed: Wrap<ClosedWindow>,
     time_unit: Option<Wrap<TimeUnit>>,
