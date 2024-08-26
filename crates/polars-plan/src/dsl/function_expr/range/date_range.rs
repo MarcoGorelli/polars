@@ -24,7 +24,7 @@ pub(super) fn date_range(
     } else {
         let end = &s[1].strict_cast(&DataType::Date)?;
         ensure_range_bounds_contain_exactly_one_value(start, Some(end))?;
-        let end = temporal_series_to_i64_scalar(&end)
+        let end = temporal_series_to_i64_scalar(end)
             .ok_or_else(|| polars_err!(ComputeError: "start is an out-of-range time."))?
             * MILLISECONDS_IN_DAY;
         Some(end)

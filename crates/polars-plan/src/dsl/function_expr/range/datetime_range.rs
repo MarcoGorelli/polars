@@ -59,22 +59,20 @@ pub(super) fn datetime_range(
     let start_dtype = start.dtype();
     let start = match (start_dtype, &time_zone) {
         #[cfg(feature = "timezones")]
-        (DataType::Datetime(_, None), Some(tz)) => (
-            polars_ops::prelude::replace_time_zone(
-                start.datetime().unwrap(),
-                Some(&tz),
-                &StringChunked::from_iter(std::iter::once("raise")),
-                NonExistent::Raise,
-            )?
-            .cast(&dtype)?
-            .into_series()
-        ),
-        _ => start.cast(&dtype)?
+        (DataType::Datetime(_, None), Some(tz)) => polars_ops::prelude::replace_time_zone(
+            start.datetime().unwrap(),
+            Some(tz),
+            &StringChunked::from_iter(std::iter::once("raise")),
+            NonExistent::Raise,
+        )?
+        .cast(&dtype)?
+        .into_series(),
+        _ => start.cast(&dtype)?,
     };
 
     let name = start.name();
 
-    let end = if let Some(periods) = periods {
+    let end = if periods.is_some() {
         ensure_range_bounds_contain_exactly_one_value(&start, None)?;
         None
     } else {
@@ -85,17 +83,15 @@ pub(super) fn datetime_range(
         }
         let end = match (start_dtype, &time_zone) {
             #[cfg(feature = "timezones")]
-            (DataType::Datetime(_, None), Some(tz)) => (
-                polars_ops::prelude::replace_time_zone(
-                    end.datetime().unwrap(),
-                    Some(&tz),
-                    &StringChunked::from_iter(std::iter::once("raise")),
-                    NonExistent::Raise,
-                )?
-                .cast(&dtype)?
-                .into_series()
-            ),
-            _ => end.cast(&dtype)?
+            (DataType::Datetime(_, None), Some(tz)) => polars_ops::prelude::replace_time_zone(
+                end.datetime().unwrap(),
+                Some(tz),
+                &StringChunked::from_iter(std::iter::once("raise")),
+                NonExistent::Raise,
+            )?
+            .cast(&dtype)?
+            .into_series(),
+            _ => end.cast(&dtype)?,
         };
         let end = temporal_series_to_i64_scalar(&end)
             .ok_or_else(|| polars_err!(ComputeError: "end is an out-of-range time."))?;
@@ -217,7 +213,16 @@ pub(super) fn datetime_ranges(
                 _ => None,
             };
             let range_impl = |start, end, builder: &mut ListPrimitiveChunkedBuilder<Int64Type>| {
-                let rng = datetime_range_impl("", start, Some(end), None, interval, closed, tu, tz.as_ref())?;
+                let rng = datetime_range_impl(
+                    "",
+                    start,
+                    Some(end),
+                    None,
+                    interval,
+                    closed,
+                    tu,
+                    tz.as_ref(),
+                )?;
                 builder.append_slice(rng.cont_slice().unwrap());
                 Ok(())
             };

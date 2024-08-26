@@ -61,8 +61,8 @@ def datetime_range(
 def datetime_range(
     start: datetime | date | IntoExprColumn,
     end: datetime | date | IntoExprColumn | None = None,
-    periods: int | None = None,
     interval: str | timedelta = "1d",
+    periods: int | None = None,
     *,
     closed: ClosedInterval = "both",
     time_unit: TimeUnit | None = None,
@@ -78,9 +78,13 @@ def datetime_range(
         Lower bound of the datetime range.
     end
         Upper bound of the datetime range.
+        Either `end` or `periods` must be specified (but not both!).
     interval
         Interval of the range periods, specified as a Python `timedelta` object
         or using the Polars duration string language (see "Notes" section below).
+    periods
+        Number of elements in output.
+        Either `periods` or `end` must be specified (but not both!).
     closed : {'both', 'left', 'right', 'none'}
         Define which sides of the range are closed (inclusive).
     time_unit : {None, 'ns', 'us', 'ms'}

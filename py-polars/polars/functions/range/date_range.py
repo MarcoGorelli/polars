@@ -70,10 +70,14 @@ def date_range(
         Lower bound of the date range.
     end
         Upper bound of the date range.
+        Either `end` or `periods` must be specified (but not both!).
     interval
         Interval of the range periods, specified as a Python `timedelta` object
         or using the Polars duration string language (see "Notes" section below).
         Must consist of full days.
+    periods
+        Number of elements in output.
+        Either `periods` or `end` must be specified (but not both!).
     closed : {'both', 'left', 'right', 'none'}
         Define which sides of the range are closed (inclusive).
     eager
@@ -146,7 +150,9 @@ def date_range(
 
     start_pyexpr = parse_into_expression(start)
     end_pyexpr = parse_into_expression(end) if end is not None else end
-    result = wrap_expr(plr.date_range(start_pyexpr, end_pyexpr, periods, interval, closed))
+    result = wrap_expr(
+        plr.date_range(start_pyexpr, end_pyexpr, periods, interval, closed)
+    )
 
     if eager:
         return F.select(result).to_series()

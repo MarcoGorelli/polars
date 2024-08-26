@@ -143,7 +143,11 @@ impl From<RangeFunction> for SpecialEq<Arc<dyn SeriesUdf>> {
                 map_as_slice!(int_range::int_ranges)
             },
             #[cfg(feature = "dtype-date")]
-            DateRange { periods, interval, closed } => {
+            DateRange {
+                periods,
+                interval,
+                closed,
+            } => {
                 map_as_slice!(date_range::date_range, periods, interval, closed)
             },
             #[cfg(feature = "dtype-date")]

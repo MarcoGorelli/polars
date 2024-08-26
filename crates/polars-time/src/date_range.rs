@@ -12,6 +12,7 @@ pub fn in_nanoseconds_window(ndt: &NaiveDateTime) -> bool {
 }
 
 /// Create a [`DatetimeChunked`] from a given `start` and `end` date and a given `interval`.
+#[allow(clippy::too_many_arguments)]
 pub fn date_range(
     name: &str,
     start: NaiveDateTime,
@@ -40,6 +41,7 @@ pub fn date_range(
 }
 
 #[doc(hidden)]
+#[allow(clippy::too_many_arguments)]
 pub fn datetime_range_impl(
     name: &str,
     start: i64,
@@ -87,7 +89,15 @@ pub fn time_range_impl(
 ) -> PolarsResult<TimeChunked> {
     let mut out = Int64Chunked::new_vec(
         name,
-        datetime_range_i64(start, Some(end), None, interval, closed, TimeUnit::Nanoseconds, None)?,
+        datetime_range_i64(
+            start,
+            Some(end),
+            None,
+            interval,
+            closed,
+            TimeUnit::Nanoseconds,
+            None,
+        )?,
     )
     .into_time();
 
@@ -98,10 +108,20 @@ pub fn time_range_impl(
 fn period_stopping_condition(_t: i64, i: i64, _end: Option<i64>, periods: Option<i64>) -> bool {
     i <= periods.unwrap()
 }
-fn end_inclusive_stopping_condition(t: i64, _i: i64, end: Option<i64>, _periods: Option<i64>) -> bool {
+fn end_inclusive_stopping_condition(
+    t: i64,
+    _i: i64,
+    end: Option<i64>,
+    _periods: Option<i64>,
+) -> bool {
     t <= end.unwrap()
 }
-fn end_exclusive_stopping_condition(t: i64, _i: i64, end: Option<i64>, _periods: Option<i64>) -> bool {
+fn end_exclusive_stopping_condition(
+    t: i64,
+    _i: i64,
+    end: Option<i64>,
+    _periods: Option<i64>,
+) -> bool {
     t < end.unwrap()
 }
 
@@ -117,8 +137,9 @@ pub(crate) fn datetime_range_i64(
 ) -> PolarsResult<Vec<i64>> {
     if let Some(end) = end {
         if start > end {
-        return Ok(Vec::new());
-    }}
+            return Ok(Vec::new());
+        }
+    }
     polars_ensure!(
         !interval.negative && !interval.is_zero(),
         ComputeError: "`interval` must be positive"
@@ -161,16 +182,15 @@ pub(crate) fn datetime_range_i64(
     };
     let mut t = offset_fn(&(interval * i), start, tz)?;
 
-    let stopping_condition: fn(i64, i64, Option<i64>, Option<i64>) -> bool;
-    if periods.is_some() {
-        stopping_condition = period_stopping_condition
+    let stopping_condition: fn(i64, i64, Option<i64>, Option<i64>) -> bool = if periods.is_some() {
+        period_stopping_condition
     } else {
-        stopping_condition = match closed {
+        match closed {
             ClosedWindow::Both | ClosedWindow::Right => end_inclusive_stopping_condition,
             ClosedWindow::Left | ClosedWindow::None => end_exclusive_stopping_condition,
         }
     };
-    
+
     i += 1;
     while stopping_condition(t, i, end, periods) {
         ts.push(t);
