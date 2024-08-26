@@ -19,9 +19,11 @@ pub(super) fn date_range(
 
     let name = start.name();
     let end = if periods.is_some() {
+        polars_ensure!(s.len()==1, InvalidOperation: "Either `end` or `periods` must be specified, but not both");
         ensure_range_bounds_contain_exactly_one_value(start, None)?;
         None
     } else {
+        polars_ensure!(s.len()==2, InvalidOperation: "Either `end` or `periods` must be specified, but not both");
         let end = &s[1].strict_cast(&DataType::Date)?;
         ensure_range_bounds_contain_exactly_one_value(start, Some(end))?;
         let end = temporal_series_to_i64_scalar(end)

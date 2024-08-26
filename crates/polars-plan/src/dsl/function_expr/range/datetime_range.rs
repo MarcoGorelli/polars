@@ -73,9 +73,11 @@ pub(super) fn datetime_range(
     let name = start.name();
 
     let end = if periods.is_some() {
+        polars_ensure!(s.len()==1, InvalidOperation: "Either `end` or `periods` must be specified, but not both");
         ensure_range_bounds_contain_exactly_one_value(&start, None)?;
         None
     } else {
+        polars_ensure!(s.len()==2, InvalidOperation: "Either `end` or `periods` must be specified, but not both");
         let mut end = s[1].clone();
         ensure_range_bounds_contain_exactly_one_value(&start, Some(&end))?;
         if end.dtype() == &DataType::Date {
