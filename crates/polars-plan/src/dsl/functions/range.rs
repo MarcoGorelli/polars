@@ -40,8 +40,8 @@ pub fn int_ranges(start: Expr, end: Expr, step: Expr) -> Expr {
 pub fn date_range(
     start: Expr,
     end: Option<Expr>,
-    periods: Option<i64>,
     interval: Duration,
+    periods: Option<i64>,
     closed: ClosedWindow,
 ) -> Expr {
     let input = if let Some(end) = end {
@@ -67,12 +67,16 @@ pub fn date_range(
 
 /// Create a column of date ranges from a `start` and `stop` expression.
 #[cfg(feature = "temporal")]
-pub fn date_ranges(start: Expr, end: Expr, interval: Duration, closed: ClosedWindow) -> Expr {
-    let input = vec![start, end];
+pub fn date_ranges(start: Expr, end: Option<Expr>, interval: Duration, periods: Option<i64>, closed: ClosedWindow) -> Expr {
+    let input = if let Some(end) = end {
+        vec![start, end]
+    } else {
+        vec![start]
+    };
 
     Expr::Function {
         input,
-        function: FunctionExpr::Range(RangeFunction::DateRanges { interval, closed }),
+        function: FunctionExpr::Range(RangeFunction::DateRanges { periods, interval, closed }),
         options: FunctionOptions {
             collect_groups: ApplyOptions::GroupWise,
             flags: FunctionFlags::default() | FunctionFlags::ALLOW_RENAME,
@@ -86,8 +90,8 @@ pub fn date_ranges(start: Expr, end: Expr, interval: Duration, closed: ClosedWin
 pub fn datetime_range(
     start: Expr,
     end: Option<Expr>,
-    periods: Option<i64>,
     interval: Duration,
+    periods: Option<i64>,
     closed: ClosedWindow,
     time_unit: Option<TimeUnit>,
     time_zone: Option<TimeZone>,
@@ -120,17 +124,23 @@ pub fn datetime_range(
 #[cfg(feature = "dtype-datetime")]
 pub fn datetime_ranges(
     start: Expr,
-    end: Expr,
+    end: Option<Expr>,
     interval: Duration,
+    periods: Option<i64>,
     closed: ClosedWindow,
     time_unit: Option<TimeUnit>,
     time_zone: Option<TimeZone>,
 ) -> Expr {
-    let input = vec![start, end];
+    let input = if let Some(end) = end {
+        vec![start, end]
+    } else {
+        vec![start]
+    };
 
     Expr::Function {
         input,
         function: FunctionExpr::Range(RangeFunction::DatetimeRanges {
+            periods,
             interval,
             closed,
             time_unit,

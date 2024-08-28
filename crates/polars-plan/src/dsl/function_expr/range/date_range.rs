@@ -57,6 +57,7 @@ pub(super) fn date_range(
 
 pub(super) fn date_ranges(
     s: &[Series],
+    periods: Option<i64>,
     interval: Duration,
     closed: ClosedWindow,
 ) -> PolarsResult<Series> {
@@ -86,7 +87,7 @@ pub(super) fn date_ranges(
             "",
             start,
             Some(end),
-            None,
+            periods,
             interval,
             closed,
             TimeUnit::Milliseconds,

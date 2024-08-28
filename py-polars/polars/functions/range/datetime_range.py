@@ -274,6 +274,7 @@ def datetime_ranges(
     start: datetime | date | IntoExprColumn,
     end: datetime | date | IntoExprColumn,
     interval: str | timedelta = "1d",
+    periods: int | None = None,
     *,
     closed: ClosedInterval = "both",
     time_unit: TimeUnit | None = None,
@@ -365,7 +366,7 @@ def datetime_ranges(
 
     result = wrap_expr(
         plr.datetime_ranges(
-            start_pyexpr, end_pyexpr, interval, closed, time_unit, time_zone
+            start_pyexpr, end_pyexpr, interval, periods, closed, time_unit, time_zone
         )
     )
 

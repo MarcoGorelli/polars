@@ -118,6 +118,7 @@ pub(super) fn datetime_range(
 
 pub(super) fn datetime_ranges(
     s: &[Series],
+    periods: Option<i64>,
     interval: Duration,
     closed: ClosedWindow,
     time_unit: Option<TimeUnit>,
@@ -219,7 +220,7 @@ pub(super) fn datetime_ranges(
                     "",
                     start,
                     Some(end),
-                    None,
+                    periods,
                     interval,
                     closed,
                     tu,

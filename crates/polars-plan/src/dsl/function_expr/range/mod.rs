@@ -36,6 +36,7 @@ pub enum RangeFunction {
     },
     #[cfg(feature = "dtype-date")]
     DateRanges {
+        periods: Option<i64>,
         interval: Duration,
         closed: ClosedWindow,
     },
@@ -49,6 +50,7 @@ pub enum RangeFunction {
     },
     #[cfg(feature = "dtype-datetime")]
     DatetimeRanges {
+        periods: Option<i64>,
         interval: Duration,
         closed: ClosedWindow,
         time_unit: Option<TimeUnit>,
@@ -91,6 +93,7 @@ impl RangeFunction {
             },
             #[cfg(feature = "dtype-datetime")]
             DatetimeRanges {
+                periods: _,
                 interval: _,
                 closed: _,
                 time_unit,
@@ -151,8 +154,8 @@ impl From<RangeFunction> for SpecialEq<Arc<dyn SeriesUdf>> {
                 map_as_slice!(date_range::date_range, periods, interval, closed)
             },
             #[cfg(feature = "dtype-date")]
-            DateRanges { interval, closed } => {
-                map_as_slice!(date_range::date_ranges, interval, closed)
+            DateRanges { periods, interval, closed } => {
+                map_as_slice!(date_range::date_ranges, periods, interval, closed)
             },
             #[cfg(feature = "dtype-datetime")]
             DatetimeRange {
@@ -173,6 +176,7 @@ impl From<RangeFunction> for SpecialEq<Arc<dyn SeriesUdf>> {
             },
             #[cfg(feature = "dtype-datetime")]
             DatetimeRanges {
+                periods,
                 interval,
                 closed,
                 time_unit,
@@ -180,6 +184,7 @@ impl From<RangeFunction> for SpecialEq<Arc<dyn SeriesUdf>> {
             } => {
                 map_as_slice!(
                     datetime_range::datetime_ranges,
+                    periods,
                     interval,
                     closed,
                     time_unit,

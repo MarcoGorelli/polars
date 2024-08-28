@@ -225,8 +225,9 @@ def date_ranges(
 
 def date_ranges(
     start: date | datetime | IntoExprColumn,
-    end: date | datetime | IntoExprColumn,
+    end: date | datetime | IntoExprColumn | None = None,
     interval: str | timedelta = "1d",
+    periods: int | None = None,
     *,
     closed: ClosedInterval = "both",
     eager: bool = False,
@@ -300,9 +301,9 @@ def date_ranges(
     """
     interval = parse_interval_argument(interval)
     start_pyexpr = parse_into_expression(start)
-    end_pyexpr = parse_into_expression(end)
+    end_pyexpr = parse_into_expression(end) if end is not None else end
 
-    result = wrap_expr(plr.date_ranges(start_pyexpr, end_pyexpr, interval, closed))
+    result = wrap_expr(plr.date_ranges(start_pyexpr, end_pyexpr, interval, periods, closed))
 
     if eager:
         return F.select(result).to_series()
