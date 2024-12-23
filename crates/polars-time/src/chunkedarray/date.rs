@@ -2,6 +2,8 @@ use arrow::temporal_conversions::{EPOCH_DAYS_FROM_CE, MILLISECONDS, SECONDS_IN_D
 use polars_core::export::chrono::{Datelike, NaiveDate};
 use polars_core::utils::CustomIterTools;
 
+use crate::windows::calendar::is_leap_year;
+
 use super::*;
 
 pub(crate) fn naive_date_to_date(nd: NaiveDate) -> i32 {
@@ -84,14 +86,20 @@ pub trait DateMethods: AsDate {
         day: &Int8Chunked,
         name: PlSmallStr,
     ) -> PolarsResult<DateChunked> {
+        let cumulative_days_in_month = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
         let mut ca: Int32Chunked = year
             .into_iter()
             .zip(month)
             .zip(day)
             .map(|((y, m), d)| {
                 if let (Some(y), Some(m), Some(d)) = (y, m, d) {
-                    NaiveDate::from_ymd_opt(y, m as u32, d as u32)
-                        .map(|t| t.num_days_from_ce() - EPOCH_DAYS_FROM_CE)
+                    Some(
+                        (d as i32) - 1
+                        + cumulative_days_in_month[(m-1) as usize]
+                        + (y - 1970) * 365 + (y - 1970) / 4 - (y - 1970) / 100 + (y - 1970 + 300) / 400
+                        - (y < 1970 && is_leap_year(y+1)) as i32
+                        + (is_leap_year(y) && m>2) as i32
+                    )
                 } else {
                     None
                 }
