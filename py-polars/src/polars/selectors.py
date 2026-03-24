@@ -1955,7 +1955,7 @@ def datetime(
     time_zone_lst: builtins.list[str | pydatetime.timezone | None]
     if time_zone is None:
         time_zone_lst = [None]
-    elif time_zone:
+    else:
         time_zone_lst = (
             [time_zone]
             if isinstance(time_zone, (str, pydatetime.timezone))

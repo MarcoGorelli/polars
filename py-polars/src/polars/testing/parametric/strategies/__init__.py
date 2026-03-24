@@ -5,7 +5,7 @@ from polars.testing.parametric.strategies.core import (
 )
 from polars.testing.parametric.strategies.data import lists
 from polars.testing.parametric.strategies.dtype import dtypes
-from polars.testing.parametric.strategies.legacy import columns, create_list_strategy
+from polars.testing.parametric.strategies.legacy import columns, create_list_strategy  # pyrefly: ignore[deprecated]
 
 __all__ = [
     # core
