@@ -131,6 +131,7 @@ class Schema(BaseSchema):
                 msg = f"iterable passed to pl.Schema contained duplicate name '{name}'"
                 raise DuplicateError(msg)
 
+            assert isinstance(name, str)
             if not check_dtypes:
                 super().__setitem__(name, tp)  # type: ignore[assignment]
             elif is_polars_dtype(tp):

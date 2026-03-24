@@ -231,9 +231,9 @@ def _expand_selector_dicts(
     expand_keys: bool,
     expand_values: bool,
     tuple_keys: bool = False,
-) -> dict[str, Any]:
+) -> dict[str | tuple[str, ...], Any]:
     """Expand dict key/value selectors into their underlying column names."""
-    expanded = {}
+    expanded: dict[str | tuple[str, ...], Any] = {}
     for key, value in (d or {}).items():
         if expand_values and is_selector(value):
             expanded[key] = expand_selector(df, selector=value)

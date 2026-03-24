@@ -309,7 +309,7 @@ def forward_old_opt_flags() -> IdentityFunction:
     def decorate(function: Callable[P, T]) -> Callable[P, T]:
         @wraps(function)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-            optflags: QueryOptFlags = kwargs.get(
+            optflags: QueryOptFlags = kwargs.get(  # pyrefly: ignore[bad-assignment]
                 "optimizations", DEFAULT_QUERY_OPT_FLAGS
             )  # type: ignore[assignment]
             optflags = optflags.__copy__()
