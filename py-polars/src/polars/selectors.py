@@ -7,6 +7,7 @@ from collections.abc import Collection, Mapping, Sequence
 from decimal import Decimal as PyDecimal
 from functools import reduce
 from operator import or_
+import sys
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -41,6 +42,10 @@ if TYPE_CHECKING:
 
     from polars import DataFrame, LazyFrame
     from polars._typing import PolarsDataType, PythonDataType, TimeUnit
+    if sys.version_info >= (3, 13):
+        from typing import TypeIs
+    else:
+        from typing_extensions import TypeIs
 
 __all__ = [
     # class
@@ -85,15 +90,7 @@ __all__ = [
 ]
 
 
-@overload
-def is_selector(obj: Selector) -> Literal[True]: ...
-
-
-@overload
-def is_selector(obj: Any) -> Literal[False]: ...
-
-
-def is_selector(obj: Any) -> bool:
+def is_selector(obj: Any) -> TypeIs[Selector]:
     """
     Indicate whether the given object/expression is a selector.
 
