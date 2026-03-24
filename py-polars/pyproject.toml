@@ -91,6 +91,44 @@ all = [
   "polars[async,cloudpickle,database,deltalake,excel,fsspec,graph,iceberg,numpy,pandas,plot,pyarrow,pydantic,style,timezone]",
 ]
 
+[tool.pyrefly]
+project-excludes = ["src/polars/series/*"]
+project-includes = ["src/polars", "tests"]
+# Configure pyrefly's behavior for imports that cannot be found
+ignore-missing-imports = [
+  # Add module patterns exactly as you had them in your mypy configuration
+  "IPython.*",
+  "adbc_driver_manager.*",
+  "adbc_driver_sqlite.*",
+  "altair.*",
+  "arrow_odbc",
+  "backports",
+  "connectorx",
+  "dateutil.*",
+  "deltalake.*",
+  "duckdb.*",
+  "fsspec.*",
+  "gevent",
+  "great_tables",
+  "jax.*",
+  "marimo",
+  "matplotlib.*",
+  "moto.server",
+  "openpyxl",
+  "polars.polars",
+  "polars._plr",
+  "polars_cloud",
+  "pyarrow.*",
+  "pydantic",
+  "pyiceberg.*",
+  "pytz.*",
+  "sqlalchemy.*",
+  "torch.*",
+  "xlsx2csv",
+  "xlsxwriter.*",
+  "zoneinfo",
+]
+
 [tool.mypy]
 files = ["src/polars", "tests"]
 strict = true
