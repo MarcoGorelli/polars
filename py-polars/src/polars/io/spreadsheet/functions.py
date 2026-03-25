@@ -9,7 +9,7 @@ from datetime import time
 from glob import glob
 from io import BufferedReader, BytesIO, StringIO, TextIOWrapper
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, NoReturn, overload
+from typing import IO, TYPE_CHECKING, Any, NoReturn, overload, cast
 
 import polars._reexport as pl
 from polars import from_arrow
@@ -922,6 +922,7 @@ def _csv_buffer_to_frame(
             )
 
         csv_schema_overrides = read_options.get("schema_overrides", csv_dtypes)
+        assert csv_schema_overrides is not None
         if set(csv_schema_overrides).intersection(schema_overrides):
             msg = "cannot specify columns in both `schema_overrides` and `read_options['dtypes']`"
             raise ParameterCollisionError(msg)
@@ -1010,7 +1011,7 @@ def _reorder_columns(
     if columns:
         from polars.selectors import by_index, by_name
 
-        cols = by_index(*columns) if isinstance(columns[0], int) else by_name(*columns)
+        cols = by_index(*columns) if isinstance(columns[0], int) else by_name(*columns)  # pyrefly: ignore[bad-argument-type]
         df = df.select(cols)
     return df
 
@@ -1073,6 +1074,7 @@ def _read_spreadsheet_calamine(
 
         read_options["dtypes"] = parser_dtypes
 
+    df: pl.DataFrame
     if fastexcel_version < (0, 11, 2):
         ws = parser.load_sheet_by_name(name=sheet_name, **read_options)
         df = ws.to_polars()
@@ -1092,10 +1094,10 @@ def _read_spreadsheet_calamine(
         elif _PYARROW_AVAILABLE:
             # eager loading is faster / more memory-efficient, but requires pyarrow
             ws_arrow = parser.load_sheet_eager(sheet_name, **read_options)
-            df = from_arrow(ws_arrow)
+            df = cast(pl.DataFrame, from_arrow(ws_arrow))
         else:
             ws_arrow = parser.load_sheet(sheet_name, **read_options)
-            df = from_arrow(ws_arrow)
+            df = cast(pl.DataFrame, from_arrow(ws_arrow))
 
         if read_options.get("header_row", False) is None and not read_options.get(
             "column_names"
@@ -1211,7 +1213,7 @@ def _read_spreadsheet_openpyxl(
 
     # prefer detection of actual table objects; otherwise read
     # data in the used worksheet range, dropping null columns
-    if tables := getattr(ws, "tables", None):
+    if tables := getattr(ws, "tables", None):  # pyrefly: ignore[unbound-name]
         table = tables[table_name] if table_name else next(iter(tables.values()))
         rows = list(ws[table.ref])
         if not rows:

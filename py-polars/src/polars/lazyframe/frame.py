@@ -12,6 +12,7 @@ from io import BytesIO, StringIO
 from operator import and_
 from pathlib import Path
 from typing import (
+    cast,
     TYPE_CHECKING,
     Any,
     ClassVar,
@@ -3228,7 +3229,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
             if delta_write_options is None:
                 delta_write_options = {}
 
-            write_deltalake(
+            write_deltalake(  # pyrefly: ignore[no-matching-overload]
                 table_or_uri=target,
                 data=stream,  # type: ignore[call-overload]
                 mode=mode,
@@ -5051,7 +5052,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         structify = bool(int(os.environ.get("POLARS_AUTO_STRUCTIFY", 0)))
 
         pyexprs = parse_into_list_of_expressions(
-            *exprs, **named_exprs, __structify=structify
+            *exprs, **named_exprs, __structify=structify  # pyrefly: ignore[bad-argument-type]
         )
         return self._from_pyldf(self._ldf.select(pyexprs))
 
@@ -5081,7 +5082,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         structify = bool(int(os.environ.get("POLARS_AUTO_STRUCTIFY", 0)))
 
         pyexprs = parse_into_list_of_expressions(
-            *exprs, **named_exprs, __structify=structify
+            *exprs, **named_exprs, __structify=structify  # pyrefly: ignore[bad-argument-type]
         )
         return self._from_pyldf(self._ldf.select_seq(pyexprs))
 
@@ -5189,7 +5190,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
                     f"    group_by({value!r})"
                 )
                 raise TypeError(msg)
-        exprs = parse_into_list_of_expressions(*by, **named_by)
+        exprs = parse_into_list_of_expressions(*by, **named_by)  # pyrefly: ignore[bad-argument-type]
         lgb = self._ldf.group_by(exprs, maintain_order)
         return LazyGroupBy(lgb)
 
@@ -6562,7 +6563,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         structify = bool(int(os.environ.get("POLARS_AUTO_STRUCTIFY", 0)))
 
         pyexprs = parse_into_list_of_expressions(
-            *exprs, **named_exprs, __structify=structify
+            *exprs, **named_exprs, __structify=structify  # pyrefly: ignore[bad-argument-type]
         )
         return self._from_pyldf(self._ldf.with_columns(pyexprs))
 
@@ -6601,7 +6602,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         structify = bool(int(os.environ.get("POLARS_AUTO_STRUCTIFY", 0)))
 
         pyexprs = parse_into_list_of_expressions(
-            *exprs, **named_exprs, __structify=structify
+            *exprs, **named_exprs, __structify=structify  # pyrefly: ignore[bad-argument-type]
         )
         return self._from_pyldf(self._ldf.with_columns_seq(pyexprs))
 
