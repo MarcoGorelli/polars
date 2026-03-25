@@ -3,7 +3,7 @@ from __future__ import annotations
 import contextlib
 from collections import OrderedDict
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Literal, overload
+from typing import TYPE_CHECKING, Literal, overload, Any
 
 from polars._typing import PythonDataType
 from polars._utils.unstable import unstable
@@ -23,6 +23,11 @@ with contextlib.suppress(ImportError):  # Module not available when building doc
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from typing import TypeAlias
+    import sys
+    if sys.version_info >= (3, 13):
+        from typing import TypeIs
+    else:
+        from typing_extensions import TypeIs
 
     import pyarrow as pa
 
@@ -51,6 +56,8 @@ def _check_dtype(tp: DataType | DataTypeClass) -> DataType:
         tp = tp()
     return tp  # type: ignore[return-value]
 
+def _is_arrow_schema_exportable(obj: Any) -> TypeIs[ArrowSchemaExportable]:
+    return hasattr(obj, "__arrow_c_schema__")
 
 class Schema(BaseSchema):
     """
@@ -115,7 +122,7 @@ class Schema(BaseSchema):
         *,
         check_dtypes: bool = True,
     ) -> None:
-        if hasattr(schema, "__arrow_c_schema__") and not isinstance(schema, Schema):
+        if _is_arrow_schema_exportable(schema) and not isinstance(schema, Schema):
             init_polars_schema_from_arrow_c_schema(self, schema)
             return
 
@@ -123,7 +130,7 @@ class Schema(BaseSchema):
         for v in input:
             name, tp = (
                 polars_schema_field_from_arrow_c_schema(v)
-                if hasattr(v, "__arrow_c_schema__") and not isinstance(v, DataType)
+                if _is_arrow_schema_exportable(v) and not isinstance(v, DataType)
                 else v
             )
 
