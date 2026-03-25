@@ -116,6 +116,7 @@ if TYPE_CHECKING:
     import deltalake
     import pyiceberg.catalog
     import pyiceberg.table
+    import polars_cloud._typing as pct
 
     import polars.io.iceberg
     from polars.io.partition import PartitionBy
@@ -9153,10 +9154,10 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         self,
         context: pc.ComputeContext | None = None,
         *,
-        plan_type: pc._typing.PlanTypePreference = "dot",
+        plan_type: pct.PlanTypePreference = "dot",
         n_retries: int = 0,
-        engine: pc._typing.Engine = "auto",
-        scaling_mode: pc._typing.ScalingMode = "auto",
+        engine: pct.Engine = "auto",
+        scaling_mode: pct.ScalingMode = "auto",
     ) -> pc.LazyFrameRemote:
         """
         Run a query remotely on Polars Cloud.
