@@ -190,7 +190,7 @@ class LazyGroupBy:
             )
             raise TypeError(msg)
 
-        pyexprs = parse_into_list_of_expressions(*aggs, **named_aggs)
+        pyexprs = parse_into_list_of_expressions(*aggs, **named_aggs)  # pyrefly: ignore[bad-argument-type]
         return wrap_ldf(self.lgb.agg(pyexprs))
 
     def map_groups(
