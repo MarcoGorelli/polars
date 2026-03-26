@@ -130,7 +130,7 @@ class DataType(metaclass=DataTypeClass):
         return _dtype_str_repr(self)
 
     @overload  # type: ignore[override]
-    def __eq__(self, other: pl.DataTypeExpr) -> pl.Expr: ...
+    def __eq__(self, other: pl.DataTypeExpr) -> pl.Expr: ...  # pyrefly: ignore[bad-override]
 
     @overload
     def __eq__(self, other: PolarsDataType) -> bool: ...

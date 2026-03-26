@@ -9741,7 +9741,7 @@ class DataFrame:
         on = None if on is None else _expand_selectors(self, on)
         index = [] if index is None else _expand_selectors(self, index)
 
-        return self._from_pydf(self._df.unpivot(on, index, value_name, variable_name))
+        return self._from_pydf(self._df.unpivot(on, index, value_name, variable_name))  # pyrefly: ignore[bad-argument-type] (todo)
 
     def unstack(
         self,
@@ -11998,13 +11998,13 @@ class DataFrame:
                     for row in zerocopy_slice.rows(named=False):
                         yield dict_(zip_(columns, row))
                 else:
-                    yield from zerocopy_slice.rows(named=False)
+                    yield from zerocopy_slice.rows(named=False)  # pyrefly: ignore[invalid-yield] (todo)
         elif named:
             for i in range(self.height):
                 yield dict_(zip_(columns, get_row(i)))
         else:
             for i in range(self.height):
-                yield get_row(i)
+                yield get_row(i)  # pyrefly: ignore[invalid-yield] (todo)
 
     def iter_columns(self) -> Iterator[Series]:
         """
