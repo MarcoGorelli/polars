@@ -519,7 +519,7 @@ def read_csv(
                 raise ValueError(msg)
 
         lf = _scan_csv_impl(
-            source,
+            source,  # pyrefly: ignore[bad-argument-type]
             has_header=has_header,
             separator=separator,
             comment_prefix=comment_prefix,

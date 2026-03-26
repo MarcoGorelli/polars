@@ -440,7 +440,7 @@ class ConnectionExecutor:
             # connection has a dedicated cursor; prefer over direct execute
             cursor = cursor() if callable(cursor := conn.cursor) else cursor
             self.can_close_cursor = True
-            return cursor
+            return cursor  # pyrefly: ignore[bad-return]
 
         elif hasattr(conn, "execute"):
             # can execute directly (given cursor, sqlalchemy connection, etc)

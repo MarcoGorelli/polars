@@ -152,7 +152,7 @@ def lit(
     elif isinstance(value, timedelta):
         value_s = pl.Series("literal", [value])
         if dtype is not None and (tu := getattr(dtype, "time_unit", None)) is not None:
-            value_s = value_s.cast(Duration(tu))
+            value_s = value_s.cast(Duration(tu))  # pyrefly: ignore[bad-argument-type]
         expr = wrap_expr(plr.lit(value_s._s, allow_object=False, is_scalar=True))
         return expr
 
@@ -213,7 +213,7 @@ def lit(
                 return lit(item).cast(Duration(time_unit))
 
         # handle known mappable values
-        dtype = DataTypeMappings.NUMPY_KIND_AND_ITEMSIZE_TO_DTYPE.get(
+        dtype = DataTypeMappings.NUMPY_KIND_AND_ITEMSIZE_TO_DTYPE.get(  # pyrefly: ignore[missing-attribute]
             (value.dtype.kind, value.dtype.itemsize)
         )
         if dtype is not None:
