@@ -712,7 +712,7 @@ def struct(
     >>> df.select(pl.struct(p="int", q="bool").alias("my_struct")).schema
     Schema({'my_struct': Struct({'p': Int64, 'q': Boolean})})
     """
-    pyexprs = parse_into_list_of_expressions(*exprs, **named_exprs)
+    pyexprs = parse_into_list_of_expressions(*exprs, **named_exprs)  # pyrefly: ignore[bad-argument-type]
 
     if schema:
         if not exprs and not named_exprs:

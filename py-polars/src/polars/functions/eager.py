@@ -185,13 +185,13 @@ def concat(
             raise TypeError(msg)
 
         # establish common columns, maintaining the order in which they appear
-        all_columns = list(chain.from_iterable(e.collect_schema() for e in elems))
+        all_columns = list(chain.from_iterable(e.collect_schema() for e in elems))  # pyrefly: ignore[missing-attribute]
         key = {v: k for k, v in enumerate(ordered_unique(all_columns))}
         output_column_order = list(key)
         common_cols = sorted(
             reduce(
                 lambda x, y: set(x) & set(y),  # type: ignore[arg-type, return-value]
-                chain(e.collect_schema() for e in elems),
+                chain(e.collect_schema() for e in elems),  # pyrefly: ignore[missing-attribute]
             ),
             key=lambda k: key.get(k, 0),
         )
@@ -205,7 +205,7 @@ def concat(
         join_method: JoinStrategy = (
             "full" if how == "align" else how.removeprefix("align_")  # type: ignore[assignment]
         )
-        join_frames = [df.lazy() for df in elems]
+        join_frames = [df.lazy() for df in elems]  # pyrefly: ignore[missing-attribute]
 
         def join_fn(x: pl.LazyFrame, y: pl.LazyFrame) -> pl.LazyFrame:
             return x.join(
@@ -238,7 +238,7 @@ def concat(
         elif how == "vertical_relaxed":
             out = wrap_ldf(
                 plr.concat_lf(
-                    [df.lazy() for df in elems],
+                    [df.lazy() for df in elems],  # pyrefly: ignore[missing-attribute]
                     rechunk=rechunk,
                     parallel=parallel,
                     to_supertypes=True,
@@ -251,7 +251,7 @@ def concat(
         elif how == "diagonal_relaxed":
             out = wrap_ldf(
                 plr.concat_lf_diagonal(
-                    [df.lazy() for df in elems],
+                    [df.lazy() for df in elems],  # pyrefly: ignore[missing-attribute]
                     rechunk=rechunk,
                     parallel=parallel,
                     to_supertypes=True,
@@ -307,7 +307,7 @@ def concat(
             raise ValueError(msg)
 
     elif isinstance(first, pl.Expr):
-        return wrap_expr(plr.concat_expr([e._pyexpr for e in elems], rechunk))
+        return wrap_expr(plr.concat_expr([e._pyexpr for e in elems], rechunk))  # pyrefly: ignore[missing-attribute]
     else:
         msg = f"did not expect type: {qualified_type_name(first)!r} in `concat`"
         raise TypeError(msg)
@@ -476,13 +476,13 @@ def union(
             raise TypeError(msg)
 
         # establish common columns, maintaining the order in which they appear
-        all_columns = list(chain.from_iterable(e.collect_schema() for e in elems))
+        all_columns = list(chain.from_iterable(e.collect_schema() for e in elems))  # pyrefly: ignore[missing-attribute]
         key = {v: k for k, v in enumerate(ordered_unique(all_columns))}
         output_column_order = list(key)
         common_cols = sorted(
             reduce(
                 lambda x, y: set(x) & set(y),  # type: ignore[arg-type, return-value]
-                chain(e.collect_schema() for e in elems),
+                chain(e.collect_schema() for e in elems),  # pyrefly: ignore[missing-attribute]
             ),
             key=lambda k: key.get(k, 0),
         )
@@ -496,7 +496,7 @@ def union(
         join_method: JoinStrategy = (
             "full" if how == "align" else how.removeprefix("align_")  # type: ignore[assignment]
         )
-        join_frames = [df.lazy() for df in elems]
+        join_frames = [df.lazy() for df in elems]  # pyrefly: ignore[missing-attribute]
 
         def join_fn(x: pl.LazyFrame, y: pl.LazyFrame) -> pl.LazyFrame:
             return x.join(
@@ -527,7 +527,7 @@ def union(
         if how in ("vertical", "vertical_relaxed"):
             out = wrap_ldf(
                 plr.concat_lf(
-                    [df.lazy() for df in elems],
+                    [df.lazy() for df in elems],  # pyrefly: ignore[missing-attribute]
                     rechunk=False,
                     parallel=True,
                     to_supertypes=how.endswith("relaxed"),
@@ -537,7 +537,7 @@ def union(
         elif how in ("diagonal", "diagonal_relaxed"):
             out = wrap_ldf(
                 plr.concat_lf_diagonal(
-                    [df.lazy() for df in elems],
+                    [df.lazy() for df in elems],  # pyrefly: ignore[missing-attribute]
                     rechunk=False,
                     parallel=True,
                     to_supertypes=how.endswith("relaxed"),
@@ -593,7 +593,7 @@ def union(
             raise ValueError(msg)
 
     elif isinstance(first, pl.Expr):
-        return wrap_expr(plr.concat_expr([e._pyexpr for e in elems], False))
+        return wrap_expr(plr.concat_expr([e._pyexpr for e in elems], False))  # pyrefly: ignore[missing-attribute]
     else:
         msg = f"did not expect type: {qualified_type_name(first)!r} in `concat`"
         raise TypeError(msg)
@@ -782,7 +782,7 @@ def align_frames(
 
     if len(frames) == 1 and not isinstance(frames[0], (pl.DataFrame, pl.LazyFrame)):
         frames = frames[0]  # type: ignore[assignment]
-    if isinstance(frames, (Generator, Iterator)):
+    if isinstance(frames, (Generator, Iterator)):  # pyrefly: unsafe-overlap (todo)
         frames = tuple(frames)
 
     if len({type(f) for f in frames}) != 1:
