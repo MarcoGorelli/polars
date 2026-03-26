@@ -4640,7 +4640,7 @@ class DataFrame:
 
             import_optional(
                 module_name="sqlalchemy",
-                min_version=("2.0" if pd_version >= (2, 2) else "1.4"),
+                min_version=("2.0" if pd_version >= (2, 2) else "1.4"),  # pyrefly: ignore[unbound-name] https://github.com/facebook/pyrefly/issues/2910
                 min_err_prefix="pandas >= 2.2 requires",
             )
             # note: the catalog (database) should be a part of the connection string
