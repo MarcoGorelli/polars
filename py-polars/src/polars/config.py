@@ -1176,7 +1176,7 @@ class Config(contextlib.ContextDecorator):
             if (format := format.upper()) not in valid_format_names:  # type: ignore[assignment]
                 msg = f"invalid table format name: {format!r}\nExpected one of: {', '.join(valid_format_names)}"
                 raise ValueError(msg)
-            os.environ["POLARS_FMT_TABLE_FORMATTING"] = format
+            os.environ["POLARS_FMT_TABLE_FORMATTING"] = format  # pyrefly: ignore[unsupported-operation] (todo)
         plr.config_reload_env_var("POLARS_FMT_TABLE_FORMATTING")
 
         if rounded_corners is None:

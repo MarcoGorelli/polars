@@ -219,7 +219,7 @@ _PYTHON_METHODS_MAP: Final[dict[str, str]] = {
     "year": "dt.year",
 }
 
-_MODULE_FUNCTIONS: list[dict[str, list[AbstractSet[str]]]] = [
+_MODULE_FUNCTIONS: list[dict[str, list[AbstractSet[str]]]] = [  # pyrefly: ignore[bad-assignment]
     # lambda x: numpy.func(x)
     # lambda x: numpy.func(CONSTANT)
     {
@@ -277,7 +277,7 @@ _MODULE_FUNCTIONS: list[dict[str, list[AbstractSet[str]]]] = [
 ]
 # In addition to `lambda x: func(x)`, also support cases when a unary operation
 # has been applied to `x`, like `lambda x: func(-x)` or `lambda x: func(~x)`.
-_MODULE_FUNCTIONS = [
+_MODULE_FUNCTIONS = [  # pyrefly: ignore[bad-assignment]
     {**kind, "argument_1_unary_opname": unary}  # type: ignore[dict-item]
     for kind in _MODULE_FUNCTIONS
     for unary in [[set(OpNames.UNARY)], []]

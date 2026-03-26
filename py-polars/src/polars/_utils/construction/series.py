@@ -338,7 +338,7 @@ def sequence_to_pyseries(
                 return PySeries.new_from_any_values(name, values, strict=strict)
 
         return _construct_series_with_fallbacks(
-            constructor, name, values, dtype, strict=strict
+            constructor, name, values, dtype, strict=strict  # pyrefly: ignore[bad-argument-type] (todo)
         )
 
 
@@ -381,7 +381,7 @@ def iterable_to_pyseries(
     strict: bool = True,
 ) -> PySeries:
     """Construct a PySeries from an iterable/generator."""
-    if not isinstance(values, (Generator, Iterator)):
+    if not isinstance(values, (Generator, Iterator)):  # pyrefly: ignore[unsafe-overlap] (todo)
         values = iter(values)
 
     def to_series_chunk(values: list[Any], dtype: PolarsDataType | None) -> Series:

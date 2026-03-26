@@ -321,7 +321,7 @@ def _post_apply_columns(
         if dtype == Categorical != pydf_dtype:
             column_casts.append(F.col(col).cast(Categorical, strict=strict)._pyexpr)
         elif dtype == Enum != pydf_dtype:
-            column_casts.append(F.col(col).cast(dtype, strict=strict)._pyexpr)
+            column_casts.append(F.col(col).cast(dtype, strict=strict)._pyexpr)  # pyrefly: ignore[bad-argument-type] (todo)
         elif structs and (struct := structs.get(col)) and struct != pydf_dtype:
             column_casts.append(F.col(col).cast(struct, strict=strict)._pyexpr)
         elif dtype is not None and dtype != Unknown and dtype != pydf_dtype:
@@ -376,7 +376,7 @@ def _expand_dict_values(
                         and all(not d.is_nested() for d in vdf.schema.values())
                     ):
                         s_vals = {
-                            nm: vdf[nm].extend_constant(v, n=(array_len - 1))
+                            nm: vdf[nm].extend_constant(v, n=(array_len - 1))  # pyrefly: ignore[bad-argument-type]
                             for nm, v in val.items()
                         }
                         st = pl.DataFrame(s_vals).to_struct(name)
@@ -442,7 +442,7 @@ def _expand_dict_data(
     expanded_data = {}
     for name, val in data.items():
         expanded_data[name] = (
-            pl.Series(name, val, dtypes.get(name), strict=strict)
+            pl.Series(name, val, dtypes.get(name), strict=strict)  # pyrefly: ignore[unsupported-operation] (todo)
             if _is_generator(val)
             else val
         )
@@ -989,7 +989,7 @@ def iterable_to_pydf(
     elif schema_overrides:
         _, schema_overrides = _unpack_schema(schema, schema_overrides=schema_overrides)
 
-    if not isinstance(data, Generator):
+    if not isinstance(data, Generator):  # pyrefly: ignore[unsafe-overlap] (todo)
         data = iter(data)
 
     if orient == "col":

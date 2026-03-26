@@ -87,7 +87,7 @@ class _AioDataFrameResult(Awaitable[T], Generic[T]):
         if isinstance(obj, Exception):
             self.loop.call_soon_threadsafe(self.result.set_exception, obj)
         else:
-            self.loop.call_soon_threadsafe(
+            self.loop.call_soon_threadsafe(  # pyrefly: ignore[bad-argument-type]
                 self.result.set_result,  # type: ignore[arg-type]
                 wrap_df(obj),
             )
@@ -96,7 +96,7 @@ class _AioDataFrameResult(Awaitable[T], Generic[T]):
         if isinstance(obj, Exception):
             self.loop.call_soon_threadsafe(self.result.set_exception, obj)
         else:
-            self.loop.call_soon_threadsafe(
+            self.loop.call_soon_threadsafe(  # pyrefly: ignore[bad-argument-type]
                 self.result.set_result,  # type: ignore[arg-type]
                 [wrap_df(pydf) for pydf in obj],
             )

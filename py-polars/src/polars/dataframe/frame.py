@@ -1022,7 +1022,7 @@ class DataFrame:
                 msg = f"copy not allowed: cast from {arr.dtype} to {dtype} prohibited"
                 raise RuntimeError(msg)
 
-            arr = arr.__array__(dtype)
+            arr = arr.__array__(dtype)  # pyrefly: ignore[no-matching-overload]
 
         return arr
 
@@ -2493,8 +2493,8 @@ class DataFrame:
             if label is not None:
                 # return a {"label": tensor(s), "features": tensor(s)} dict
                 return {
-                    "label": label_frame.to_torch(),
-                    "features": features_frame.to_torch(),
+                    "label": label_frame.to_torch(),  # pyrefly: ignore[unbound-name]
+                    "features": features_frame.to_torch(),  # pyrefly: ignore[unbound-name]
                 }
             else:
                 # return a {"col": tensor} dict
@@ -2504,7 +2504,7 @@ class DataFrame:
             # return a torch Dataset object
             from polars.ml.torch import PolarsDataset
 
-            pds_label = None if label is None else label_frame.columns
+            pds_label = None if label is None else label_frame.columns  # pyrefly: ignore[unbound-name]
             return PolarsDataset(frame, label=pds_label, features=features)
         else:
             valid_torch_types = ", ".join(get_args(TorchExportType))
@@ -2594,7 +2594,7 @@ class DataFrame:
             if parse_version(pd.__version__) < (1, 5):
                 msg = f'pandas>=1.5.0 is required for `to_pandas("use_pyarrow_extension_array=True")`, found Pandas {pd.__version__!r}'
                 raise ModuleUpgradeRequiredError(msg)
-            if not _PYARROW_AVAILABLE or parse_version(pa.__version__) < (8, 0):
+            if not _PYARROW_AVAILABLE or parse_version(pa.__version__) < (8, 0):  # pyrefly: ignore[bad-argument-type] (todo)
                 msg = "pyarrow>=8.0.0 is required for `to_pandas(use_pyarrow_extension_array=True)`"
                 if _PYARROW_AVAILABLE:
                     msg += f", found pyarrow {pa.__version__!r}."
@@ -3739,7 +3739,7 @@ class DataFrame:
         from xlsxwriter.utility import xl_cell_to_rowcol
 
         # setup workbook/worksheet
-        wb, ws, can_close = _xl_setup_workbook(workbook, worksheet, use_zip64=use_zip64)
+        wb, ws, can_close = _xl_setup_workbook(workbook, worksheet, use_zip64=use_zip64)  # pyrefly: ignore[bad-argument-type]
         df, is_empty = self, self.is_empty()
 
         # note: `_xl_setup_table_columns` converts nested data (List, Struct, etc.) to
@@ -3882,7 +3882,7 @@ class DataFrame:
                     ws.set_row_pixels(idx, row_heights)
             elif isinstance(row_heights, dict):
                 for idx, height in _unpack_multi_column_dict(row_heights).items():  # type: ignore[assignment]
-                    ws.set_row_pixels(idx, height)
+                    ws.set_row_pixels(idx, height)  # pyrefly: ignore[bad-argument-type]
 
         if freeze_panes:
             if isinstance(freeze_panes, str):
