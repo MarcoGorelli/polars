@@ -19,6 +19,7 @@ pub(crate) use join_utils::ExprOrigin;
 mod expand_datasets;
 #[cfg(feature = "python")]
 pub use expand_datasets::ExpandedPythonScan;
+mod collapse_sort;
 mod predicate_pushdown;
 mod projection_pushdown;
 pub mod set_order;
@@ -38,7 +39,9 @@ pub use predicate_pushdown::{DynamicPred, PredicateExpr, PredicatePushDown, Triv
 pub use projection_pushdown::ProjectionPushDown;
 pub use simplify_expr::{SimplifyBooleanRule, SimplifyExprRule};
 use slice_pushdown_lp::SlicePushDown;
-pub use sortedness::{AExprSorted, IRSorted, are_keys_sorted_any, expr_is_sorted, is_sorted};
+pub use sortedness::{
+    AExprSorted, IRPlanSorted, IRSorted, are_keys_sorted_any, expr_is_sorted, is_sorted,
+};
 pub use stack_opt::{OptimizationRule, OptimizeExprContext, StackOptimizer};
 
 use self::flatten_union::FlattenUnionRule;
@@ -225,6 +228,10 @@ pub fn optimize(
         rules.push(Box::new(SimpleProjectionAndCollapse::new(
             opt_flags.eager(),
         )));
+    }
+
+    if opt_flags.contains(OptFlags::SORT_COLLAPSE) {
+        rules.push(Box::new(collapse_sort::CollapseSort {}));
     }
 
     if !opt_flags.eager() {
