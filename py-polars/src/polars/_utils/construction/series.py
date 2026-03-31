@@ -338,7 +338,7 @@ def sequence_to_pyseries(
                 return PySeries.new_from_any_values(name, values, strict=strict)
 
         return _construct_series_with_fallbacks(
-            constructor, name, values, dtype, strict=strict  # pyrefly: ignore[bad-argument-type] (todo)
+            constructor, name, values, dtype, strict=strict  # pyrefly: ignore[bad-argument-type] https://github.com/facebook/pyrefly/issues/2968
         )
 
 
