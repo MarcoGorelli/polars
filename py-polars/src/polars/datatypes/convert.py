@@ -272,7 +272,7 @@ def dtype_to_py_type(dtype: PolarsDataType) -> PythonDataType:
 def py_type_to_arrow_type(dtype: PythonDataType) -> pa.lib.DataType:  # pyrefly: ignore[missing-attribute] (todo)
     """Convert a Python dtype to an Arrow dtype."""
     try:
-        return DataTypeMappings.PY_TYPE_TO_ARROW_TYPE[dtype]  # pyrefly: ignore[bad-index] (todo)
+        return DataTypeMappings.PY_TYPE_TO_ARROW_TYPE[dtype]  # pyrefly: ignore[bad-index] https://github.com/facebook/pyrefly/issues/2979
     except KeyError:  # pragma: no cover
         msg = f"cannot parse Python data type {dtype!r} into Arrow data type"
         raise ValueError(msg) from None
@@ -288,7 +288,7 @@ def dtype_short_repr_to_dtype(dtype_string: str | None) -> PolarsDataType | None
         return None
 
     dtype_base, subtype = m.groups()
-    dtype = DataTypeMappings.REPR_TO_DTYPE.get(dtype_base)  # pyrefly: ignore[missing-attribute] (todo)
+    dtype = DataTypeMappings.REPR_TO_DTYPE.get(dtype_base)  # pyrefly: ignore[missing-attribute] https://github.com/facebook/pyrefly/issues/2979
     if dtype and subtype:
         # TODO: further-improve handling for nested types (such as List,Struct)
         try:
@@ -321,7 +321,7 @@ def numpy_char_code_to_dtype(dtype_char: str) -> PolarsDataType:
     elif dtype.kind == "S":
         return Binary
     try:
-        return DataTypeMappings.NUMPY_KIND_AND_ITEMSIZE_TO_DTYPE[  # pyrefly: ignore[bad-index] (todo)
+        return DataTypeMappings.NUMPY_KIND_AND_ITEMSIZE_TO_DTYPE[  # pyrefly: ignore[bad-index] https://github.com/facebook/pyrefly/issues/2979
             dtype.kind, dtype.itemsize
         ]
     except KeyError:  # pragma: no cover

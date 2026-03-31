@@ -782,7 +782,7 @@ def align_frames(
 
     if len(frames) == 1 and not isinstance(frames[0], (pl.DataFrame, pl.LazyFrame)):
         frames = frames[0]  # type: ignore[assignment]
-    if isinstance(frames, (Generator, Iterator)):  # pyrefly: ignore[unsafe-overlap] (todo)
+    if isinstance(frames, (Generator, Iterator)):  # pyrefly: ignore[unsafe-overlap] https://github.com/facebook/pyrefly/issues/2976
         frames = tuple(frames)
 
     if len({type(f) for f in frames}) != 1:
