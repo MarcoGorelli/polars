@@ -9739,9 +9739,9 @@ class DataFrame:
         └─────┴──────────┴───────┘
         """
         on = None if on is None else _expand_selectors(self, on)
-        index = [] if index is None else _expand_selectors(self, index)
+        index_ = [] if index is None else _expand_selectors(self, index)
 
-        return self._from_pydf(self._df.unpivot(on, index, value_name, variable_name))  # pyrefly: ignore[bad-argument-type] (todo)
+        return self._from_pydf(self._df.unpivot(on, index_, value_name, variable_name))
 
     def unstack(
         self,
@@ -11998,7 +11998,7 @@ class DataFrame:
                     for row in zerocopy_slice.rows(named=False):
                         yield dict_(zip_(columns, row))
                 else:
-                    yield from zerocopy_slice.rows(named=False)  # pyrefly: ignore[invalid-yield] (todo)
+                    yield from zerocopy_slice.rows(named=False)   # pyrefly: ignore[invalid-yield] https://github.com/facebook/pyrefly/issues/2976
         elif named:
             for i in range(self.height):
                 yield dict_(zip_(columns, get_row(i)))
