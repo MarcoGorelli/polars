@@ -439,10 +439,10 @@ def _expand_dict_data(
 
     (Note that `range` is sized, and will take a fast-path on Series init).
     """
-    expanded_data = {}
+    expanded_data: dict[str, Sequence[object] | Mapping[str, Sequence[object]] | Series] = {}
     for name, val in data.items():
         expanded_data[name] = (
-            pl.Series(name, val, dtypes.get(name), strict=strict)  # pyrefly: ignore[unsupported-operation] (todo)
+            pl.Series(name, val, dtypes.get(name), strict=strict)
             if _is_generator(val)
             else val
         )
@@ -989,7 +989,7 @@ def iterable_to_pydf(
     elif schema_overrides:
         _, schema_overrides = _unpack_schema(schema, schema_overrides=schema_overrides)
 
-    if not isinstance(data, Generator):  # pyrefly: ignore[unsafe-overlap] (todo)
+    if not isinstance(data, Generator):  # pyrefly: ignore[unsafe-overlap] https://github.com/facebook/pyrefly/issues/2978
         data = iter(data)
 
     if orient == "col":
