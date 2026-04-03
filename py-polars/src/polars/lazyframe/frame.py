@@ -5202,7 +5202,8 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
                 )
                 raise TypeError(msg)
         exprs = parse_into_list_of_expressions(
-            *by, **named_by  # pyrefly: ignore[bad-argument-type]
+            *by,
+            **named_by,  # pyrefly: ignore[bad-argument-type]
         )
         lgb = self._ldf.group_by(exprs, maintain_order)
         return LazyGroupBy(lgb)

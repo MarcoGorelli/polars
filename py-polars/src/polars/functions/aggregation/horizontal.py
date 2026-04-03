@@ -293,7 +293,9 @@ def cum_sum_horizontal(*exprs: IntoExpr | Iterable[IntoExpr]) -> Expr:
 
     return F.cum_fold(
         F.lit(0).cast(
-            F.dtype_of(F.sum_horizontal(list(exprs)))  # pyrefly: ignore[bad-argument-type]
+            F.dtype_of(
+                F.sum_horizontal(list(exprs))  # pyrefly: ignore[bad-argument-type]
+            )
         ),
         lambda a, b: a + b,
         exprs_wrapped,

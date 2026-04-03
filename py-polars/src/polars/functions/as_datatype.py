@@ -713,7 +713,8 @@ def struct(
     Schema({'my_struct': Struct({'p': Int64, 'q': Boolean})})
     """
     pyexprs = parse_into_list_of_expressions(
-        *exprs, **named_exprs  # pyrefly: ignore[bad-argument-type]
+        *exprs,
+        **named_exprs,  # pyrefly: ignore[bad-argument-type]
     )
 
     if schema:

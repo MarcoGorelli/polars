@@ -2505,7 +2505,9 @@ class DataFrame:
             from polars.ml.torch import PolarsDataset
 
             pds_label = (
-                None if label is None else label_frame.columns  # pyrefly: ignore[unbound-name]
+                None
+                if label is None
+                else label_frame.columns  # pyrefly: ignore[unbound-name]
             )
             return PolarsDataset(frame, label=pds_label, features=features)
         else:
@@ -2596,7 +2598,9 @@ class DataFrame:
             if parse_version(pd.__version__) < (1, 5):
                 msg = f'pandas>=1.5.0 is required for `to_pandas("use_pyarrow_extension_array=True")`, found Pandas {pd.__version__!r}'
                 raise ModuleUpgradeRequiredError(msg)
-            if not _PYARROW_AVAILABLE or parse_version(pa.__version__) < (  # pyrefly: ignore[bad-argument-type]
+            if not _PYARROW_AVAILABLE or parse_version(
+                pa.__version__  # pyrefly: ignore[bad-argument-type]
+            ) < (
                 8,
                 0,
             ):
@@ -3745,7 +3749,9 @@ class DataFrame:
 
         # setup workbook/worksheet
         wb, ws, can_close = _xl_setup_workbook(
-            workbook, worksheet, use_zip64=use_zip64  # pyrefly: ignore[bad-argument-type]
+            workbook,  # pyrefly: ignore[bad-argument-type]
+            worksheet,
+            use_zip64=use_zip64,
         )
         df, is_empty = self, self.is_empty()
 
@@ -4648,7 +4654,9 @@ class DataFrame:
             import_optional(
                 module_name="sqlalchemy",
                 min_version=(
-                    "2.0" if pd_version >= (2, 2) else "1.4"  # pyrefly: ignore[unbound-name]
+                    "2.0"
+                    if pd_version >= (2, 2)  # pyrefly: ignore[unbound-name]
+                    else "1.4"
                 ),
                 min_err_prefix="pandas >= 2.2 requires",
             )

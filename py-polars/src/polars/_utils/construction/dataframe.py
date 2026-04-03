@@ -366,7 +366,8 @@ def _expand_dict_values(
                     ):
                         s_vals = {
                             nm: vdf[nm].extend_constant(
-                                v, n=(array_len - 1)  # pyrefly: ignore[bad-argument-type]
+                                v,  # pyrefly: ignore[bad-argument-type]
+                                n=(array_len - 1),
                             )
                             for nm, v in val.items()
                         }
@@ -983,7 +984,8 @@ def iterable_to_pydf(
         _, schema_overrides = _unpack_schema(schema, schema_overrides=schema_overrides)
 
     if not isinstance(
-        data, Generator  # pyrefly: ignore[unsafe-overlap]
+        data,
+        Generator,  # pyrefly: ignore[unsafe-overlap]
     ):
         data = iter(data)
 
