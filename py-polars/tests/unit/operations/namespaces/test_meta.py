@@ -9,7 +9,7 @@ import pytest
 import polars as pl
 import polars.selectors as cs
 from polars.exceptions import ComputeError
-from tests.unit.conftest import NUMERIC_DTYPES
+from tests.unit.conftest import NUMERIC_DTYPES # pyrefly: ignore[missing-import]
 
 if TYPE_CHECKING:
     from pathlib import Path

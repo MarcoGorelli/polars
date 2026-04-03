@@ -9,7 +9,7 @@ import pytest
 import polars as pl
 from polars.exceptions import DuplicateError
 from polars.testing import assert_frame_equal
-from tests.unit.conftest import INTEGER_DTYPES
+from tests.unit.conftest import INTEGER_DTYPES # pyrefly: ignore[missing-import]
 
 if TYPE_CHECKING:
     from pathlib import Path

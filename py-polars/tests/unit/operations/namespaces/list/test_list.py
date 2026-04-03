@@ -15,7 +15,7 @@ from polars.exceptions import (
     OutOfBoundsError,
 )
 from polars.testing import assert_frame_equal, assert_series_equal
-from tests.unit.conftest import time_func
+from tests.unit.conftest import time_func # pyrefly: ignore[missing-import]
 
 if TYPE_CHECKING:
     from polars._typing import EngineType, PolarsDataType

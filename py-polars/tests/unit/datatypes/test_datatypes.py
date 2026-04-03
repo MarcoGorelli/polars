@@ -18,7 +18,7 @@ from polars.datatypes import (
     parse_into_dtype,
 )
 from polars.datatypes.group import DataTypeGroup
-from tests.unit.conftest import DATETIME_DTYPES, NUMERIC_DTYPES
+from tests.unit.conftest import DATETIME_DTYPES, NUMERIC_DTYPES # pyrefly: ignore[missing-import]
 
 if TYPE_CHECKING:
     from polars._typing import PolarsDataType

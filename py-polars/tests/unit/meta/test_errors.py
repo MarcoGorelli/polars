@@ -22,7 +22,7 @@ from polars.exceptions import (
     StructFieldNotFoundError,
 )
 from polars.testing import assert_frame_equal
-from tests.unit.conftest import TEMPORAL_DTYPES
+from tests.unit.conftest import TEMPORAL_DTYPES # pyrefly: ignore[missing-import]
 
 if TYPE_CHECKING:
     from polars._typing import ConcatMethod

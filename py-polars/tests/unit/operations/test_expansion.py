@@ -6,7 +6,7 @@ import pytest
 
 import polars as pl
 from polars.testing import assert_frame_equal
-from tests.unit.conftest import NUMERIC_DTYPES
+from tests.unit.conftest import NUMERIC_DTYPES # pyrefly: ignore[missing-import]
 
 
 def test_regex_exclude() -> None:

@@ -12,7 +12,7 @@ from polars._utils.constants import I64_MAX, I64_MIN
 from polars.series.datetime import DateTimeNameSpace
 from polars.testing import assert_frame_equal, assert_series_equal
 from polars.testing.parametric import series
-from tests.unit.conftest import FLOAT_DTYPES
+from tests.unit.conftest import FLOAT_DTYPES # pyrefly: ignore[missing-import]
 
 if TYPE_CHECKING:
     from collections.abc import Callable
