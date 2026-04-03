@@ -12,7 +12,7 @@ from tests.unit.io.conftest import format_file_uri
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from tests.conftest import PlMonkeyPatch
+    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
 
 READ_WRITE_FUNC_PARAM = [
     (pl.read_parquet, pl.DataFrame.write_parquet),

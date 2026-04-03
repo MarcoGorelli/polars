@@ -17,7 +17,7 @@ from tests.unit.conftest import NUMERIC_DTYPES, TEMPORAL_DTYPES
 if TYPE_CHECKING:
     from hypothesis.strategies import DrawFn, SearchStrategy
 
-    from tests.conftest import PlMonkeyPatch
+    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
 
 
 @pytest.mark.parametrize(

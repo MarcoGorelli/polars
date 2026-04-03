@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
     from polars import Expr
     from polars._typing import JoinStrategy, UniqueKeepStrategy
-    from tests.conftest import PlMonkeyPatch
+    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
 
 
 class MappingObject(Mapping[str, Any]):  # noqa: D101

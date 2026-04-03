@@ -16,7 +16,7 @@ from polars.testing import assert_frame_equal
 if TYPE_CHECKING:
     from polars._typing import EngineType
     from polars.io.partition import SinkedPathsCallbackArgs
-    from tests.conftest import PlMonkeyPatch
+    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
 
 
 SINKS = [

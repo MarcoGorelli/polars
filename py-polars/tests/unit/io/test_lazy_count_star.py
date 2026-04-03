@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from polars.lazyframe.frame import LazyFrame
-    from tests.conftest import PlMonkeyPatch
+    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
 
 import gzip
 import re

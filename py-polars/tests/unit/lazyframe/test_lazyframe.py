@@ -32,7 +32,7 @@ if TYPE_CHECKING:
         MapElementsStrategy,
         PolarsDataType,
     )
-    from tests.conftest import PlMonkeyPatch
+    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
 
 
 def test_init_signature_match() -> None:

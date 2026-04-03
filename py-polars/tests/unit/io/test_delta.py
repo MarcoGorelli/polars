@@ -24,7 +24,7 @@ from polars.io.delta._utils import _extract_table_statistics_from_delta_add_acti
 from polars.testing import assert_frame_equal, assert_frame_not_equal
 
 if TYPE_CHECKING:
-    from tests.conftest import PlMonkeyPatch
+    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
 
 
 @pytest.fixture

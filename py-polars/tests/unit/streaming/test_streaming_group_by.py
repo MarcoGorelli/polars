@@ -14,7 +14,7 @@ from tests.unit.conftest import INTEGER_DTYPES
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from tests.conftest import PlMonkeyPatch
+    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
 
 pytestmark = pytest.mark.xdist_group("streaming")
 

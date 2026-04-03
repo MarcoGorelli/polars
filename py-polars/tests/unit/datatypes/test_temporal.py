@@ -34,7 +34,7 @@ if TYPE_CHECKING:
         PolarsTemporalType,
         TimeUnit,
     )
-    from tests.conftest import PlMonkeyPatch
+    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
 
 
 def test_fill_null() -> None:

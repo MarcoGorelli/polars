@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from polars._typing import EpochTimeUnit, PolarsDataType, TimeUnit
-    from tests.conftest import PlMonkeyPatch
+    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
 
 
 def test_cum_agg() -> None:

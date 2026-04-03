@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from polars._typing import IpcCompression
-    from tests.conftest import PlMonkeyPatch
+    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
 
 COMPRESSIONS = ["uncompressed", "lz4", "zstd"]
 

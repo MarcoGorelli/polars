@@ -40,7 +40,7 @@ if TYPE_CHECKING:
         ParquetMetadataContext,
         TimeUnit,
     )
-    from tests.conftest import PlMonkeyPatch
+    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
     from tests.unit.conftest import MemoryUsage
 
 

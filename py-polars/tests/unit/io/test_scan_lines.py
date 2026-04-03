@@ -9,7 +9,7 @@ from polars.exceptions import ComputeError
 from polars.testing.asserts.frame import assert_frame_equal
 
 if TYPE_CHECKING:
-    from tests.conftest import PlMonkeyPatch
+    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
 
 
 def lazified_read_lines(*a: Any, **kw: Any) -> pl.LazyFrame:

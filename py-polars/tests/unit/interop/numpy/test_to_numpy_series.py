@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     import numpy.typing as npt
 
     from polars._typing import PolarsDataType
-    from tests.conftest import PlMonkeyPatch
+    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
 
 
 def assert_zero_copy(s: pl.Series, arr: np.ndarray[Any, Any]) -> None:

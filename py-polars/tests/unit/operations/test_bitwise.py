@@ -10,7 +10,7 @@ from polars.testing import assert_frame_equal, assert_series_equal
 from tests.unit.conftest import INTEGER_DTYPES
 
 if TYPE_CHECKING:
-    from tests.conftest import PlMonkeyPatch
+    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
 
 
 @pytest.mark.parametrize("op", ["and_", "or_"])

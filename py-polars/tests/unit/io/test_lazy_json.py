@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from polars._typing import NdjsonCompression
-    from tests.conftest import PlMonkeyPatch
+    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
 
 
 @pytest.fixture
