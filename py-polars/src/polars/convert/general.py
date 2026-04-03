@@ -1081,7 +1081,7 @@ def _from_series_repr(m: re.Match[str]) -> Series:
         if dtype is None:
             return srs
         elif dtype in (Categorical, String):
-            return srs.str.replace('^"(.*)"$', r"$1").cast(dtype)  # pyrefly: ignore[bad-argument-type] https://github.com/facebook/pyrefly/issues/2968
+            return srs.str.replace('^"(.*)"$', r"$1").cast(dtype)
 
         return _cast_repr_strings_with_schema(
             srs.to_frame(), schema={srs.name: dtype}

@@ -11998,13 +11998,13 @@ class DataFrame:
                     for row in zerocopy_slice.rows(named=False):
                         yield dict_(zip_(columns, row))
                 else:
-                    yield from zerocopy_slice.rows(named=False)   # pyrefly: ignore[invalid-yield] https://github.com/facebook/pyrefly/issues/2976
+                    yield from zerocopy_slice.rows(named=False)
         elif named:
             for i in range(self.height):
                 yield dict_(zip_(columns, get_row(i)))
         else:
             for i in range(self.height):
-                yield get_row(i)  # pyrefly: ignore[invalid-yield] (todo)
+                yield get_row(i)
 
     def iter_columns(self) -> Iterator[Series]:
         """
