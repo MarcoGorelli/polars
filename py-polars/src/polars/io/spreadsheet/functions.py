@@ -1014,7 +1014,7 @@ def _reorder_columns(
         cols = (
             by_index(*columns)  # pyrefly: ignore[bad-argument-type]
             if isinstance(columns[0], int)
-            else by_name(*columns) # pyrefly: ignore[bad-argument-type]
+            else by_name(*columns)  # pyrefly: ignore[bad-argument-type]
         )
         df = df.select(cols)
     return df

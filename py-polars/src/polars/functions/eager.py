@@ -187,7 +187,8 @@ def concat(
         # establish common columns, maintaining the order in which they appear
         all_columns = list(
             chain.from_iterable(
-                e.collect_schema() for e in elems  # pyrefly: ignore[missing-attribute]
+                e.collect_schema()  # pyrefly: ignore[missing-attribute]
+                for e in elems
             )
         )
         key = {v: k for k, v in enumerate(ordered_unique(all_columns))}
@@ -316,8 +317,9 @@ def concat(
     elif isinstance(first, pl.Expr):
         return wrap_expr(
             plr.concat_expr(
-                [e._pyexpr for e in elems], rechunk # pyrefly: ignore[missing-attribute]
-            ) 
+                [e._pyexpr for e in elems],  # pyrefly: ignore[missing-attribute]
+                rechunk,
+            )
         )
     else:
         msg = f"did not expect type: {qualified_type_name(first)!r} in `concat`"
@@ -489,8 +491,9 @@ def union(
         # establish common columns, maintaining the order in which they appear
         all_columns = list(
             chain.from_iterable(
-                e.collect_schema() for e in elems # pyrefly: ignore[missing-attribute]
-            ) 
+                e.collect_schema()  # pyrefly: ignore[missing-attribute]
+                for e in elems
+            )
         )
         key = {v: k for k, v in enumerate(ordered_unique(all_columns))}
         output_column_order = list(key)
@@ -613,7 +616,8 @@ def union(
     elif isinstance(first, pl.Expr):
         return wrap_expr(
             plr.concat_expr(
-                [e._pyexpr for e in elems], False  # pyrefly: ignore[missing-attribute]
+                [e._pyexpr for e in elems],  # pyrefly: ignore[missing-attribute]
+                False,
             )
         )
     else:
