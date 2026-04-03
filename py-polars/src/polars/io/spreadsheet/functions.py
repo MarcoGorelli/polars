@@ -1011,7 +1011,9 @@ def _reorder_columns(
     if columns:
         from polars.selectors import by_index, by_name
 
-        cols = by_index(*columns) if isinstance(columns[0], int) else by_name(*columns)  # pyrefly: ignore[bad-argument-type]
+        cols = (
+            by_index(*columns) if isinstance(columns[0], int) else by_name(*columns)  # pyrefly: ignore[bad-argument-type]
+        )
         df = df.select(cols)
     return df
 

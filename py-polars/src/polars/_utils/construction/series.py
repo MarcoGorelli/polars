@@ -381,7 +381,9 @@ def iterable_to_pyseries(
     strict: bool = True,
 ) -> PySeries:
     """Construct a PySeries from an iterable/generator."""
-    if not isinstance(values, (Generator, Iterator)):  # pyrefly: ignore[unsafe-overlap] https://github.com/facebook/pyrefly/issues/2976
+    if not isinstance(
+        values, (Generator, Iterator)  # pyrefly: ignore[unsafe-overlap]
+    ):
         values = iter(values)
 
     def to_series_chunk(values: list[Any], dtype: PolarsDataType | None) -> Series:

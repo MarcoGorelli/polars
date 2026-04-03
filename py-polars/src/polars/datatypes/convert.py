@@ -272,7 +272,9 @@ def dtype_to_py_type(dtype: PolarsDataType) -> PythonDataType:
 def py_type_to_arrow_type(dtype: PythonDataType) -> pa.DataType:
     """Convert a Python dtype to an Arrow dtype."""
     try:
-        return DataTypeMappings.PY_TYPE_TO_ARROW_TYPE[dtype]  # pyrefly: ignore[bad-index] https://github.com/facebook/pyrefly/issues/2979
+        return DataTypeMappings.PY_TYPE_TO_ARROW_TYPE[  # pyrefly: ignore[bad-index]
+            dtype
+        ]
     except KeyError:  # pragma: no cover
         msg = f"cannot parse Python data type {dtype!r} into Arrow data type"
         raise ValueError(msg) from None
@@ -288,7 +290,9 @@ def dtype_short_repr_to_dtype(dtype_string: str | None) -> PolarsDataType | None
         return None
 
     dtype_base, subtype = m.groups()
-    dtype = DataTypeMappings.REPR_TO_DTYPE.get(dtype_base)  # pyrefly: ignore[missing-attribute] https://github.com/facebook/pyrefly/issues/2979
+    dtype = DataTypeMappings.REPR_TO_DTYPE.get(  # pyrefly: ignore[missing-attribute]
+        dtype_base
+    )
     if dtype and subtype:
         # TODO: further-improve handling for nested types (such as List,Struct)
         try:

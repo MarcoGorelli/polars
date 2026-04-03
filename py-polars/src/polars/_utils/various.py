@@ -76,7 +76,9 @@ def _process_null_values(
     null_values: None | str | Sequence[str] | dict[str, str] = None,
 ) -> None | str | Sequence[str] | list[tuple[str, str]]:
     if isinstance(null_values, dict):
-        return list(null_values.items())  # pyrefly: ignore[bad-argument-type] https://github.com/facebook/pyrefly/issues/2912
+        return list(
+            null_values.items()  # pyrefly: ignore[bad-argument-type]
+        )
     else:
         return null_values
 

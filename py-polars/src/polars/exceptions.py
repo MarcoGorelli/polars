@@ -63,7 +63,7 @@ else:
             """
 
         class ComputeError(PolarsError):  # type: ignore[no-redef]
-            """Exception raised when Polars could not perform an underlying computation."""
+            """Exception raised when Polars could not perform an underlying computation."""  # noqa: W505
 
         class DuplicateError(PolarsError):  # type: ignore[no-redef]
             """
@@ -109,7 +109,7 @@ else:
             """Exception raised when an error occurs in the SQL interface."""
 
         class SQLSyntaxError(PolarsError):  # type: ignore[no-redef]
-            """Exception raised from the SQL interface when encountering invalid syntax."""
+            """Exception raised from the SQL interface when encountering invalid syntax."""  # noqa: W505
 
         class StringCacheMismatchError(PolarsError):  # type: ignore[no-redef]
             """Exception raised when string caches come from different sources."""

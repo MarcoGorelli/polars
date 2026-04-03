@@ -460,7 +460,9 @@ class IcebergScanResolver:
         if not fallback_reason:
             if verbose:
                 s = "" if len(sources) == 1 else "s"
-                s2 = "" if total_deletion_files == 1 else "s"  # pyrefly: ignore[unbound-name]
+                s2 = (
+                    "" if total_deletion_files == 1 else "s"  # pyrefly: ignore[unbound-name]
+                )
 
                 eprint(
                     "IcebergScanResolver: to_dataset_scan(): "

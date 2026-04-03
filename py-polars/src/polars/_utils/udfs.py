@@ -219,7 +219,9 @@ _PYTHON_METHODS_MAP: Final[dict[str, str]] = {
     "year": "dt.year",
 }
 
-_MODULE_FUNCTIONS: list[dict[str, list[AbstractSet[str]]]] = [  # pyrefly: ignore[bad-assignment]
+_MODULE_FUNCTIONS: list[
+    dict[str, list[AbstractSet[str]]]
+] = [  # pyrefly: ignore[bad-assignment]
     # lambda x: numpy.func(x)
     # lambda x: numpy.func(CONSTANT)
     {

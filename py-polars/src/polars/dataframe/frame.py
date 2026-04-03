@@ -2504,7 +2504,9 @@ class DataFrame:
             # return a torch Dataset object
             from polars.ml.torch import PolarsDataset
 
-            pds_label = None if label is None else label_frame.columns  # pyrefly: ignore[unbound-name]
+            pds_label = (
+                None if label is None else label_frame.columns  # pyrefly: ignore[unbound-name]
+            )
             return PolarsDataset(frame, label=pds_label, features=features)
         else:
             valid_torch_types = ", ".join(get_args(TorchExportType))
@@ -2594,7 +2596,10 @@ class DataFrame:
             if parse_version(pd.__version__) < (1, 5):
                 msg = f'pandas>=1.5.0 is required for `to_pandas("use_pyarrow_extension_array=True")`, found Pandas {pd.__version__!r}'
                 raise ModuleUpgradeRequiredError(msg)
-            if not _PYARROW_AVAILABLE or parse_version(pa.__version__) < (8, 0):  # pyrefly: ignore[bad-argument-type] (todo)
+            if not _PYARROW_AVAILABLE or parse_version(pa.__version__) < (  # pyrefly: ignore[bad-argument-type]
+                8,
+                0,
+            ):
                 msg = "pyarrow>=8.0.0 is required for `to_pandas(use_pyarrow_extension_array=True)`"
                 if _PYARROW_AVAILABLE:
                     msg += f", found pyarrow {pa.__version__!r}."
@@ -3739,7 +3744,9 @@ class DataFrame:
         from xlsxwriter.utility import xl_cell_to_rowcol
 
         # setup workbook/worksheet
-        wb, ws, can_close = _xl_setup_workbook(workbook, worksheet, use_zip64=use_zip64)  # pyrefly: ignore[bad-argument-type]
+        wb, ws, can_close = _xl_setup_workbook(
+            workbook, worksheet, use_zip64=use_zip64  # pyrefly: ignore[bad-argument-type]
+        )
         df, is_empty = self, self.is_empty()
 
         # note: `_xl_setup_table_columns` converts nested data (List, Struct, etc.) to
@@ -4640,7 +4647,9 @@ class DataFrame:
 
             import_optional(
                 module_name="sqlalchemy",
-                min_version=("2.0" if pd_version >= (2, 2) else "1.4"),  # pyrefly: ignore[unbound-name] https://github.com/facebook/pyrefly/issues/2910
+                min_version=(
+                    "2.0" if pd_version >= (2, 2) else "1.4"  # pyrefly: ignore[unbound-name]
+                ),
                 min_err_prefix="pandas >= 2.2 requires",
             )
             # note: the catalog (database) should be a part of the connection string

@@ -2,7 +2,10 @@
 
 from polars.meta.build import build_info
 from polars.meta.index_type import get_index_type
-from polars.meta.thread_pool import thread_pool_size, threadpool_size  # pyrefly: ignore[deprecated]
+from polars.meta.thread_pool import (
+    thread_pool_size,
+    threadpool_size,
+)
 from polars.meta.versions import show_versions
 
 __all__ = [

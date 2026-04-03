@@ -3,11 +3,11 @@ from __future__ import annotations
 import builtins
 import contextlib
 import datetime as pydatetime
+import sys
 from collections.abc import Collection, Mapping, Sequence
 from decimal import Decimal as PyDecimal
 from functools import reduce
 from operator import or_
-import sys
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 
     from polars import DataFrame, LazyFrame
     from polars._typing import PolarsDataType, PythonDataType, TimeUnit
+
     if sys.version_info >= (3, 13):
         from typing import TypeIs
     else:

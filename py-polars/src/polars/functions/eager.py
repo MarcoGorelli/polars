@@ -185,13 +185,17 @@ def concat(
             raise TypeError(msg)
 
         # establish common columns, maintaining the order in which they appear
-        all_columns = list(chain.from_iterable(e.collect_schema() for e in elems))  # pyrefly: ignore[missing-attribute]
+        all_columns = list(
+            chain.from_iterable(e.collect_schema() for e in elems)  # pyrefly: ignore[missing-attribute]
+        )
         key = {v: k for k, v in enumerate(ordered_unique(all_columns))}
         output_column_order = list(key)
         common_cols = sorted(
             reduce(
                 lambda x, y: set(x) & set(y),  # type: ignore[arg-type, return-value]
-                chain(e.collect_schema() for e in elems),  # pyrefly: ignore[missing-attribute]
+                chain(
+                    e.collect_schema() for e in elems  # pyrefly: ignore[missing-attribute]
+                ),
             ),
             key=lambda k: key.get(k, 0),
         )
@@ -307,7 +311,9 @@ def concat(
             raise ValueError(msg)
 
     elif isinstance(first, pl.Expr):
-        return wrap_expr(plr.concat_expr([e._pyexpr for e in elems], rechunk))  # pyrefly: ignore[missing-attribute]
+        return wrap_expr(
+            plr.concat_expr([e._pyexpr for e in elems], rechunk)  # pyrefly: ignore[missing-attribute]
+        )
     else:
         msg = f"did not expect type: {qualified_type_name(first)!r} in `concat`"
         raise TypeError(msg)
@@ -476,13 +482,17 @@ def union(
             raise TypeError(msg)
 
         # establish common columns, maintaining the order in which they appear
-        all_columns = list(chain.from_iterable(e.collect_schema() for e in elems))  # pyrefly: ignore[missing-attribute]
+        all_columns = list(
+            chain.from_iterable(e.collect_schema() for e in elems)  # pyrefly: ignore[missing-attribute]
+        )
         key = {v: k for k, v in enumerate(ordered_unique(all_columns))}
         output_column_order = list(key)
         common_cols = sorted(
             reduce(
                 lambda x, y: set(x) & set(y),  # type: ignore[arg-type, return-value]
-                chain(e.collect_schema() for e in elems),  # pyrefly: ignore[missing-attribute]
+                chain(
+                    e.collect_schema() for e in elems  # pyrefly: ignore[missing-attribute]
+                ),
             ),
             key=lambda k: key.get(k, 0),
         )
@@ -593,7 +603,9 @@ def union(
             raise ValueError(msg)
 
     elif isinstance(first, pl.Expr):
-        return wrap_expr(plr.concat_expr([e._pyexpr for e in elems], False))  # pyrefly: ignore[missing-attribute]
+        return wrap_expr(
+            plr.concat_expr([e._pyexpr for e in elems], False)  # pyrefly: ignore[missing-attribute]
+        )
     else:
         msg = f"did not expect type: {qualified_type_name(first)!r} in `concat`"
         raise TypeError(msg)
@@ -782,7 +794,9 @@ def align_frames(
 
     if len(frames) == 1 and not isinstance(frames[0], (pl.DataFrame, pl.LazyFrame)):
         frames = frames[0]  # type: ignore[assignment]
-    if isinstance(frames, (Generator, Iterator)):  # pyrefly: ignore[unsafe-overlap] https://github.com/facebook/pyrefly/issues/2976
+    if isinstance(
+        frames, (Generator, Iterator)  # pyrefly: ignore[unsafe-overlap]
+    ):
         frames = tuple(frames)
 
     if len({type(f) for f in frames}) != 1:

@@ -391,7 +391,9 @@ class ExprStructNameSpace:
         structify = bool(int(os.environ.get("POLARS_AUTO_STRUCTIFY", 0)))
 
         pyexprs = parse_into_list_of_expressions(
-            *exprs, **named_exprs, __structify=structify  # pyrefly: ignore[bad-argument-type]
+            *exprs,
+            **named_exprs,  # pyrefly: ignore[bad-argument-type]
+            __structify=structify,
         )
 
         return wrap_expr(self._pyexpr.struct_with_fields(pyexprs))

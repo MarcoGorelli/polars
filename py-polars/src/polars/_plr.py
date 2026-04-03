@@ -12,7 +12,9 @@ PKG_VERSION = "1.39.3"
 
 
 def rt_compat() -> None:
-    from _polars_runtime_compat import BUILD_FEATURE_FLAGS  # pyrefly: ignore[missing-import]
+    from _polars_runtime_compat import (  # pyrefly: ignore[missing-import]
+        BUILD_FEATURE_FLAGS,
+    )
 
     check_cpu_flags(BUILD_FEATURE_FLAGS)
 
@@ -22,7 +24,9 @@ def rt_compat() -> None:
 
 
 def rt_64() -> None:
-    from _polars_runtime_64 import BUILD_FEATURE_FLAGS  # pyrefly: ignore[missing-import]
+    from _polars_runtime_64 import (
+        BUILD_FEATURE_FLAGS,
+    )
 
     check_cpu_flags(BUILD_FEATURE_FLAGS)
 

@@ -58,6 +58,7 @@ else:
         PyDecimal: PySeries.new_decimal,
     }
 
+
 def polars_type_to_constructor(
     dtype: PolarsDataType,
 ) -> Callable[[str, Sequence[Any], bool], PySeries]:
