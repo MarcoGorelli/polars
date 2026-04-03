@@ -1173,7 +1173,7 @@ class Config(contextlib.ContextDecorator):
             os.environ.pop("POLARS_FMT_TABLE_FORMATTING", None)
         else:
             valid_format_names = get_args(TableFormatNames)
-            if (format_upper := format.upper()) not in valid_format_names:  # type: ignore[assignment]
+            if (format_upper := format.upper()) not in valid_format_names:
                 msg = f"invalid table format name: {format!r}\nExpected one of: {', '.join(valid_format_names)}"
                 raise ValueError(msg)
             os.environ["POLARS_FMT_TABLE_FORMATTING"] = format_upper

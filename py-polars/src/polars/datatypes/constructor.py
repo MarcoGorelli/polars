@@ -12,13 +12,12 @@ if TYPE_CHECKING:
 
     from polars._typing import PolarsDataType
 
-# Module not available when building docs
 try:
     from polars._plr import PySeries
-
-    _DOCUMENTING = False
-
-
+except ImportError:
+    # Module not available when building docs
+    pass
+else:
     _POLARS_TYPE_TO_CONSTRUCTOR: dict[
         PolarsDataType, Callable[[str, Sequence[Any], bool], PySeries]
     ] = {
@@ -48,7 +47,9 @@ try:
         dt.Binary: PySeries.new_binary,
         dt.Null: PySeries.new_null,
     }
-    _PY_TYPE_TO_CONSTRUCTOR = {
+    _PY_TYPE_TO_CONSTRUCTOR: dict[
+        Any, Callable[[str, Sequence[Any], bool], PySeries]
+    ] = {
         float: PySeries.new_opt_f64,
         bool: PySeries.new_opt_bool,
         int: PySeries.new_opt_i64,
@@ -56,8 +57,6 @@ try:
         bytes: PySeries.new_binary,
         PyDecimal: PySeries.new_decimal,
     }
-except ImportError:
-    _DOCUMENTING = True
 
 def polars_type_to_constructor(
     dtype: PolarsDataType,
@@ -155,7 +154,6 @@ def numpy_type_to_constructor(
     except NameError:  # pragma: no cover
         msg = f"'numpy' is required to convert numpy dtype {dtype!r}"
         raise ModuleNotFoundError(msg) from None
-
 
 
 def py_type_to_constructor(py_type: type[Any]) -> Callable[..., PySeries]:

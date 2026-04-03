@@ -11,7 +11,6 @@ import sys
 from typing import (
     TYPE_CHECKING,
     Any,
-    Literal,
     NoReturn,
     overload,
 )
@@ -38,10 +37,16 @@ with contextlib.suppress(ImportError):  # Module not available when building doc
 from types import NoneType
 
 if TYPE_CHECKING:
+    import sys
     from collections.abc import Iterable
 
     from polars import DataFrame, LazyFrame
     from polars._typing import PolarsDataType, PythonDataType, TimeUnit
+    if sys.version_info >= (3, 13):
+        from typing import TypeIs
+    else:
+        from typing_extensions import TypeIs
+
     if sys.version_info >= (3, 13):
         from typing import TypeIs
     else:
