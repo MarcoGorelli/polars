@@ -397,7 +397,7 @@ class DataFrame:
 
         elif isinstance(data, dict):
             self._df = dict_to_pydf(
-                data,
+                data,  # pyrefly: ignore[bad-argument-type]
                 schema=schema,
                 schema_overrides=schema_overrides,
                 strict=strict,
