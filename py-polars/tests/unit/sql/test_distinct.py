@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import polars as pl
-from tests.unit.sql import assert_sql_matches
+from tests.unit.sql import assert_sql_matches # pyrefly: ignore[missing-import]
 
 
 def test_distinct_basic_single_column(df_distinct: pl.DataFrame) -> None:
