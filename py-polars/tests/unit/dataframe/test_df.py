@@ -34,14 +34,17 @@ from polars.testing import (
     assert_frame_not_equal,
     assert_series_equal,
 )
-from tests.unit.conftest import FLOAT_DTYPES, INTEGER_DTYPES # pyrefly: ignore[missing-import]
+from tests.unit.conftest import (
+    FLOAT_DTYPES,
+    INTEGER_DTYPES,
+)  # pyrefly: ignore[missing-import]
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Sequence
 
     from polars import Expr
     from polars._typing import JoinStrategy, UniqueKeepStrategy
-    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
 
 
 class MappingObject(Mapping[str, Any]):  # noqa: D101

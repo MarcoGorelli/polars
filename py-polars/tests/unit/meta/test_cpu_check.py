@@ -9,7 +9,7 @@ from polars import _cpu_check
 from polars._cpu_check import check_cpu_flags
 
 if TYPE_CHECKING:
-    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
 
 TEST_FEATURE_FLAGS = "+sse3,+ssse3"
 

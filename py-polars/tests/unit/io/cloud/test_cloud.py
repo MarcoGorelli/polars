@@ -12,7 +12,7 @@ import polars as pl
 from polars.io.cloud._utils import _is_aws_cloud
 
 if TYPE_CHECKING:
-    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
 
 
 @pytest.mark.slow

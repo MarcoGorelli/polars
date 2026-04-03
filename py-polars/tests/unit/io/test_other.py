@@ -13,7 +13,7 @@ from polars.testing import assert_frame_equal, assert_series_equal
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
 
 
 @pytest.mark.parametrize(

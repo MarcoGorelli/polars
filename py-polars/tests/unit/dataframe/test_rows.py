@@ -4,7 +4,7 @@ import pytest
 
 import polars as pl
 from polars.exceptions import NoRowsReturnedError, TooManyRowsReturnedError
-from tests.unit.conftest import INTEGER_DTYPES # pyrefly: ignore[missing-import]
+from tests.unit.conftest import INTEGER_DTYPES  # pyrefly: ignore[missing-import]
 
 
 def test_row_tuple() -> None:

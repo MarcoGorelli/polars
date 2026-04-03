@@ -40,8 +40,8 @@ if TYPE_CHECKING:
         ParquetMetadataContext,
         TimeUnit,
     )
-    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
-    from tests.unit.conftest import MemoryUsage # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
+    from tests.unit.conftest import MemoryUsage  # pyrefly: ignore[missing-import]
 
 
 @pytest.mark.may_fail_auto_streaming

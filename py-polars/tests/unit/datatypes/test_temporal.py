@@ -26,7 +26,10 @@ from polars.testing import (
     assert_series_equal,
     assert_series_not_equal,
 )
-from tests.unit.conftest import DATETIME_DTYPES, TEMPORAL_DTYPES # pyrefly: ignore[missing-import]
+from tests.unit.conftest import (
+    DATETIME_DTYPES,
+    TEMPORAL_DTYPES,
+)  # pyrefly: ignore[missing-import]
 
 if TYPE_CHECKING:
     from polars._typing import (
@@ -34,7 +37,7 @@ if TYPE_CHECKING:
         PolarsTemporalType,
         TimeUnit,
     )
-    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
 
 
 def test_fill_null() -> None:

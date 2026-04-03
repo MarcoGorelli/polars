@@ -8,7 +8,7 @@ from polars._utils.unstable import issue_unstable_warning, unstable
 from polars.exceptions import UnstableWarning
 
 if TYPE_CHECKING:
-    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
 
 
 def test_issue_unstable_warning(plmonkeypatch: PlMonkeyPatch) -> None:

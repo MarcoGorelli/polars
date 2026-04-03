@@ -16,7 +16,7 @@ from polars.testing.asserts.series import assert_series_equal
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
 
 
 def test_predicate_4906() -> None:

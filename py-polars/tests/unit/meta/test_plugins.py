@@ -14,7 +14,7 @@ from polars.plugins import (
     _serialize_kwargs,
     register_plugin_function,
 )
-from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
+from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
 
 
 @pytest.mark.write_disk

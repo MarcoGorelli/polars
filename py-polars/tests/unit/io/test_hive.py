@@ -20,7 +20,7 @@ from tests.unit.io.conftest import format_file_uri
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
 
 
 def impl_test_hive_partitioned_predicate_pushdown(

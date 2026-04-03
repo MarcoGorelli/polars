@@ -10,7 +10,7 @@ import polars as pl
 from polars.exceptions import PanicException
 from polars.testing import assert_series_equal
 from polars.testing.parametric import series
-from tests.unit.conftest import NUMERIC_DTYPES # pyrefly: ignore[missing-import]
+from tests.unit.conftest import NUMERIC_DTYPES  # pyrefly: ignore[missing-import]
 
 
 @given(

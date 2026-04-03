@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
 
-    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
 
 SCAN_AND_WRITE_FUNCS = [
     (pl.scan_ipc, pl.DataFrame.write_ipc),

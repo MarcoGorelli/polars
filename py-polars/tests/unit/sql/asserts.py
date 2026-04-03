@@ -124,7 +124,7 @@ def assert_sql_matches(
     Examples
     --------
     >>> import polars as pl
-    >>> from tests.unit.sql import assert_sql_matches # pyrefly: ignore[missing-import]
+    >>> from tests.unit.sql import assert_sql_matches  # pyrefly: ignore[missing-import]
 
     Confirm that a given SQL query against a single frame returns the same
     result values when executed with Polars and executed with SQLite:

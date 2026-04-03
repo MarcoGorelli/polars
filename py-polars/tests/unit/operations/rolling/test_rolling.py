@@ -18,7 +18,11 @@ from polars.meta.index_type import get_index_type
 from polars.testing import assert_frame_equal, assert_series_equal
 from polars.testing.parametric import column, dataframes, series
 from polars.testing.parametric.strategies.dtype import _time_units
-from tests.unit.conftest import INTEGER_DTYPES, NUMERIC_DTYPES, TEMPORAL_DTYPES # pyrefly: ignore[missing-import]
+from tests.unit.conftest import (
+    INTEGER_DTYPES,
+    NUMERIC_DTYPES,
+    TEMPORAL_DTYPES,
+)  # pyrefly: ignore[missing-import]
 
 if TYPE_CHECKING:
     from collections.abc import Callable

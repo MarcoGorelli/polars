@@ -10,7 +10,7 @@ import pytest
 import polars as pl
 from polars._utils.various import parse_version
 from polars.testing import assert_frame_equal
-from tests.unit.conftest import NUMERIC_DTYPES # pyrefly: ignore[missing-import]
+from tests.unit.conftest import NUMERIC_DTYPES  # pyrefly: ignore[missing-import]
 
 if TYPE_CHECKING:
     from polars._typing import TimeUnit

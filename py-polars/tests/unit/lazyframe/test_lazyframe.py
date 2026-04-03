@@ -20,7 +20,10 @@ from polars.exceptions import (
     PolarsInefficientMapWarning,
 )
 from polars.testing import assert_frame_equal, assert_series_equal
-from tests.unit.conftest import FLOAT_DTYPES, NUMERIC_DTYPES # pyrefly: ignore[missing-import]
+from tests.unit.conftest import (
+    FLOAT_DTYPES,
+    NUMERIC_DTYPES,
+)  # pyrefly: ignore[missing-import]
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -32,7 +35,7 @@ if TYPE_CHECKING:
         MapElementsStrategy,
         PolarsDataType,
     )
-    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
 
 
 def test_init_signature_match() -> None:

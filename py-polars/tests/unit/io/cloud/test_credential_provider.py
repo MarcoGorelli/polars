@@ -21,7 +21,7 @@ from polars.io.cloud.credential_provider._providers import (
     CachingCredentialProvider,
     UserProvidedGCPToken,
 )
-from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
+from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
 
 
 @pytest.mark.parametrize(

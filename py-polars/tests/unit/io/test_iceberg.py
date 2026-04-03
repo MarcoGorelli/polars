@@ -75,7 +75,7 @@ from polars.testing import assert_frame_equal
 from tests.unit.io.conftest import normalize_path_separator_pl
 
 if TYPE_CHECKING:
-    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
 
     # Mypy does not understand the constructors and we can't construct the inputs
     # explicitly since they are abstract base classes.

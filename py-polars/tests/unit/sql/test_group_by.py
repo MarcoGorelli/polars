@@ -8,7 +8,7 @@ import pytest
 import polars as pl
 from polars.exceptions import SQLSyntaxError
 from polars.testing import assert_frame_equal
-from tests.unit.sql import assert_sql_matches # pyrefly: ignore[missing-import]
+from tests.unit.sql import assert_sql_matches  # pyrefly: ignore[missing-import]
 
 
 @pytest.fixture

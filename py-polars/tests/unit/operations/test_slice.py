@@ -9,7 +9,7 @@ from polars.exceptions import ComputeError
 from polars.testing import assert_frame_equal, assert_frame_not_equal
 
 if TYPE_CHECKING:
-    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
 
 
 def test_tail_union() -> None:

@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from polars._typing import PolarsDataType, TimeUnit
-    from tests.conftest import PlMonkeyPatch # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
 
 
 def test_group_by() -> None:

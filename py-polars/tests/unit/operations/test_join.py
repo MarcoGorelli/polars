@@ -18,7 +18,7 @@ from polars.exceptions import (
     SchemaError,
 )
 from polars.testing import assert_frame_equal, assert_series_equal
-from tests.unit.conftest import time_func # pyrefly: ignore[missing-import]
+from tests.unit.conftest import time_func  # pyrefly: ignore[missing-import]
 
 if TYPE_CHECKING:
     from collections.abc import Callable
