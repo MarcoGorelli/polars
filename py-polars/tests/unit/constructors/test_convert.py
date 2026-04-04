@@ -39,7 +39,7 @@ def test_from_dicts_empty() -> None:
 
 
 def test_from_dicts_all_cols_6716() -> None:
-    dicts = [{"a": None} for _ in range(20)] + [{"a": "crash"}]
+    dicts = [{"a": None} for _ in range(20)] + [{"a": "crash"}]  # pyrefly: ignore[unsupported-operation]
 
     with pytest.raises(
         ComputeError, match="make sure that all rows have the same schema"

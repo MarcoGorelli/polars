@@ -62,7 +62,7 @@ def test_to_pandas() -> None:
         isinstance(dt, pd.CategoricalDtype) for dt in pd_out.dtypes.to_list()[-2:]
     )
 
-    pd_out_dtypes_expected[3] = np.dtype("O")
+    pd_out_dtypes_expected[3] = np.dtype("O")  # pyrefly: ignore[unsupported-operation]
     pd_out = df.to_pandas(date_as_object=True)
     assert pd_out_dtypes_expected == pd_out.dtypes.to_list()[:-2]
 

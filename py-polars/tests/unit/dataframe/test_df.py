@@ -245,7 +245,7 @@ def test_from_arrow(plmonkeypatch: PlMonkeyPatch) -> None:
     for t in (tbl, empty_tbl):
         df = pl.DataFrame(t, schema_overrides={"e": pl.Int8})
         override_schema = expected_schema.copy()
-        override_schema["e"] = pl.Int8
+        override_schema["e"] = pl.Int8  # pyrefly: ignore[unsupported-operation]
         assert df.schema == override_schema
         assert df.rows() == expected_data[: (df.height)]
 
@@ -1348,7 +1348,7 @@ def test_from_generator_or_iterable() -> None:
 
     # ref: issue #6489 (initial chunk_size cannot be smaller than 'infer_schema_length')
     df = pl.DataFrame(
-        data=iter(([{"col": None}] * 1000) + [{"col": ["a", "b", "c"]}]),
+        data=iter(([{"col": None}] * 1000) + [{"col": ["a", "b", "c"]}]),  # pyrefly: ignore[unsupported-operation]
         infer_schema_length=1001,
     )
     assert df.schema == {"col": pl.List(pl.String)}
