@@ -205,7 +205,7 @@ def _patched_cloud(
                 assert isinstance(q, DirectQuery)
                 query = LazyExe(
                     q,
-                    prev_tgt,
+                    prev_tgt,  # pyrefly: ignore[bad-argument-type]
                     args[0],  # pyrefly: ignore[bad-argument-type]
                 )
 

@@ -460,7 +460,7 @@ def test_dataclasses_initvar_typing() -> None:
     class ABC:
         x: date
         y: float
-        z: dataclasses.InitVar[list[str]] = None  # pyrefly: ignore[bad-argument-type]
+        z: dataclasses.InitVar[list[str]] = None  # pyrefly: ignore[bad-assignment, bad-argument-type]
 
     # should be able to parse the initvar typing...
     abc = ABC(x=date(1999, 12, 31), y=100.0)

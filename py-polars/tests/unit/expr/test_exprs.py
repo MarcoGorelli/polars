@@ -852,7 +852,7 @@ def test_reinterpret_numeric_dtype_13659(compatible_set: list[pl.DataType]) -> N
             assert_frame_equal(q.collect(), expect)
 
     except Exception as e:
-        msg = f"{e}; {(source_dtype, target_dtype) = }"
+        msg = f"{e}; {(source_dtype, target_dtype) = }"  # pyrefly: ignore[unbound-name]
         raise type(e)(msg) from e
 
 
