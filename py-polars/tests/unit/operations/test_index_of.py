@@ -88,7 +88,7 @@ def test_float(dtype: pl.DataType) -> None:
             assert_index_of(
                 s,
                 value,  # pyrefly: ignore[bad-argument-type] (todo)
-                convert_to_literal=True,  # pyrefly: ignore[bad-argument-type] (todo)
+                convert_to_literal=True,
             )
             assert_index_of(
                 s,

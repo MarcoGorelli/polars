@@ -537,9 +537,9 @@ def test_sorted_top_k_duplicates(
         .sort("a", descending=descending)
         .pipe(
             func,
-            2,  # pyrefly: ignore[unexpected-keyword, bad-argument-count] (todo)
-            by="a",  # pyrefly: ignore[unexpected-keyword, bad-argument-count] (todo)
-            reverse=reverse,  # pyrefly: ignore[unexpected-keyword, bad-argument-count] (todo)
+            2,  # pyrefly: ignore [bad-argument-count] (todo)
+            by="a",  # pyrefly: ignore [unexpected-keyword] (todo)
+            reverse=reverse,  # pyrefly: ignore [unexpected-keyword] (todo)
         ),
         expect,
     )
