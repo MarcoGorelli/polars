@@ -1,7 +1,9 @@
 import pytest
 
 import polars as pl
-from tests.benchmark.data import generate_group_by_data  # pyrefly: ignore[missing-import]
+from tests.benchmark.data import (  # pyrefly: ignore[missing-import]
+    generate_group_by_data,
+)
 
 
 @pytest.fixture(scope="session")

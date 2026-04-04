@@ -1004,7 +1004,9 @@ def test_cse_custom_io_source_same_object() -> None:
 
     plan = pl.explain_all(lfs)
     caches: list[str] = [
-        x for x in map(str.strip, plan.splitlines()) if x.startswith("CACHE[")  # pyrefly: ignore[bad-argument-type] (todo)
+        x
+        for x in map(str.strip, plan.splitlines())  # pyrefly: ignore[bad-argument-type] (todo)
+        if x.startswith("CACHE[")
     ]
     assert len(caches) == 2
     assert len(set(caches)) == 1
@@ -1031,7 +1033,9 @@ def test_cse_custom_io_source_same_object() -> None:
 
     plan = pl.explain_all(lfs)
 
-    caches = [x for x in map(str.strip, plan.splitlines()) if x.startswith("CACHE[")]  # pyrefly: ignore[bad-argument-type] (todo)
+    caches = [
+        x for x in map(str.strip, plan.splitlines()) if x.startswith("CACHE[")  # pyrefly: ignore[bad-argument-type] (todo)
+    ]
     assert len(caches) == 0
 
     assert io_source.call_count == 0
@@ -1066,7 +1070,9 @@ def test_cse_custom_io_source_same_object() -> None:
         ),
     ]
 
-    caches = [x for x in map(str.strip, plan.splitlines()) if x.startswith("CACHE[")]  # pyrefly: ignore[bad-argument-type] (todo)
+    caches = [
+        x for x in map(str.strip, plan.splitlines()) if x.startswith("CACHE[")  # pyrefly: ignore[bad-argument-type] (todo)
+    ]
     assert len(caches) == 0
 
     assert io_source.call_count == 0

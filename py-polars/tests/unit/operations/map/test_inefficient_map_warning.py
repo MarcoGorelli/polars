@@ -375,7 +375,9 @@ def test_parse_apply_functions(
 
     result_frame = df.select(
         x=col,
-        y=eval(suggested_expression, EVAL_ENVIRONMENT),  # pyrefly: ignore[bad-argument-type] (todo)
+        y=eval(
+            suggested_expression, EVAL_ENVIRONMENT # pyrefly: ignore[bad-argument-type] (todo)
+        ), 
     )
     with pytest.warns(
         PolarsInefficientMapWarning,
@@ -388,7 +390,9 @@ def test_parse_apply_functions(
     assert_frame_equal(
         result_frame,
         expected_frame,
-        check_dtypes=(".dt." not in suggested_expression),  # pyrefly: ignore[not-iterable] (todo)
+        check_dtypes=(
+            ".dt." not in suggested_expression  # pyrefly: ignore[not-iterable] (todo)
+        ),
     )
 
 
@@ -546,7 +550,9 @@ def test_parse_apply_series(
     ):
         expected_series = s.map_elements(func)
 
-    result_series = eval(suggested_expression)  # pyrefly: ignore[bad-argument-type] (todo)
+    result_series = eval(
+        suggested_expression  # pyrefly: ignore[bad-argument-type] (todo)
+    )
     assert_series_equal(expected_series, result_series, check_dtypes=False)
 
 

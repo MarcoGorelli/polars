@@ -72,7 +72,9 @@ from polars.io.iceberg._utils import (
     try_convert_pyarrow_predicate,
 )
 from polars.testing import assert_frame_equal
-from tests.unit.io.conftest import normalize_path_separator_pl  # pyrefly: ignore[missing-import]
+from tests.unit.io.conftest import (  # pyrefly: ignore[missing-import]
+    normalize_path_separator_pl,
+)
 
 if TYPE_CHECKING:
     from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
@@ -263,11 +265,15 @@ class TestIcebergExpressions:
 
     def test_is_null_expression(self) -> None:
         expr = _to_ast("(pa.compute.field('id')).is_null()")
-        assert _convert_predicate(expr) == IsNull("id")  # pyrefly: ignore[bad-instantiation]
+        assert _convert_predicate(expr) == IsNull(  # pyrefly: ignore[bad-instantiation]
+            "id"
+        )
 
     def test_is_not_null_expression(self) -> None:
         expr = _to_ast("~(pa.compute.field('id')).is_null()")
-        assert _convert_predicate(expr) == Not(IsNull("id"))  # pyrefly: ignore[bad-instantiation]
+        assert _convert_predicate(expr) == Not(  # pyrefly: ignore[bad-instantiation]
+            IsNull("id")
+        )
 
     def test_isin_expression(self) -> None:
         expr = _to_ast("(pa.compute.field('id')).isin([1,2,3])")
@@ -281,38 +287,56 @@ class TestIcebergExpressions:
         )
         assert _convert_predicate(expr) == Or(  # pyrefly: ignore[bad-instantiation]
             left=And(
-                left=EqualTo(term=Reference(name="str"), literal=literal("2")),  # pyrefly: ignore[bad-instantiation]
-                right=GreaterThan(term="id", literal=literal(10)),  # pyrefly: ignore[bad-instantiation]
+                left=EqualTo(
+                    term=Reference(name="str"), literal=literal("2")
+                ),  # pyrefly: ignore[bad-instantiation]
+                right=GreaterThan(
+                    term="id", literal=literal(10)
+                ),  # pyrefly: ignore[bad-instantiation]
             ),
             right=In("id", {literal(1), literal(2), literal(3)}),
         )
 
     def test_parse_gt(self) -> None:
         expr = _to_ast("(pa.compute.field('ts') > '2023-08-08')")
-        assert _convert_predicate(expr) == GreaterThan("ts", "2023-08-08")  # pyrefly: ignore[bad-instantiation]
+        assert _convert_predicate(expr) == GreaterThan(  # pyrefly: ignore[bad-instantiation]
+            "ts", "2023-08-08"
+        )
 
     def test_parse_gteq(self) -> None:
         expr = _to_ast("(pa.compute.field('ts') >= '2023-08-08')")
-        assert _convert_predicate(expr) == GreaterThanOrEqual("ts", "2023-08-08")  # pyrefly: ignore[bad-instantiation]
+        assert _convert_predicate(expr) == GreaterThanOrEqual(  # pyrefly: ignore[bad-instantiation]
+            "ts", "2023-08-08"
+        )
 
     def test_parse_eq(self) -> None:
         expr = _to_ast("(pa.compute.field('ts') == '2023-08-08')")
-        assert _convert_predicate(expr) == EqualTo("ts", "2023-08-08")  # pyrefly: ignore[bad-instantiation]
+        assert _convert_predicate(expr) == EqualTo(  # pyrefly: ignore[bad-instantiation]
+            "ts", "2023-08-08"
+        )
 
     def test_parse_lt(self) -> None:
         expr = _to_ast("(pa.compute.field('ts') < '2023-08-08')")
-        assert _convert_predicate(expr) == LessThan("ts", "2023-08-08")  # pyrefly: ignore[bad-instantiation]
+        assert _convert_predicate(expr) == LessThan(  # pyrefly: ignore[bad-instantiation]
+            "ts", "2023-08-08"
+        )
 
     def test_parse_lteq(self) -> None:
         expr = _to_ast("(pa.compute.field('ts') <= '2023-08-08')")
-        assert _convert_predicate(expr) == LessThanOrEqual("ts", "2023-08-08")  # pyrefly: ignore[bad-instantiation]
+        assert _convert_predicate(expr) == LessThanOrEqual(  # pyrefly: ignore[bad-instantiation]
+            "ts", "2023-08-08"
+        )
 
     def test_compare_boolean(self) -> None:
         expr = _to_ast("(pa.compute.field('ts') == pa.compute.scalar(True))")
-        assert _convert_predicate(expr) == EqualTo("ts", True)  # pyrefly: ignore[bad-instantiation]
+        assert _convert_predicate(expr) == EqualTo(  # pyrefly: ignore[bad-instantiation]
+            "ts", True
+        )
 
         expr = _to_ast("(pa.compute.field('ts') == pa.compute.scalar(False))")
-        assert _convert_predicate(expr) == EqualTo("ts", False)  # pyrefly: ignore[bad-instantiation]
+        assert _convert_predicate(expr) == EqualTo( # pyrefly: ignore[bad-instantiation]
+            "ts", False
+        ) 
 
     def test_bare_boolean_field(self) -> None:
         expr = try_convert_pyarrow_predicate("pa.compute.field('is_active')")
@@ -320,7 +344,9 @@ class TestIcebergExpressions:
 
     def test_bare_boolean_field_negated(self) -> None:
         expr = try_convert_pyarrow_predicate("~pa.compute.field('is_active')")
-        assert expr == Not(EqualTo("is_active", True))  # pyrefly: ignore[bad-instantiation]
+        assert expr == Not(  # pyrefly: ignore[bad-instantiation]
+            EqualTo("is_active", True)
+        )
 
 
 @dataclass(kw_only=True)

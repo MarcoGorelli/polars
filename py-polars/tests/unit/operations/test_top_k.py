@@ -535,7 +535,9 @@ def test_sorted_top_k_duplicates(
     assert_frame_equal(
         pl.DataFrame({"a": [1, 2, 2]})  # type: ignore[call-arg]
         .sort("a", descending=descending)
-        .pipe(func, 2, by="a", reverse=reverse),  # pyrefly: ignore[unexpected-keyword, bad-argument-count] (todo)
+        .pipe(
+            func, 2, by="a", reverse=reverse  # pyrefly: ignore[unexpected-keyword, bad-argument-count] (todo)
+        ),
         expect,
     )
 

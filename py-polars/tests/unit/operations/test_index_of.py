@@ -76,11 +76,17 @@ def test_float(dtype: pl.DataType) -> None:
         np.float32(2**10),
     ]
     if dtype == pl.Float64:
-        extra_values.extend([np.int32(2**10), np.float64(2**10), np.float64(1.5)])  # pyrefly: ignore[bad-argument-type] (todo)
+        extra_values.extend(
+            [np.int32(2**10), np.float64(2**10), np.float64(1.5)] # pyrefly: ignore[bad-argument-type] (todo)
+        ) 
     for s in [series, sorted_series_asc, sorted_series_desc, chunked_series]:
         for value in values:
-            assert_index_of(s, value, convert_to_literal=True)  # pyrefly: ignore[bad-argument-type] (todo)
-            assert_index_of(s, value, convert_to_literal=False)  # pyrefly: ignore[bad-argument-type] (todo)
+            assert_index_of(
+                s, value, convert_to_literal=True  # pyrefly: ignore[bad-argument-type] (todo)
+            )
+            assert_index_of(
+                s, value, convert_to_literal=False  # pyrefly: ignore[bad-argument-type] (todo)
+            )
         for value in extra_values:  # type: ignore[assignment]
             assert_index_of(s, value)  # pyrefly: ignore[bad-argument-type] (todo)
 

@@ -207,8 +207,12 @@ def compute_stats(table: pa.Table, tight_bounds: bool = True) -> DeltaStats:
             or pa.types.is_timestamp(t)
         ):
             try:
-                mn = _arrow_scalar_to_json(pc.min(col))  # pyrefly: ignore[missing-attribute]
-                mx = _arrow_scalar_to_json(pc.max(col))  # pyrefly: ignore[missing-attribute]
+                mn = _arrow_scalar_to_json(
+                    pc.min(col)  # pyrefly: ignore[missing-attribute]
+                )
+                mx = _arrow_scalar_to_json(
+                    pc.max(col)  # pyrefly: ignore[missing-attribute]
+                )
                 if mn is not None:
                     min_values[name] = mn
                 if mx is not None:

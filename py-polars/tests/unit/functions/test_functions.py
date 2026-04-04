@@ -399,7 +399,10 @@ def test_align_frames_with_nulls() -> None:
 
     a1, a2 = pl.align_frames(df1, df2, on="key")  # pyrefly: ignore[bad-specialization]
 
-    aligned_frame_data = a1.to_dict(as_series=False), a2.to_dict(as_series=False)  # pyrefly: ignore[missing-attribute]
+    aligned_frame_data = (
+        a1.to_dict(as_series=False),  # pyrefly: ignore[missing-attribute]
+        a2.to_dict(as_series=False),  # pyrefly: ignore[missing-attribute]
+    )
     assert aligned_frame_data == (
         {"key": [None, "x", "y", "z"], "value": [0, 1, 2, None]},
         {"key": [None, "x", "y", "z"], "value": [3, 4, 5, 6]},
@@ -445,7 +448,9 @@ def test_align_frames_duplicate_key() -> None:
     ]
 
     # align frames the other way round, using "left" alignment strategy
-    af1, af2 = pl.align_frames(df2, df1, on="x", how="left")  # pyrefly: ignore[bad-specialization]
+    af1, af2 = pl.align_frames(  # pyrefly: ignore[bad-specialization]
+        df2, df1, on="x", how="left"
+    )
 
     # shape: (5, 3)        shape: (5, 2)
     # ┌─────┬─────┬─────┐  ┌─────┬──────┐
@@ -478,7 +483,9 @@ def test_align_frames_duplicate_key() -> None:
 def test_align_frames_single_row_20445() -> None:
     left = pl.DataFrame({"a": [1], "b": [2]})
     right = pl.DataFrame({"a": [1], "c": [3]})
-    result = pl.align_frames(left, right, how="left", on="a")  # pyrefly: ignore[bad-specialization]
+    result = pl.align_frames(  # pyrefly: ignore[bad-specialization]
+        left, right, how="left", on="a"
+    )
     assert_frame_equal(result[0], left)  # pyrefly: ignore[bad-argument-type]
     assert_frame_equal(result[1], right)  # pyrefly: ignore[bad-argument-type]
 

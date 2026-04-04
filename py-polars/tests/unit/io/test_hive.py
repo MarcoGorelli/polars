@@ -603,7 +603,10 @@ def test_hive_partition_columns_contained_in_file(
 
     lf = scan_func(  # type: ignore[call-arg]
         path,
-        hive_schema={"a": pl.String, "b": pl.String},  # pyrefly: ignore[unexpected-keyword]
+        hive_schema={  # pyrefly: ignore[unexpected-keyword]
+            "a": pl.String,
+            "b": pl.String,
+        },
         hive_partitioning=True,  # pyrefly: ignore[unexpected-keyword]
     )
     rhs = df.with_columns(pl.col("a", "b").cast(pl.String))
@@ -665,7 +668,10 @@ def test_hive_partition_columns_contained_in_file(
 
     lf = scan_func(  # type: ignore[call-arg]
         partial_path,
-        hive_schema={"a": pl.String, "b": pl.String},  # pyrefly: ignore[unexpected-keyword]
+        hive_schema={  # pyrefly: ignore[unexpected-keyword]
+            "a": pl.String,
+            "b": pl.String,
+        },
         hive_partitioning=True,  # pyrefly: ignore[unexpected-keyword]
     )
     rhs = rhs.select(

@@ -17,7 +17,10 @@ import polars as pl
 from polars.exceptions import ComputeError
 from polars.io._expand_paths import _expand_paths
 from polars.testing.asserts.frame import assert_frame_equal
-from tests.unit.io.conftest import format_file_uri, normalize_path_separator_pl  # pyrefly: ignore[missing-import]
+from tests.unit.io.conftest import (  # pyrefly: ignore[missing-import]
+    format_file_uri,
+    normalize_path_separator_pl,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -1044,7 +1047,9 @@ def test_async_read_21945(tmp_path: Path, scan_type: tuple[Any, Any]) -> None:
     pl.DataFrame({"value": [3]}).write_parquet(f2)
 
     df = (
-        pl.scan_parquet([format_file_uri(str(f1)), str(f2)], include_file_paths="foo")  # pyrefly: ignore[bad-argument-type]
+        pl.scan_parquet(
+            [format_file_uri(str(f1)), str(f2)], include_file_paths="foo"  # pyrefly: ignore[bad-argument-type]
+        )
         .filter(value=1)
         .collect()
     )

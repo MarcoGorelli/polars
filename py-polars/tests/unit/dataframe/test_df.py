@@ -34,10 +34,10 @@ from polars.testing import (
     assert_frame_not_equal,
     assert_series_equal,
 )
-from tests.unit.conftest import ( # pyrefly: ignore[missing-import]
+from tests.unit.conftest import (  # pyrefly: ignore[missing-import]
     FLOAT_DTYPES,
     INTEGER_DTYPES,
-) 
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Sequence
@@ -1348,7 +1348,9 @@ def test_from_generator_or_iterable() -> None:
 
     # ref: issue #6489 (initial chunk_size cannot be smaller than 'infer_schema_length')
     df = pl.DataFrame(
-        data=iter(([{"col": None}] * 1000) + [{"col": ["a", "b", "c"]}]),  # pyrefly: ignore[unsupported-operation]
+        data=iter(
+            ([{"col": None}] * 1000) + [{"col": ["a", "b", "c"]}]  # pyrefly: ignore[unsupported-operation]
+        ),
         infer_schema_length=1001,
     )
     assert df.schema == {"col": pl.List(pl.String)}

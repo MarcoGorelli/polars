@@ -24,7 +24,11 @@ def test_col_as_attribute_edge_cases() -> None:
     )
     for select_cols in (
         (pl.col("_other__col__"), pl.col("__wrapped__col"), pl.col("__misc")),
-        (pl.col._other__col__, pl.col.__wrapped__col, pl.col.__misc),  # pyrefly: ignore[no-access]
+        (
+            pl.col._other__col__,  # pyrefly: ignore[no-access]
+            pl.col.__wrapped__col,  # pyrefly: ignore[no-access]
+            pl.col.__misc,  # pyrefly: ignore[no-access]
+        ),
     ):
         assert df.select(select_cols).columns == [
             "_other__col__",

@@ -966,7 +966,9 @@ def test_excel_read_named_table_with_total_row(tmp_path: Path) -> None:
             ({**base_kwargs, **subset_kwarg}, df.select(col_subset)),
         ):
             # read from named table
-            xldf = pl.read_excel(wb_path, **kwargs)  # pyrefly: ignore[no-matching-overload]
+            xldf = pl.read_excel(  # pyrefly: ignore[no-matching-overload]
+                wb_path, **kwargs
+            )
             assert_frame_equal(df_expected, xldf)
 
     # xlsx2csv doesn't support reading named tables, so we see the
@@ -1093,7 +1095,9 @@ def test_excel_write_sparklines(engine: ExcelSpreadsheetEngine) -> None:
             sheet_zoom=125,
         )
 
-    tables = {tbl["name"] for tbl in wb.get_worksheet_by_name("frame_data").tables}  # pyrefly: ignore[missing-attribute]
+    tables = {
+        tbl["name"] for tbl in wb.get_worksheet_by_name("frame_data").tables  # pyrefly: ignore[missing-attribute]
+    }
     assert "Frame0" in tables
 
     with warnings.catch_warnings():
@@ -1159,7 +1163,9 @@ def test_excel_write_multiple_tables() -> None:
     table_names = {
         tbl["name"]
         for sheet in wb.sheetnames
-        for tbl in wb.get_worksheet_by_name(sheet).tables  # pyrefly: ignore[missing-attribute]
+        for tbl in wb.get_worksheet_by_name( # pyrefly: ignore[missing-attribute]
+            sheet
+        ).tables 
     }
     assert table_names == {f"Frame{n}" for n in range(4)}
     assert pl.read_excel(xls, sheet_name="sheet3").rows() == []
@@ -1247,7 +1253,10 @@ def test_excel_freeze_panes() -> None:
     table_names: set[str] = set()
     for sheet in ("sheet1", "sheet2", "sheet3"):
         table_names.update(
-            tbl["name"] for tbl in wb.get_worksheet_by_name(sheet).tables  # pyrefly: ignore[missing-attribute]
+            tbl["name"]
+            for tbl in wb.get_worksheet_by_name( # pyrefly: ignore[missing-attribute]
+                sheet
+            ).tables 
         )
     assert table_names == {f"Frame{n}" for n in range(3)}
     assert pl.read_excel(xls, sheet_name="sheet3").rows() == []
@@ -1416,7 +1425,9 @@ def test_excel_write_select_col_dtype() -> None:
     def get_col_widths(wb_bytes: BytesIO) -> dict[str, int]:
         return {
             k: round(v.width)
-            for k, v in load_workbook(wb_bytes).active.column_dimensions.items()  # pyrefly: ignore[missing-attribute]
+            for k, v in load_workbook(  # pyrefly: ignore[missing-attribute]
+                wb_bytes
+            ).active.column_dimensions.items()
         }
 
     df = pl.DataFrame(
