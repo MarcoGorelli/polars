@@ -2837,7 +2837,7 @@ def test_series_iter_over_frame() -> None:
         2: pl.Series("a", [1, 2, 3]),
     }
     for idx, s in enumerate(reversed(df)):
-        assert_series_equal(s, expected[idx])
+        assert_series_equal(s, expected[idx])  # pyrefly: ignore[bad-argument-type]
 
 
 def test_union_with_aliases_4770() -> None:
@@ -2883,7 +2883,7 @@ def test_init_datetimes_with_timezone() -> None:
                     "d1": [dtm.replace(tzinfo=ZoneInfo(tz_us))],
                     "d2": [dtm.replace(tzinfo=ZoneInfo(tz_europe))],
                 },
-                **type_overrides,
+                **type_overrides,  # pyrefly: ignore[bad-argument-type]
             )
             expected = pl.DataFrame(
                 {"d1": ["2022-10-12 12:30"], "d2": ["2022-10-12 12:30"]}

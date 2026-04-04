@@ -206,7 +206,7 @@ def _patched_cloud(
                 query = LazyExe(
                     q,
                     prev_tgt,
-                    args[0],
+                    args[0],  # pyrefly: ignore[bad-argument-type]
                 )
 
                 if lazy:

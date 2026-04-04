@@ -441,7 +441,7 @@ def test_series_to_numpy(s: pl.Series) -> None:
         pl.Duration("us"): "timedelta64[us]",
         pl.Null(): "float32",
     }
-    np_dtype = dtype_map.get(s.dtype)
+    np_dtype = dtype_map.get(s.dtype)  # pyrefly: ignore[bad-argument-type]
     expected = np.array(values, dtype=np_dtype)
 
     assert_array_equal(result, expected)

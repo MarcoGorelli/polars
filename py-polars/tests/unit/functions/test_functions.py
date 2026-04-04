@@ -354,8 +354,8 @@ def test_align_frames() -> None:
         on="date",
     )
     assert isinstance(lf1, pl.LazyFrame)
-    assert_frame_equal(lf1.collect(), pf1)
-    assert_frame_equal(lf2.collect(), pf2)
+    assert_frame_equal(lf1.collect(), pf1)  # pyrefly: ignore[bad-argument-type]
+    assert_frame_equal(lf2.collect(), pf2)  # pyrefly: ignore[bad-argument-type]
 
     # misc: no frames results in an empty list
     assert pl.align_frames(on="date") == []
@@ -364,7 +364,7 @@ def test_align_frames() -> None:
     with pytest.raises(TypeError):
         pl.align_frames(  # type: ignore[type-var]
             pl.from_pandas(pdf1.reset_index()).lazy(),
-            pl.from_pandas(pdf2.reset_index()),
+            pl.from_pandas(pdf2.reset_index()),  # pyrefly: ignore[bad-argument-type]
             on="date",
         )
 
@@ -479,8 +479,8 @@ def test_align_frames_single_row_20445() -> None:
     left = pl.DataFrame({"a": [1], "b": [2]})
     right = pl.DataFrame({"a": [1], "c": [3]})
     result = pl.align_frames(left, right, how="left", on="a")
-    assert_frame_equal(result[0], left)
-    assert_frame_equal(result[1], right)
+    assert_frame_equal(result[0], left)  # pyrefly: ignore[bad-argument-type]
+    assert_frame_equal(result[1], right)  # pyrefly: ignore[bad-argument-type]
 
 
 def test_coalesce() -> None:
