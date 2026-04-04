@@ -104,7 +104,7 @@ def test_scan_lines() -> None:
 
                 while remaining_rows != 0 and (line := x.readline().rstrip()):
                     if isinstance(line, str):
-                        batch_lines += [batch_lines]
+                        batch_lines += [batch_lines]  # pyrefly: ignore[bad-assigment]
                     else:
                         batch_lines += [line.decode()]
                     remaining_rows -= 1

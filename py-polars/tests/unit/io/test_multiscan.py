@@ -14,7 +14,7 @@ from hypothesis import strategies as st
 import polars as pl
 from polars.meta.index_type import get_index_type
 from polars.testing import assert_frame_equal
-from tests.unit.io.conftest import normalize_path_separator_pl
+from tests.unit.io.conftest import normalize_path_separator_pl  # pyrefly: ignore[missing-import]
 
 if TYPE_CHECKING:
     from collections.abc import Callable

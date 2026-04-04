@@ -11,7 +11,7 @@ import polars as pl
 from polars.exceptions import InvalidOperationError
 from polars.testing import assert_frame_equal, assert_series_equal
 from polars.testing.parametric.strategies import dataframes
-from tests.unit.io.conftest import format_file_uri
+from tests.unit.io.conftest import format_file_uri  # pyrefly: ignore[missing-import]
 
 if TYPE_CHECKING:
     from polars._typing import EngineType

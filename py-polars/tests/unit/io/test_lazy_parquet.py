@@ -1386,7 +1386,7 @@ def test_sink_parquet_arrow_schema() -> None:
 
 
 def test_sink_parquet_arrow_schema_logical_types() -> None:
-    from tests.unit.datatypes.test_extension import PythonTestExtension
+    from tests.unit.datatypes.test_extension import PythonTestExtension  # pyrefly: ignore[missing-import]
 
     categorical_dtype = pl.Categorical("fbd482eb-4301-4b80-a0fb-7ec05cec4fe4")
 

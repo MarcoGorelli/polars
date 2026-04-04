@@ -7,7 +7,7 @@ import pytest
 
 import polars as pl
 from polars.testing.asserts.frame import assert_frame_equal
-from tests.unit.io.conftest import format_file_uri
+from tests.unit.io.conftest import format_file_uri  # pyrefly: ignore[missing-import]
 
 if TYPE_CHECKING:
     from collections.abc import Callable

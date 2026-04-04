@@ -55,7 +55,7 @@ def test_scan_ndjson_with_schema(foods_ndjson_path: Path) -> None:
     assert df["fats_g"].dtype == pl.Float64
     assert df["sugars_g"].dtype == pl.Int64
 
-    schema["sugars_g"] = pl.Float64
+    schema["sugars_g"] = pl.Float64  # pyrefly: ignore[bad-typed-dict-key]
     df = pl.scan_ndjson(foods_ndjson_path, schema=schema).collect()
     assert df["sugars_g"].dtype == pl.Float64
 
