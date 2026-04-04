@@ -633,10 +633,10 @@ def test_config_load_save(tmp_path: Path) -> None:
 
         # ...load back from config file/string...
         if file is None:
-            pl.Config.load(cfg)
+            pl.Config.load(cfg)  # pyrefly: ignore[unbound-name] (todo)
         else:
             with pytest.raises(ValueError, match="invalid Config file"):
-                pl.Config.load_from_file(cfg)
+                pl.Config.load_from_file(cfg)  # pyrefly: ignore[unbound-name] (todo)
 
             if isinstance(file, Path):
                 with pytest.raises(TypeError, match="the JSON object must be str"):

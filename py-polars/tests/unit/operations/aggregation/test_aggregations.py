@@ -326,7 +326,7 @@ def test_quantile_vs_numpy(tp: type, n: int) -> None:
         # nan check
         if np_result != np_result:
             np_result = None
-        assert np.isclose(
+        assert np.isclose(   # pyrefly: ignore[no-matching-overload]
             pl.Series(a).quantile(q, interpolation="linear"),  # type: ignore[arg-type]
             np_result,  # type: ignore[arg-type]
         )
