@@ -1349,8 +1349,8 @@ def test_from_generator_or_iterable() -> None:
     # ref: issue #6489 (initial chunk_size cannot be smaller than 'infer_schema_length')
     df = pl.DataFrame(
         data=iter(
-            ([{"col": None}] * 1000)
-            + [{"col": ["a", "b", "c"]}]  # pyrefly: ignore[unsupported-operation]
+            ([{"col": None}] * 1000)  # pyrefly: ignore[unsupported-operation]
+            + [{"col": ["a", "b", "c"]}]
         ),
         infer_schema_length=1001,
     )

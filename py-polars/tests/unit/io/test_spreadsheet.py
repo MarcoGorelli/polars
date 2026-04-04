@@ -1097,9 +1097,9 @@ def test_excel_write_sparklines(engine: ExcelSpreadsheetEngine) -> None:
 
     tables = {
         tbl["name"]
-        for tbl in wb.get_worksheet_by_name(
+        for tbl in wb.get_worksheet_by_name(  # pyrefly: ignore[missing-attribute]
             "frame_data"
-        ).tables  # pyrefly: ignore[missing-attribute]
+        ).tables
     }
     assert "Frame0" in tables
 

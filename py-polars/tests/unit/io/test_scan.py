@@ -1048,8 +1048,8 @@ def test_async_read_21945(tmp_path: Path, scan_type: tuple[Any, Any]) -> None:
 
     df = (
         pl.scan_parquet(
-            [format_file_uri(str(f1)), str(f2)],
-            include_file_paths="foo",  # pyrefly: ignore[bad-argument-type]
+            [format_file_uri(str(f1)), str(f2)],  # pyrefly: ignore[bad-argument-type]
+            include_file_paths="foo",
         )
         .filter(value=1)
         .collect()

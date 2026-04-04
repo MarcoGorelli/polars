@@ -1006,8 +1006,9 @@ def test_cse_custom_io_source_same_object() -> None:
     caches: list[str] = [
         x
         for x in map(
-            str.strip, plan.splitlines()
-        )  # pyrefly: ignore[bad-argument-type] (todo)
+            str.strip,
+            plan.splitlines(),  # pyrefly: ignore[bad-argument-type] (todo)
+        )
         if x.startswith("CACHE[")
     ]
     assert len(caches) == 2
@@ -1037,8 +1038,11 @@ def test_cse_custom_io_source_same_object() -> None:
 
     caches = [
         x
-        for x in map(str.strip, plan.splitlines())
-        if x.startswith("CACHE[")  # pyrefly: ignore[bad-argument-type] (todo)
+        for x in map(
+            str.strip,
+            plan.splitlines(),  # pyrefly: ignore[bad-argument-type] (todo)
+        )
+        if x.startswith("CACHE[")
     ]
     assert len(caches) == 0
 
@@ -1076,8 +1080,11 @@ def test_cse_custom_io_source_same_object() -> None:
 
     caches = [
         x
-        for x in map(str.strip, plan.splitlines())
-        if x.startswith("CACHE[")  # pyrefly: ignore[bad-argument-type] (todo)
+        for x in map(
+            str.strip,
+            plan.splitlines(),  # pyrefly: ignore[bad-argument-type] (todo)
+        )
+        if x.startswith("CACHE[")
     ]
     assert len(caches) == 0
 

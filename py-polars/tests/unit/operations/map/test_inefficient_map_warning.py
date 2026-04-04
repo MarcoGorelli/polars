@@ -376,8 +376,8 @@ def test_parse_apply_functions(
     result_frame = df.select(
         x=col,
         y=eval(
-            suggested_expression,
-            EVAL_ENVIRONMENT,  # pyrefly: ignore[bad-argument-type] (todo)
+            suggested_expression,  # pyrefly: ignore[bad-argument-type] (todo)
+            EVAL_ENVIRONMENT,
         ),
     )
     with pytest.warns(
