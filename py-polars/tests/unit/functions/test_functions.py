@@ -338,10 +338,10 @@ def test_align_frames() -> None:
         on="date",
     )
     pl_dot = (
-        (pf1[["a", "b"]] * pf2[["a", "b"]])
+        (pf1[["a", "b"]] * pf2[["a", "b"]])  # pyrefly: ignore[bad-index]
         .fill_null(0)
         .select(pl.sum_horizontal("*").alias("dot"))
-        .insert_column(0, pf1["date"])
+        .insert_column(0, pf1["date"])  # pyrefly: ignore[bad-index]
     )
     # confirm we match the same operation in pandas
     assert_frame_equal(pl_dot, pl.from_pandas(pd_dot))
