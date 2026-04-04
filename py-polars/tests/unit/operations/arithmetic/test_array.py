@@ -7,7 +7,7 @@ import pytest
 import polars as pl
 from polars.exceptions import InvalidOperationError
 from polars.testing import assert_series_equal
-from tests.unit.operations.arithmetic.utils import (
+from tests.unit.operations.arithmetic.utils import (  # pyrefly: ignore[missing-import]
     BROADCAST_SERIES_COMBINATIONS,
     EXEC_OP_COMBINATIONS,
 )

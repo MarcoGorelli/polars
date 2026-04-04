@@ -644,7 +644,7 @@ def test_expected_horizontal_dtype_errors(horizontal_func: type[pl.Expr]) -> Non
     with pytest.raises(PolarsError):
         df.select(
             horizontal_func(  # type: ignore[call-arg]
-                pl.col("cola"),
+                pl.col("cola"),  # pyrefly: ignore[bad-argument-count] (todo)
                 pl.col("colb"),
                 pl.col("colc"),
                 pl.col("cold"),

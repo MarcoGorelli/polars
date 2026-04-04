@@ -10,10 +10,10 @@ import pytest
 import polars as pl
 from polars.exceptions import InvalidOperationError
 from polars.testing import assert_frame_equal, assert_series_equal
-from tests.unit.conftest import (
+from tests.unit.conftest import (  # pyrefly: ignore[missing-import]
     FLOAT_DTYPES,
     SIGNED_INTEGER_DTYPES,
-)  # pyrefly: ignore[missing-import]
+)
 
 if TYPE_CHECKING:
     from polars._typing import PolarsDataType

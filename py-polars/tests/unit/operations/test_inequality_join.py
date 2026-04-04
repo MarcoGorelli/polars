@@ -12,10 +12,10 @@ import polars as pl
 from polars.testing import assert_frame_equal
 from polars.testing.parametric.strategies import series
 from polars.testing.parametric.strategies.core import dataframes
-from tests.unit.conftest import (
+from tests.unit.conftest import (  # pyrefly: ignore[missing-import]
     NUMERIC_DTYPES,
     TEMPORAL_DTYPES,
-)  # pyrefly: ignore[missing-import]
+)
 
 if TYPE_CHECKING:
     from hypothesis.strategies import DrawFn, SearchStrategy

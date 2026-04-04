@@ -26,7 +26,7 @@ from polars.testing import (
     assert_series_equal,
     assert_series_not_equal,
 )
-from tests.unit.conftest import (
+from tests.unit.conftest import (  # pyrefly: ignore[missing-import]
     DATETIME_DTYPES,
     TEMPORAL_DTYPES,
 )  # pyrefly: ignore[missing-import]

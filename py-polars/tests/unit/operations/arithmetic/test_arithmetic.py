@@ -23,7 +23,7 @@ from polars import (
 )
 from polars.exceptions import ColumnNotFoundError, InvalidOperationError
 from polars.testing import assert_frame_equal, assert_series_equal
-from tests.unit.conftest import (
+from tests.unit.conftest import (  # pyrefly: ignore[missing-import]
     INTEGER_DTYPES,
     NUMERIC_DTYPES,
     UNSIGNED_INTEGER_DTYPES,

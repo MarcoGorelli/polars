@@ -343,7 +343,7 @@ def test_quantile_vs_numpy(tp: type, n: int) -> None:
 
 
 def test_mean_overflow() -> None:
-    assert np.isclose(
+    assert np.isclose(  # pyrefly: ignore[no-matching-overload] (todo)
         pl.Series([9_223_372_036_854_775_800, 100]).mean(),  # type: ignore[arg-type]
         4.611686018427388e18,
     )
@@ -664,7 +664,7 @@ def test_agg_empty_sum_after_filter_14734() -> None:
 
     expect = pl.Series("b", [0, 0]).to_frame()
     assert_frame_equal(expect, last.select("b"))
-    assert_frame_equal(expect, curr.select("b"))
+    assert_frame_equal(expect, curr.select("b"))  # pyrefly: ignore[unbound-name]
 
 
 @pytest.mark.slow

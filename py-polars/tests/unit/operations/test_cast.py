@@ -12,10 +12,10 @@ from polars._utils.constants import MS_PER_SECOND, NS_PER_SECOND, US_PER_SECOND
 from polars.exceptions import ComputeError, InvalidOperationError
 from polars.testing import assert_frame_equal
 from polars.testing.asserts.series import assert_series_equal
-from tests.unit.conftest import (
+from tests.unit.conftest import (  # pyrefly: ignore[missing-import]
     INTEGER_DTYPES,
     NUMERIC_DTYPES,
-)  # pyrefly: ignore[missing-import]
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
