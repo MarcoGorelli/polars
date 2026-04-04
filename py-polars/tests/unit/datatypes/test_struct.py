@@ -955,7 +955,7 @@ def test_struct_wildcard_expansion_and_exclude() -> None:
     )
 
     # ensure wildcard expansion is on input
-    assert df.lazy().select(
+    assert df.lazy().select(  # pyrefly: ignore[missing-attribute]
         pl.col("meta_data").struct.with_fields("*")
     ).collect().schema["meta_data"].fields == [  # type: ignore[attr-defined]
         pl.Field("system_data", pl.String),

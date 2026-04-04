@@ -399,7 +399,7 @@ def test_align_frames_with_nulls() -> None:
 
     a1, a2 = pl.align_frames(df1, df2, on="key")
 
-    aligned_frame_data = a1.to_dict(as_series=False), a2.to_dict(as_series=False)
+    aligned_frame_data = a1.to_dict(as_series=False), a2.to_dict(as_series=False)  # pyrefly: ignore[missing-attribute]
     assert aligned_frame_data == (
         {"key": [None, "x", "y", "z"], "value": [0, 1, 2, None]},
         {"key": [None, "x", "y", "z"], "value": [3, 4, 5, 6]},
@@ -427,7 +427,7 @@ def test_align_frames_duplicate_key() -> None:
     # │ b   ┆ null │  │ -1   ┆ 7.5  ┆ b   │
     # │ e   ┆ 5    │  │ null ┆ null ┆ e   │
     # └─────┴──────┘  └──────┴──────┴─────┘
-    assert af1.rows() == [
+    assert af1.rows() == [  # pyrefly: ignore[missing-attribute]
         ("a", 1),
         ("a", 2),
         ("a", 4),
@@ -435,7 +435,7 @@ def test_align_frames_duplicate_key() -> None:
         ("b", None),
         ("e", 5),
     ]
-    assert af2.rows() == [
+    assert af2.rows() == [  # pyrefly: ignore[missing-attribute]
         (0, 5.5, "a"),
         (0, 5.5, "a"),
         (0, 5.5, "a"),
@@ -459,14 +459,14 @@ def test_align_frames_duplicate_key() -> None:
     # │ 0   ┆ 6.0 ┆ b   │  │ b   ┆ null │
     # │ -1  ┆ 7.5 ┆ b   │  │ b   ┆ null │
     # └─────┴─────┴─────┘  └─────┴──────┘
-    assert af1.rows() == [
+    assert af1.rows() == [  # pyrefly: ignore[missing-attribute]
         (0, 5.5, "a"),
         (0, 5.5, "a"),
         (0, 5.5, "a"),
         (0, 6.0, "b"),
         (-1, 7.5, "b"),
     ]
-    assert af2.rows() == [
+    assert af2.rows() == [  # pyrefly: ignore[missing-attribute]
         ("a", 1),
         ("a", 2),
         ("a", 4),

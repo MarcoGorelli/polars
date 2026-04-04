@@ -603,8 +603,8 @@ def test_hive_partition_columns_contained_in_file(
 
     lf = scan_func(  # type: ignore[call-arg]
         path,
-        hive_schema={"a": pl.String, "b": pl.String},
-        hive_partitioning=True,
+        hive_schema={"a": pl.String, "b": pl.String},  # pyrefly: ignore[unexpected-keyword]
+        hive_partitioning=True,  # pyrefly: ignore[unexpected-keyword]
     )
     rhs = df.with_columns(pl.col("a", "b").cast(pl.String))
     assert_frame_equal(
@@ -665,8 +665,8 @@ def test_hive_partition_columns_contained_in_file(
 
     lf = scan_func(  # type: ignore[call-arg]
         partial_path,
-        hive_schema={"a": pl.String, "b": pl.String},
-        hive_partitioning=True,
+        hive_schema={"a": pl.String, "b": pl.String},  # pyrefly: ignore[unexpected-keyword]
+        hive_partitioning=True,  # pyrefly: ignore[unexpected-keyword]
     )
     rhs = rhs.select(
         pl.col("x").cast(pl.Int32),
