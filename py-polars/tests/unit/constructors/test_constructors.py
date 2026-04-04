@@ -21,7 +21,7 @@ from polars._utils.construction.utils import try_get_type_hints
 from polars.datatypes import numpy_char_code_to_dtype
 from polars.exceptions import DuplicateError, ShapeError
 from polars.testing import assert_frame_equal, assert_series_equal
-from tests.unit.utils.pycapsule_utils import (
+from tests.unit.utils.pycapsule_utils import (  # pyrefly: ignore[missing-import]
     PyCapsuleArrayHolder,
     PyCapsuleStreamHolder,
 )  # pyrefly: ignore[missing-import]

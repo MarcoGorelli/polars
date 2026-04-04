@@ -15,7 +15,7 @@ import pytest
 import polars as pl
 from polars.exceptions import ComputeError, SchemaFieldNotFoundError
 from polars.testing import assert_frame_equal, assert_series_equal
-from tests.unit.io.conftest import format_file_uri
+from tests.unit.io.conftest import format_file_uri  # pyrefly: ignore[missing-import]
 
 if TYPE_CHECKING:
     from collections.abc import Callable
