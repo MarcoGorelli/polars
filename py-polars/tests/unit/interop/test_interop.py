@@ -21,9 +21,9 @@ from polars.exceptions import (
 )
 from polars.interchange.protocol import CompatLevel
 from polars.testing import assert_frame_equal, assert_series_equal
-from tests.unit.utils.pycapsule_utils import (
+from tests.unit.utils.pycapsule_utils import (  # pyrefly: ignore[missing-import]
     PyCapsuleStreamHolder,
-)  # pyrefly: ignore[missing-import]
+)
 
 if TYPE_CHECKING:
     from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]

@@ -34,10 +34,10 @@ from polars.testing import (
     assert_frame_not_equal,
     assert_series_equal,
 )
-from tests.unit.conftest import (
+from tests.unit.conftest import ( # pyrefly: ignore[missing-import]
     FLOAT_DTYPES,
     INTEGER_DTYPES,
-)  # pyrefly: ignore[missing-import]
+) 
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Sequence
