@@ -1096,7 +1096,10 @@ def test_excel_write_sparklines(engine: ExcelSpreadsheetEngine) -> None:
         )
 
     tables = {
-        tbl["name"] for tbl in wb.get_worksheet_by_name("frame_data").tables  # pyrefly: ignore[missing-attribute]
+        tbl["name"]
+        for tbl in wb.get_worksheet_by_name(
+            "frame_data"
+        ).tables  # pyrefly: ignore[missing-attribute]
     }
     assert "Frame0" in tables
 
@@ -1163,9 +1166,9 @@ def test_excel_write_multiple_tables() -> None:
     table_names = {
         tbl["name"]
         for sheet in wb.sheetnames
-        for tbl in wb.get_worksheet_by_name( # pyrefly: ignore[missing-attribute]
+        for tbl in wb.get_worksheet_by_name(  # pyrefly: ignore[missing-attribute]
             sheet
-        ).tables 
+        ).tables
     }
     assert table_names == {f"Frame{n}" for n in range(4)}
     assert pl.read_excel(xls, sheet_name="sheet3").rows() == []
@@ -1254,9 +1257,9 @@ def test_excel_freeze_panes() -> None:
     for sheet in ("sheet1", "sheet2", "sheet3"):
         table_names.update(
             tbl["name"]
-            for tbl in wb.get_worksheet_by_name( # pyrefly: ignore[missing-attribute]
+            for tbl in wb.get_worksheet_by_name(  # pyrefly: ignore[missing-attribute]
                 sheet
-            ).tables 
+            ).tables
         )
     assert table_names == {f"Frame{n}" for n in range(3)}
     assert pl.read_excel(xls, sheet_name="sheet3").rows() == []

@@ -39,7 +39,9 @@ def test_from_dicts_empty() -> None:
 
 
 def test_from_dicts_all_cols_6716() -> None:
-    dicts = [{"a": None} for _ in range(20)] + [  # pyrefly: ignore[unsupported-operation]
+    dicts = [
+        {"a": None} for _ in range(20)
+    ] + [  # pyrefly: ignore[unsupported-operation]
         {"a": "crash"}
     ]
 

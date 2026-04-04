@@ -455,9 +455,9 @@ def test_parquet_chunks_545(case: int) -> None:
     f = io.BytesIO()
     # repeat until it has case instances
     df = pd.DataFrame(
-        np.tile( # pyrefly: ignore[no-matching-overload]
+        np.tile(  # pyrefly: ignore[no-matching-overload]
             [1.0, pd.to_datetime("2010-10-10")], [case, 1]
-        ), 
+        ),
         columns=["floats", "dates"],
     )
 

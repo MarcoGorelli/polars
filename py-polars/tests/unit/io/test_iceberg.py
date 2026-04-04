@@ -299,44 +299,58 @@ class TestIcebergExpressions:
 
     def test_parse_gt(self) -> None:
         expr = _to_ast("(pa.compute.field('ts') > '2023-08-08')")
-        assert _convert_predicate(expr) == GreaterThan(  # pyrefly: ignore[bad-instantiation]
+        assert _convert_predicate(
+            expr
+        ) == GreaterThan(  # pyrefly: ignore[bad-instantiation]
             "ts", "2023-08-08"
         )
 
     def test_parse_gteq(self) -> None:
         expr = _to_ast("(pa.compute.field('ts') >= '2023-08-08')")
-        assert _convert_predicate(expr) == GreaterThanOrEqual(  # pyrefly: ignore[bad-instantiation]
+        assert _convert_predicate(
+            expr
+        ) == GreaterThanOrEqual(  # pyrefly: ignore[bad-instantiation]
             "ts", "2023-08-08"
         )
 
     def test_parse_eq(self) -> None:
         expr = _to_ast("(pa.compute.field('ts') == '2023-08-08')")
-        assert _convert_predicate(expr) == EqualTo(  # pyrefly: ignore[bad-instantiation]
+        assert _convert_predicate(
+            expr
+        ) == EqualTo(  # pyrefly: ignore[bad-instantiation]
             "ts", "2023-08-08"
         )
 
     def test_parse_lt(self) -> None:
         expr = _to_ast("(pa.compute.field('ts') < '2023-08-08')")
-        assert _convert_predicate(expr) == LessThan(  # pyrefly: ignore[bad-instantiation]
+        assert _convert_predicate(
+            expr
+        ) == LessThan(  # pyrefly: ignore[bad-instantiation]
             "ts", "2023-08-08"
         )
 
     def test_parse_lteq(self) -> None:
         expr = _to_ast("(pa.compute.field('ts') <= '2023-08-08')")
-        assert _convert_predicate(expr) == LessThanOrEqual(  # pyrefly: ignore[bad-instantiation]
+        assert _convert_predicate(
+            expr
+        ) == LessThanOrEqual(  # pyrefly: ignore[bad-instantiation]
             "ts", "2023-08-08"
         )
 
     def test_compare_boolean(self) -> None:
         expr = _to_ast("(pa.compute.field('ts') == pa.compute.scalar(True))")
-        assert _convert_predicate(expr) == EqualTo(  # pyrefly: ignore[bad-instantiation]
+        assert _convert_predicate(
+            expr
+        ) == EqualTo(  # pyrefly: ignore[bad-instantiation]
             "ts", True
         )
 
         expr = _to_ast("(pa.compute.field('ts') == pa.compute.scalar(False))")
-        assert _convert_predicate(expr) == EqualTo( # pyrefly: ignore[bad-instantiation]
+        assert _convert_predicate(
+            expr
+        ) == EqualTo(  # pyrefly: ignore[bad-instantiation]
             "ts", False
-        ) 
+        )
 
     def test_bare_boolean_field(self) -> None:
         expr = try_convert_pyarrow_predicate("pa.compute.field('is_active')")
