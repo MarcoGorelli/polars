@@ -1,5 +1,6 @@
 import re
 from collections.abc import Callable
+from typing import TYPE_CHECKING, Protocol
 
 import pytest
 from hypothesis import given
@@ -10,10 +11,22 @@ import polars.selectors as cs
 from polars.exceptions import ComputeError
 from polars.testing import assert_frame_equal, assert_series_equal
 from polars.testing.parametric import series
-from typing import TYPE_CHECKING, Iterable, Sequence
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+
     from polars._typing import IntoExpr
+
+    class TopKFunction(Protocol):  # noqa: D101
+        def __call__(
+            self,
+            df: pl.DataFrame,
+            /,
+            k: int,
+            *,
+            by: "IntoExpr" | Iterable["IntoExpr"],
+            reverse: bool | Sequence[bool] = False,
+        ) -> pl.DataFrame: ...
 
 
 def test_top_k() -> None:
@@ -417,19 +430,6 @@ def test_top_k_descending_deprecated() -> None:
     with pytest.deprecated_call():
         pl.col("a").top_k_by("b", descending=True)  # type: ignore[call-arg]
 
-from typing import Protocol
-
-    # def top_k(
-    #     self,
-    #     k: int,
-    #     *,
-    #     by: IntoExpr | Iterable[IntoExpr],
-    #     reverse: bool | Sequence[bool] = False,
-    # ) -> DataFrame:
-
-class TopKFunction(Protocol):
-    def __call__(self, df: pl.DataFrame, /, k: int, *, by: IntoExpr | Iterable[IntoExpr], reverse: bool|Sequence[bool]=False) -> pl.DataFrame: ...
-
 
 @pytest.mark.parametrize(
     ("sort_function"),
@@ -531,6 +531,7 @@ def test_sorted_top_k_20719(descending: bool) -> None:
                 ]
             ),
         )
+
 
 @pytest.mark.parametrize(
     ("func", "reverse", "expect"),

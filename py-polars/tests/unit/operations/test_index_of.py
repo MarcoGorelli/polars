@@ -15,7 +15,7 @@ from polars.testing import assert_frame_equal
 from polars.testing.parametric import series
 
 if TYPE_CHECKING:
-    from polars._typing import IntoExpr, PolarsDataType, PythonLiteral
+    from polars._typing import IntoExpr, PolarsDataType
     from polars.datatypes import IntegerType
 
 
