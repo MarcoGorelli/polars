@@ -10,10 +10,10 @@ from hypothesis import given
 import polars as pl
 from polars.testing import assert_frame_equal, assert_series_equal
 from polars.testing.parametric import column, dataframes
-from tests.unit.conftest import (  # pyrefly: ignore[missing-import]
+from tests.unit.conftest import (
     INTEGER_DTYPES,
     SIGNED_INTEGER_DTYPES,
-)  # pyrefly: ignore[missing-import]
+)
 
 
 @given(

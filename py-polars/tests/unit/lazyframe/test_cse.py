@@ -17,7 +17,7 @@ from polars.testing import assert_frame_equal
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch
 
 
 def num_cse_occurrences(explanation: str) -> int:

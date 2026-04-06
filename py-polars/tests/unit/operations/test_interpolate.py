@@ -7,7 +7,7 @@ import pytest
 
 import polars as pl
 from polars.testing import assert_frame_equal
-from tests.unit.conftest import NUMERIC_DTYPES  # pyrefly: ignore[missing-import]
+from tests.unit.conftest import NUMERIC_DTYPES
 
 if TYPE_CHECKING:
     from polars._typing import InterpolationMethod, PolarsDataType, PolarsTemporalType

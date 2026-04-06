@@ -14,7 +14,7 @@ from polars._utils.various import qualified_type_name
 from polars.exceptions import ColumnNotFoundError
 from polars.selectors import expand_selector, is_selector
 from polars.testing import assert_frame_equal
-from tests.unit.conftest import (  # pyrefly: ignore[missing-import]
+from tests.unit.conftest import (
     INTEGER_DTYPES,
     TEMPORAL_DTYPES,
 )

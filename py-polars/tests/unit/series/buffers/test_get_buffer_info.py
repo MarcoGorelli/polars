@@ -2,7 +2,7 @@ import pytest
 
 import polars as pl
 from polars.exceptions import ComputeError
-from tests.unit.conftest import NUMERIC_DTYPES  # pyrefly: ignore[missing-import]
+from tests.unit.conftest import NUMERIC_DTYPES
 
 
 @pytest.mark.parametrize("dtype", NUMERIC_DTYPES)

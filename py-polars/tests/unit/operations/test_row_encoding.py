@@ -11,7 +11,7 @@ import polars.selectors as cs
 from polars.testing import assert_frame_equal, assert_series_equal
 from polars.testing.parametric import dataframes, series
 from polars.testing.parametric.strategies.dtype import dtypes
-from tests.unit.conftest import (  # pyrefly: ignore[missing-import]
+from tests.unit.conftest import (
     FLOAT_DTYPES,
     INTEGER_DTYPES,
 )

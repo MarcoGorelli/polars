@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 import polars as pl
 from polars._plr import _ir_nodes
 from polars._utils.wrap import wrap_df
-from tests.unit.io.conftest import format_file_uri  # pyrefly: ignore[missing-import]
+from tests.unit.io.conftest import format_file_uri
 
 if TYPE_CHECKING:
     from collections.abc import Callable

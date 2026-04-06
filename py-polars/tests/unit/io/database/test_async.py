@@ -13,7 +13,7 @@ import polars as pl
 from polars._utils.various import parse_version
 from polars.io.database._utils import _run_async
 from polars.testing import assert_frame_equal
-from tests.unit.conftest import mock_module_import  # pyrefly: ignore[missing-import]
+from tests.unit.conftest import mock_module_import
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

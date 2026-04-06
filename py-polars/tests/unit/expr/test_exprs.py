@@ -14,7 +14,7 @@ from polars._plr import InvalidOperationError
 from polars.exceptions import ChronoFormatWarning
 from polars.expr.string import _validate_format_argument
 from polars.testing import assert_frame_equal, assert_series_equal
-from tests.unit.conftest import (  # pyrefly: ignore[missing-import]
+from tests.unit.conftest import (
     DATETIME_DTYPES,
     DURATION_DTYPES,
     FLOAT_DTYPES,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import polars as pl
-from tests.unit.sql import assert_sql_matches  # pyrefly: ignore[missing-import]
+from tests.unit.sql import assert_sql_matches
 
 # Note: SQLite does not support "DISTINCT ON", so only compare results against DuckDB
 

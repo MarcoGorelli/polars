@@ -94,6 +94,7 @@ all = [
 [tool.pyrefly]
 project-excludes = ["src/polars/series/*", 'src/polars/io/spreadsheet/_write_utils.py']
 project-includes = ["src/polars", "tests"]
+search-path = ["./src", "."]
 # Configure pyrefly's behavior for imports that cannot be found
 ignore-missing-imports = [
   # Add module patterns exactly as you had them in your mypy configuration

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 import polars as pl
-from tests.unit.sql import assert_sql_matches  # pyrefly: ignore[missing-import]
+from tests.unit.sql import assert_sql_matches
 
 
 @pytest.fixture

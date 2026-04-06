@@ -31,11 +31,11 @@ from polars.exceptions import (
     ShapeError,
 )
 from polars.testing import assert_frame_equal, assert_series_equal
-from tests.unit.conftest import (  # pyrefly: ignore[missing-import]
+from tests.unit.conftest import (
     FLOAT_DTYPES,
     INTEGER_DTYPES,
 )
-from tests.unit.utils.pycapsule_utils import (  # pyrefly: ignore[missing-import]
+from tests.unit.utils.pycapsule_utils import (
     PyCapsuleStreamHolder,
 )
 
@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from polars._typing import EpochTimeUnit, PolarsDataType, TimeUnit
-    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch
 
 
 def test_cum_agg() -> None:

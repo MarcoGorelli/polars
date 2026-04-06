@@ -5,7 +5,7 @@ import pytest
 import polars as pl
 from polars.exceptions import SQLInterfaceError, SQLSyntaxError
 from polars.testing import assert_frame_equal
-from tests.unit.sql.asserts import assert_sql_matches  # pyrefly: ignore[missing-import]
+from tests.unit.sql.asserts import assert_sql_matches
 
 # ---------------------------------------------------------------------------------
 # NOTE: 'UNNEST' is available as both a table function and a select-level function

@@ -21,7 +21,7 @@ from polars.io.delta._dataset import _extract_delta_deletion_vectors
 from polars.testing import assert_frame_equal
 
 if TYPE_CHECKING:
-    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch
 
 # NOTE
 # This file contains temporary homegrown logic with the sole purpose of generating

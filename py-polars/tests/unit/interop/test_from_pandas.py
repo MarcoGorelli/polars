@@ -13,7 +13,7 @@ from polars.testing.asserts.series import assert_series_equal
 
 if TYPE_CHECKING:
     from polars._typing import PolarsDataType
-    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch
 
 
 def test_index_not_silently_excluded() -> None:

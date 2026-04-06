@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from polars._typing import IpcCompression
-    from tests.unit.conftest import MemoryUsage  # pyrefly: ignore[missing-import]
+    from tests.unit.conftest import MemoryUsage
 
 COMPRESSIONS = ["uncompressed", "lz4", "zstd"]
 

@@ -31,7 +31,7 @@ from polars.testing import assert_frame_equal, assert_series_equal
 NE = Endianness.NATIVE
 
 if TYPE_CHECKING:
-    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch
 
 
 def test_from_dataframe_polars() -> None:

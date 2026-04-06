@@ -1,5 +1,5 @@
 """Tests for SQL query execution."""
 
-from tests.unit.sql.asserts import assert_sql_matches  # pyrefly: ignore[missing-import]
+from tests.unit.sql.asserts import assert_sql_matches
 
 __all__ = ["assert_sql_matches"]

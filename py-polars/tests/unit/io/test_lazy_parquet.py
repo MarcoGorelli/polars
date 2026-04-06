@@ -22,7 +22,7 @@ from polars.testing import assert_frame_equal
 
 if TYPE_CHECKING:
     from polars._typing import ParallelStrategy
-    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch
 
 
 @pytest.fixture
@@ -1386,7 +1386,7 @@ def test_sink_parquet_arrow_schema() -> None:
 
 
 def test_sink_parquet_arrow_schema_logical_types() -> None:
-    from tests.unit.datatypes.test_extension import (  # pyrefly: ignore[missing-import]
+    from tests.unit.datatypes.test_extension import (
         PythonTestExtension,
     )
 

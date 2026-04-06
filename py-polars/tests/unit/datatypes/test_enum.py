@@ -19,7 +19,7 @@ from polars.exceptions import (
     SchemaError,
 )
 from polars.testing import assert_frame_equal, assert_series_equal
-from tests.unit.conftest import INTEGER_DTYPES  # pyrefly: ignore[missing-import]
+from tests.unit.conftest import INTEGER_DTYPES
 
 if TYPE_CHECKING:
     from collections.abc import Callable

@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from polars._typing import UniqueKeepStrategy
-    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch
 
 pytestmark = pytest.mark.xdist_group("streaming")
 

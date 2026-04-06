@@ -1,7 +1,7 @@
 import pytest
 
 import polars as pl
-from tests.benchmark.data import (  # pyrefly: ignore[missing-import]
+from tests.benchmark.data import (
     generate_group_by_data,
 )
 

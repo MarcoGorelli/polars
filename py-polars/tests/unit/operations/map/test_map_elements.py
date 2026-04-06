@@ -10,10 +10,10 @@ import pytest
 import polars as pl
 from polars.exceptions import PolarsInefficientMapWarning
 from polars.testing import assert_frame_equal, assert_series_equal
-from tests.unit.conftest import (  # pyrefly: ignore[missing-import]
+from tests.unit.conftest import (
     NUMERIC_DTYPES,
     TEMPORAL_DTYPES,
-)  # pyrefly: ignore[missing-import]
+)
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore::polars.exceptions.PolarsInefficientMapWarning"

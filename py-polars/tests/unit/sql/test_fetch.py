@@ -6,7 +6,7 @@ import pytest
 
 import polars as pl
 from polars.exceptions import SQLInterfaceError, SQLSyntaxError
-from tests.unit.sql import assert_sql_matches  # pyrefly: ignore[missing-import]
+from tests.unit.sql import assert_sql_matches
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

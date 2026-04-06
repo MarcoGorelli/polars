@@ -9,12 +9,12 @@ import pytest
 import polars as pl
 from polars.exceptions import DuplicateError
 from polars.testing import assert_frame_equal
-from tests.unit.conftest import INTEGER_DTYPES  # pyrefly: ignore[missing-import]
+from tests.unit.conftest import INTEGER_DTYPES
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
+    from tests.conftest import PlMonkeyPatch
 
 pytestmark = pytest.mark.xdist_group("streaming")
 

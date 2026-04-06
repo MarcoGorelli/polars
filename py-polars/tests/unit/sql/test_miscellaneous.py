@@ -9,7 +9,7 @@ import pytest
 import polars as pl
 from polars.exceptions import ColumnNotFoundError, SQLInterfaceError, SQLSyntaxError
 from polars.testing import assert_frame_equal
-from tests.unit.utils.pycapsule_utils import (  # pyrefly: ignore[missing-import]
+from tests.unit.utils.pycapsule_utils import (
     PyCapsuleStreamHolder,
 )
 

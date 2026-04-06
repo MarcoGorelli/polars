@@ -22,7 +22,7 @@ from polars._utils.various import normalize_filepath
 from polars.exceptions import ComputeError, InvalidOperationError, NoDataError
 from polars.io.csv import BatchedCsvReader
 from polars.testing import assert_frame_equal, assert_series_equal
-from tests.conftest import PlMonkeyPatch  # pyrefly: ignore[missing-import]
+from tests.conftest import PlMonkeyPatch
 
 if TYPE_CHECKING:
     from pathlib import Path
