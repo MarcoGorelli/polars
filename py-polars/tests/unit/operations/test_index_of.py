@@ -15,7 +15,7 @@ from polars.testing import assert_frame_equal
 from polars.testing.parametric import series
 
 if TYPE_CHECKING:
-    from polars._typing import IntoExpr, PolarsDataType
+    from polars._typing import IntoExpr, PolarsDataType, PythonLiteral
     from polars.datatypes import IntegerType
 
 
@@ -60,7 +60,7 @@ def assert_index_of(
 
 @pytest.mark.parametrize("dtype", [pl.Float32, pl.Float64])
 def test_float(dtype: pl.DataType) -> None:
-    values = [1.5, np.nan, np.inf, 3.0, None, -np.inf, 0.0, -0.0, -np.nan]
+    values: list[Any] = [1.5, np.nan, np.inf, 3.0, None, -np.inf, 0.0, -0.0, -np.nan]
     if dtype == pl.Float32:
         # Can't pass Python literals to index_of() for Float32
         values = [(None if v is None else np.float32(v)) for v in values]  # type: ignore[misc]
@@ -70,14 +70,14 @@ def test_float(dtype: pl.DataType) -> None:
     sorted_series_desc = series.sort(descending=True)
     chunked_series = pl.concat([pl.Series([1, 7], dtype=dtype), series], rechunk=False)
 
-    extra_values = [
+    extra_values: list[Any] = [
         np.int8(3),
         np.float32(1.5),
         np.float32(2**10),
     ]
     if dtype == pl.Float64:
         extra_values.extend(
-            [  # pyrefly: ignore[bad-argument-type] (todo)
+            [
                 np.int32(2**10),
                 np.float64(2**10),
                 np.float64(1.5),
@@ -87,16 +87,16 @@ def test_float(dtype: pl.DataType) -> None:
         for value in values:
             assert_index_of(
                 s,
-                value,  # pyrefly: ignore[bad-argument-type] (todo)
+                value,
                 convert_to_literal=True,
             )
             assert_index_of(
                 s,
-                value,  # pyrefly: ignore[bad-argument-type] (todo)
+                value,
                 convert_to_literal=False,
             )
         for value in extra_values:  # type: ignore[assignment]
-            assert_index_of(s, value)  # pyrefly: ignore[bad-argument-type] (todo)
+            assert_index_of(s, value)
 
     # -np.nan should match np.nan:
     assert series.index_of(-np.float32("nan")) == 1  # type: ignore[arg-type]

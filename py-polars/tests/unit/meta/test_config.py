@@ -633,7 +633,7 @@ def test_config_load_save(tmp_path: Path) -> None:
 
         # ...load back from config file/string...
         if file is None:
-            pl.Config.load(cfg)  # pyrefly: ignore[unbound-name] (todo)
+            pl.Config.load(cfg)  # pyrefly: ignore[unbound-name]
         else:
             with pytest.raises(ValueError, match="invalid Config file"):
                 pl.Config.load_from_file(cfg)  # pyrefly: ignore[unbound-name] (todo)

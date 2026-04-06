@@ -1007,7 +1007,7 @@ def test_cse_custom_io_source_same_object() -> None:
         x
         for x in map(
             str.strip,
-            plan.splitlines(),  # pyrefly: ignore[bad-argument-type] (todo)
+            plan.splitlines(),  # pyrefly: ignore[bad-argument-type]
         )
         if x.startswith("CACHE[")
     ]
