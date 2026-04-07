@@ -356,6 +356,7 @@ def test_parse_apply_functions(
 
     parser = BytecodeParser(eval(func), map_target="expr")
     suggested_expression = parser.to_expression(col)
+    assert suggested_expression is not None
     assert suggested_expression == expr_repr
 
     df = pl.DataFrame(
@@ -376,7 +377,7 @@ def test_parse_apply_functions(
     result_frame = df.select(
         x=col,
         y=eval(
-            suggested_expression,  # pyrefly: ignore[bad-argument-type] (todo)
+            suggested_expression,
             EVAL_ENVIRONMENT,
         ),
     )
@@ -392,7 +393,7 @@ def test_parse_apply_functions(
         result_frame,
         expected_frame,
         check_dtypes=(
-            ".dt." not in suggested_expression  # pyrefly: ignore[not-iterable] (todo)
+            ".dt." not in suggested_expression
         ),
     )
 
