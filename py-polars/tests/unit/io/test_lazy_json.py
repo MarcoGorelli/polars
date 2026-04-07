@@ -11,7 +11,7 @@ from polars.testing import assert_frame_equal
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from polars._typing import NdjsonCompression
+    from polars._typing import NdjsonCompression, PolarsDataType
     from tests.conftest import PlMonkeyPatch
 
 
@@ -43,7 +43,7 @@ def test_scan_ndjson(foods_ndjson_path: Path) -> None:
 
 
 def test_scan_ndjson_with_schema(foods_ndjson_path: Path) -> None:
-    schema = {
+    schema: dict[str, PolarsDataType] = {
         "category": pl.Categorical,
         "calories": pl.Int64,
         "fats_g": pl.Float64,
@@ -55,7 +55,7 @@ def test_scan_ndjson_with_schema(foods_ndjson_path: Path) -> None:
     assert df["fats_g"].dtype == pl.Float64
     assert df["sugars_g"].dtype == pl.Int64
 
-    schema["sugars_g"] = pl.Float64  # pyrefly: ignore[bad-typed-dict-key]
+    schema["sugars_g"] = pl.Float64
     df = pl.scan_ndjson(foods_ndjson_path, schema=schema).collect()
     assert df["sugars_g"].dtype == pl.Float64
 
