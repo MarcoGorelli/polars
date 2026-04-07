@@ -195,12 +195,13 @@ def test_surrealdb_fetchall(batch_size: int | None) -> None:
             )
         )
         if batch_size:
-            frames = list(res)  # type: ignore[call-overload]
+            assert not isinstance(res, pl.DataFrame)
+            frames = list(res)
             n_mock_rows = len(SURREAL_MOCK_DATA)
             assert len(frames) == ceil(n_mock_rows / batch_size)
             assert_frame_equal(
                 df_expected[:batch_size],
-                frames[0],  # pyrefly: ignore[bad-argument-type]
+                frames[0],
             )
         else:
             assert_frame_equal(df_expected, res)  # type: ignore[arg-type]

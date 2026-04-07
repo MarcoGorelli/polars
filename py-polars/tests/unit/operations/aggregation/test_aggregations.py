@@ -343,7 +343,7 @@ def test_quantile_vs_numpy(tp: type, n: int) -> None:
 
 
 def test_mean_overflow() -> None:
-    assert np.isclose(  # pyrefly: ignore[no-matching-overload] (todo)
+    assert np.isclose(  # pyrefly: ignore[no-matching-overload]
         pl.Series([9_223_372_036_854_775_800, 100]).mean(),  # type: ignore[arg-type]
         4.611686018427388e18,
     )
