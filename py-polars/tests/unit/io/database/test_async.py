@@ -111,7 +111,7 @@ def test_read_async(tmp_sqlite_db: Path) -> None:
                     constraint = "WHERE value > :n"
                     execute_opts = {"parameters": {"n": -1000}}
 
-                df = pl.read_database(  # pyrefly: ignore[no-matching-overload]
+                df = pl.read_database(  # pyrefly: ignore[no-matching-overload]  https://github.com/facebook/pyrefly/issues/3046
                     query=f"""
                         SELECT id, name, value
                         FROM test_data {constraint}
