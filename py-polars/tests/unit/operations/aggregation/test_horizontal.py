@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -12,6 +12,8 @@ from polars.exceptions import ComputeError, InvalidOperationError, PolarsError
 from polars.testing import assert_frame_equal, assert_series_equal
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from polars._typing import PolarsDataType
 
 
@@ -627,7 +629,9 @@ def test_fold_all_schema() -> None:
         pl.sum_horizontal,
     ],
 )
-def test_expected_horizontal_dtype_errors(horizontal_func: Callable[..., pl.Expr]) -> None:
+def test_expected_horizontal_dtype_errors(
+    horizontal_func: Callable[..., pl.Expr],
+) -> None:
     from decimal import Decimal as D
 
     import polars as pl

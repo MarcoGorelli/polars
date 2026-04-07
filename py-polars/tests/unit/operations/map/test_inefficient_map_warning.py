@@ -392,9 +392,7 @@ def test_parse_apply_functions(
     assert_frame_equal(
         result_frame,
         expected_frame,
-        check_dtypes=(
-            ".dt." not in suggested_expression
-        ),
+        check_dtypes=(".dt." not in suggested_expression),
     )
 
 
@@ -553,9 +551,7 @@ def test_parse_apply_series(
     ):
         expected_series = s.map_elements(func)
 
-    result_series = eval(
-        suggested_expression
-    )
+    result_series = eval(suggested_expression)
     assert_series_equal(expected_series, result_series, check_dtypes=False)
 
 
