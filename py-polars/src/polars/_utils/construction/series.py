@@ -383,7 +383,7 @@ def iterable_to_pyseries(
     """Construct a PySeries from an iterable/generator."""
     if not isinstance(
         values,
-        (Generator, Iterator),  # pyrefly: ignore[unsafe-overlap]
+        (Generator, Iterator),
     ):
         values = iter(values)
 

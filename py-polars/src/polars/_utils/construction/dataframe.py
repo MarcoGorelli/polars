@@ -985,7 +985,7 @@ def iterable_to_pydf(
 
     if not isinstance(
         data,
-        Generator,  # pyrefly: ignore[unsafe-overlap]
+        Generator,
     ):
         data = iter(data)
 

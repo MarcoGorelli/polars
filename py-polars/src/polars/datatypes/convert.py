@@ -253,7 +253,7 @@ def dtype_to_ffiname(dtype: PolarsDataType) -> str:
     """Return FFI function name associated with the given Polars dtype."""
     try:
         dtype = dtype.base_type()
-        return DataTypeMappings.DTYPE_TO_FFINAME[dtype]  # pyrefly: ignore[bad-index]
+        return DataTypeMappings.DTYPE_TO_FFINAME[dtype]
     except KeyError:  # pragma: no cover
         msg = f"conversion of polars data type {dtype!r} to FFI not implemented"
         raise NotImplementedError(msg) from None
@@ -263,7 +263,7 @@ def dtype_to_py_type(dtype: PolarsDataType) -> PythonDataType:
     """Convert a Polars dtype to a Python dtype."""
     try:
         dtype = dtype.base_type()
-        return DataTypeMappings.DTYPE_TO_PY_TYPE[dtype]  # pyrefly: ignore[bad-index]
+        return DataTypeMappings.DTYPE_TO_PY_TYPE[dtype]
     except KeyError:  # pragma: no cover
         msg = f"conversion of polars data type {dtype!r} to Python type not implemented"
         raise NotImplementedError(msg) from None
@@ -272,7 +272,7 @@ def dtype_to_py_type(dtype: PolarsDataType) -> PythonDataType:
 def py_type_to_arrow_type(dtype: PythonDataType) -> pa.DataType:
     """Convert a Python dtype to an Arrow dtype."""
     try:
-        return DataTypeMappings.PY_TYPE_TO_ARROW_TYPE[  # pyrefly: ignore[bad-index]
+        return DataTypeMappings.PY_TYPE_TO_ARROW_TYPE[
             dtype
         ]
     except KeyError:  # pragma: no cover
@@ -290,7 +290,7 @@ def dtype_short_repr_to_dtype(dtype_string: str | None) -> PolarsDataType | None
         return None
 
     dtype_base, subtype = m.groups()
-    dtype = DataTypeMappings.REPR_TO_DTYPE.get(  # pyrefly: ignore[missing-attribute]
+    dtype = DataTypeMappings.REPR_TO_DTYPE.get(
         dtype_base
     )
     if dtype and subtype:
@@ -311,7 +311,7 @@ def dtype_short_repr_to_dtype(dtype_string: str | None) -> PolarsDataType | None
 def supported_numpy_char_code(dtype_char: str) -> bool:
     """Check if the input can be mapped to a Polars dtype."""
     dtype = np.dtype(dtype_char)
-    return (  # pyrefly: ignore[not-iterable] (todo)
+    return (
         dtype.kind,
         dtype.itemsize,
     ) in DataTypeMappings.NUMPY_KIND_AND_ITEMSIZE_TO_DTYPE
@@ -325,7 +325,7 @@ def numpy_char_code_to_dtype(dtype_char: str) -> PolarsDataType:
     elif dtype.kind == "S":
         return Binary
     try:
-        return DataTypeMappings.NUMPY_KIND_AND_ITEMSIZE_TO_DTYPE[  # pyrefly: ignore[bad-index] https://github.com/facebook/pyrefly/issues/2979
+        return DataTypeMappings.NUMPY_KIND_AND_ITEMSIZE_TO_DTYPE[
             dtype.kind, dtype.itemsize
         ]
     except KeyError:  # pragma: no cover

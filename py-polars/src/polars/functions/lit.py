@@ -213,7 +213,7 @@ def lit(
                 return lit(item).cast(Duration(time_unit))
 
         # handle known mappable values
-        dtype = DataTypeMappings.NUMPY_KIND_AND_ITEMSIZE_TO_DTYPE.get(  # pyrefly: ignore[missing-attribute]
+        dtype = DataTypeMappings.NUMPY_KIND_AND_ITEMSIZE_TO_DTYPE.get(
             (value.dtype.kind, value.dtype.itemsize)
         )
         if dtype is not None:

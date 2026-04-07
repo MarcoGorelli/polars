@@ -810,7 +810,7 @@ def align_frames(
         frames = frames[0]  # type: ignore[assignment]
     if isinstance(
         frames,
-        (Generator, Iterator),  # pyrefly: ignore[unsafe-overlap]
+        (Generator, Iterator),
     ):
         frames = tuple(frames)
 

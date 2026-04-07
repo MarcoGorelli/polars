@@ -4655,7 +4655,7 @@ class DataFrame:
                 module_name="sqlalchemy",
                 min_version=(
                     "2.0"
-                    if pd_version >= (2, 2)  # pyrefly: ignore[unbound-name]
+                    if pd_version >= (2, 2)
                     else "1.4"
                 ),
                 min_err_prefix="pandas >= 2.2 requires",
