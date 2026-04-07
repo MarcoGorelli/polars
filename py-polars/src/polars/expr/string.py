@@ -2840,7 +2840,9 @@ class ExprStringNameSpace:
             patterns,  # type: ignore[arg-type]
             str_as_lit=False,
         )
-        replace_with_pyexpr = parse_into_expression(replace_with, str_as_lit=True)
+        replace_with_pyexpr = parse_into_expression(
+            replace_with, str_as_lit=True  # pyrefly: ignore[bad-argument-type] https://github.com/facebook/pyrefly/issues/3042
+        )
         return wrap_expr(
             self._pyexpr.str_replace_many(
                 patterns_pyexpr, replace_with_pyexpr, ascii_case_insensitive, leftmost

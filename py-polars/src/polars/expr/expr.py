@@ -11462,7 +11462,9 @@ Consider using {self}.implode() instead"""
                 new = pl.Series(new)
 
         old_pyexpr = parse_into_expression(old, str_as_lit=True)  # type: ignore[arg-type]
-        new_pyexpr = parse_into_expression(new, str_as_lit=True)
+        new_pyexpr = parse_into_expression(
+            new, str_as_lit=True  # pyrefly: ignore[bad-argument-type] https://github.com/facebook/pyrefly/issues/3042
+        )
 
         result = wrap_expr(self._pyexpr.replace(old_pyexpr, new_pyexpr))
 
@@ -11664,7 +11666,9 @@ Consider using {self}.implode() instead"""
         default_pyexpr = (
             None
             if default is no_default
-            else parse_into_expression(default, str_as_lit=True)
+            else parse_into_expression(
+                default, str_as_lit=True  # pyrefly: ignore[bad-argument-type] https://github.com/facebook/pyrefly/issues/3042
+            )
         )
 
         return wrap_expr(

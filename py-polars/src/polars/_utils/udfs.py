@@ -493,7 +493,9 @@ class BytecodeParser:
     def to_expression(self, col: str) -> str | None:
         """Translate postfix bytecode instructions to polars expression/string."""
         if self._col_expression is not no_default and self._col_expression is not None:
-            col_name, expr = self._col_expression
+            col_name, expr = (  # pyrefly: ignore[not-iterable] https://github.com/facebook/pyrefly/issues/3042
+                self._col_expression
+            )
             if col != col_name:
                 expr = re.sub(
                     rf'pl\.col\("{re_escape(col_name)}"\)',
