@@ -558,7 +558,7 @@ def test_hive_partition_force_async_17155(
 @pytest.mark.parametrize("projection_pushdown", [True, False])
 def test_hive_partition_columns_contained_in_file(
     tmp_path: Path,
-    scan_func: Callable[[Any], pl.LazyFrame],
+    scan_func: Callable[..., pl.LazyFrame],
     write_func: Callable[[pl.DataFrame, Path], None],
     projection_pushdown: bool,
 ) -> None:
@@ -591,7 +591,7 @@ def test_hive_partition_columns_contained_in_file(
                 df.select(projection),
             )
 
-    lf = scan_func(path, hive_partitioning=True)  # type: ignore[call-arg]
+    lf = scan_func(path, hive_partitioning=True)
     rhs = df
     assert_frame_equal(
         lf.collect(
@@ -601,13 +601,13 @@ def test_hive_partition_columns_contained_in_file(
     )
     assert_with_projections(lf, rhs)
 
-    lf = scan_func(  # type: ignore[call-arg]
+    lf = scan_func(
         path,
-        hive_schema={  # pyrefly: ignore[unexpected-keyword]
+        hive_schema={
             "a": pl.String,
             "b": pl.String,
         },
-        hive_partitioning=True,  # pyrefly: ignore[unexpected-keyword]
+        hive_partitioning=True,
     )
     rhs = df.with_columns(pl.col("a", "b").cast(pl.String))
     assert_frame_equal(
@@ -633,7 +633,7 @@ def test_hive_partition_columns_contained_in_file(
         pl.col("a").cast(pl.Int64),
     )
 
-    lf = scan_func(partial_path, hive_partitioning=True)  # type: ignore[call-arg]
+    lf = scan_func(partial_path, hive_partitioning=True)
     assert_frame_equal(
         lf.collect(
             optimizations=pl.QueryOptFlags(projection_pushdown=projection_pushdown)
@@ -666,13 +666,13 @@ def test_hive_partition_columns_contained_in_file(
         row_index="index",
     )
 
-    lf = scan_func(  # type: ignore[call-arg]
+    lf = scan_func(
         partial_path,
-        hive_schema={  # pyrefly: ignore[unexpected-keyword]
+        hive_schema={
             "a": pl.String,
             "b": pl.String,
         },
-        hive_partitioning=True,  # pyrefly: ignore[unexpected-keyword]
+        hive_partitioning=True,
     )
     rhs = rhs.select(
         pl.col("x").cast(pl.Int32),

@@ -24,7 +24,7 @@ def rt_compat() -> None:
 
 
 def rt_64() -> None:
-    from _polars_runtime_64 import (
+    from _polars_runtime_64 import (  # pyrefly: ignore[missing-import]
         BUILD_FEATURE_FLAGS,
     )
 
