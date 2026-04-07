@@ -11463,7 +11463,8 @@ Consider using {self}.implode() instead"""
 
         old_pyexpr = parse_into_expression(old, str_as_lit=True)  # type: ignore[arg-type]
         new_pyexpr = parse_into_expression(
-            new, str_as_lit=True  # pyrefly: ignore[bad-argument-type] https://github.com/facebook/pyrefly/issues/3042
+            new,  # pyrefly: ignore[bad-argument-type] https://github.com/facebook/pyrefly/issues/3042
+            str_as_lit=True,
         )
 
         result = wrap_expr(self._pyexpr.replace(old_pyexpr, new_pyexpr))
@@ -11667,7 +11668,8 @@ Consider using {self}.implode() instead"""
             None
             if default is no_default
             else parse_into_expression(
-                default, str_as_lit=True  # pyrefly: ignore[bad-argument-type] https://github.com/facebook/pyrefly/issues/3042
+                default,  # pyrefly: ignore[bad-argument-type] https://github.com/facebook/pyrefly/issues/3042
+                str_as_lit=True,
             )
         )
 

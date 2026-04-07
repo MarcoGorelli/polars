@@ -2841,7 +2841,8 @@ class ExprStringNameSpace:
             str_as_lit=False,
         )
         replace_with_pyexpr = parse_into_expression(
-            replace_with, str_as_lit=True  # pyrefly: ignore[bad-argument-type] https://github.com/facebook/pyrefly/issues/3042
+            replace_with,  # pyrefly: ignore[bad-argument-type] https://github.com/facebook/pyrefly/issues/3042
+            str_as_lit=True,
         )
         return wrap_expr(
             self._pyexpr.str_replace_many(
