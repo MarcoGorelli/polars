@@ -332,10 +332,12 @@ def test_align_frames() -> None:
     # use "align_frames" to calculate dot-product from disjoint rows. pandas uses an
     # index to automatically infer the correct frame-alignment for the calculation;
     # we need to do it explicitly (which also makes it clearer what is happening)
-    pf1, pf2 = pl.align_frames(  # pyrefly: ignore[bad-specialization]
-        pl.from_pandas(pdf1.reset_index()),
-        pl.from_pandas(pdf2.reset_index()),
-        on="date",
+    pf1, pf2 = (
+        pl.align_frames(  # pyrefly: ignore[bad-specialization] https://github.com/facebook/pyrefly/issues/3047
+            pl.from_pandas(pdf1.reset_index()),
+            pl.from_pandas(pdf2.reset_index()),
+            on="date",
+        )
     )
     pl_dot = (
         (pf1[["a", "b"]] * pf2[["a", "b"]])  # pyrefly: ignore[bad-index]
