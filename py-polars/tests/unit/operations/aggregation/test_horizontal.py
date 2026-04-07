@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 import pytest
 
@@ -627,7 +627,7 @@ def test_fold_all_schema() -> None:
         pl.sum_horizontal,
     ],
 )
-def test_expected_horizontal_dtype_errors(horizontal_func: type[pl.Expr]) -> None:
+def test_expected_horizontal_dtype_errors(horizontal_func: Callable[..., pl.Expr]) -> None:
     from decimal import Decimal as D
 
     import polars as pl
@@ -643,8 +643,8 @@ def test_expected_horizontal_dtype_errors(horizontal_func: type[pl.Expr]) -> Non
     )
     with pytest.raises(PolarsError):
         df.select(
-            horizontal_func(  # type: ignore[call-arg]
-                pl.col("cola"),  # pyrefly: ignore[bad-argument-count] (todo)
+            horizontal_func(
+                pl.col("cola"),
                 pl.col("colb"),
                 pl.col("colc"),
                 pl.col("cold"),
