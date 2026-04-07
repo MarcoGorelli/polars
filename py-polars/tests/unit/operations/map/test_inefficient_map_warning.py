@@ -543,6 +543,7 @@ def test_parse_apply_series(
 
     parser = BytecodeParser(func, map_target="series")
     suggested_expression = parser.to_expression(s.name)
+    assert suggested_expression is not None
     assert suggested_expression == expr_repr
 
     with pytest.warns(
@@ -552,7 +553,7 @@ def test_parse_apply_series(
         expected_series = s.map_elements(func)
 
     result_series = eval(
-        suggested_expression  # pyrefly: ignore[bad-argument-type] (todo)
+        suggested_expression
     )
     assert_series_equal(expected_series, result_series, check_dtypes=False)
 
