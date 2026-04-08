@@ -697,7 +697,9 @@ def merge_sorted(items: Iterable[PolarsType], key: str) -> PolarsType:
         msg = f"merge_sorted is not supported for {qualified_type_name(elems[0])!r}"
         raise TypeError(msg)
 
-    frames = [df.lazy() for df in elems]
+    frames = [
+        df.lazy() for df in elems  # pyrefly: ignore[missing-attribute] https://github.com/facebook/pyrefly/issues/3047
+    ]
 
     def reduce_fn(x: pl.LazyFrame, y: pl.LazyFrame) -> pl.LazyFrame:
         return x.merge_sorted(y, key=key)
