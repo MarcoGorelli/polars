@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import pytest
 from typing import Any
+
+import pytest
 
 import polars as pl
 from polars.exceptions import ComputeError, NoDataError
@@ -40,9 +41,7 @@ def test_from_dicts_empty() -> None:
 
 
 def test_from_dicts_all_cols_6716() -> None:
-    dicts: list[dict[str, Any]] = [
-        {"a": None} for _ in range(20)
-    ] + [{"a": "crash"}]
+    dicts: list[dict[str, Any]] = [{"a": None} for _ in range(20)] + [{"a": "crash"}]
 
     with pytest.raises(
         ComputeError, match="make sure that all rows have the same schema"

@@ -698,7 +698,8 @@ def merge_sorted(items: Iterable[PolarsType], key: str) -> PolarsType:
         raise TypeError(msg)
 
     frames = [
-        df.lazy() for df in elems  # pyrefly: ignore[missing-attribute] https://github.com/facebook/pyrefly/issues/3047
+        df.lazy()  # pyrefly: ignore[missing-attribute] https://github.com/facebook/pyrefly/issues/3047
+        for df in elems
     ]
 
     def reduce_fn(x: pl.LazyFrame, y: pl.LazyFrame) -> pl.LazyFrame:
