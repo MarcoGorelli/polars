@@ -632,11 +632,12 @@ def test_config_load_save(tmp_path: Path) -> None:
         assert os.environ.get("POLARS_VERBOSE") == "0"
 
         # ...load back from config file/string...
+        assert isinstance(cfg, str)  # pyrefly: ignore[unbound-name]
         if file is None:
-            pl.Config.load(cfg)  # pyrefly: ignore[unbound-name]
+            pl.Config.load(cfg)
         else:
             with pytest.raises(ValueError, match="invalid Config file"):
-                pl.Config.load_from_file(cfg)  # pyrefly: ignore[unbound-name] (todo)
+                pl.Config.load_from_file(cfg)
 
             if isinstance(file, Path):
                 with pytest.raises(TypeError, match="the JSON object must be str"):
