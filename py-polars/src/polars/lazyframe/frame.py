@@ -9167,10 +9167,10 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         self,
         context: pc.ComputeContext | None = None,
         *,
-        plan_type: pct.PlanTypePreference = "dot",
+        plan_type: pc._typing.PlanTypePreference = "dot",
         n_retries: int = 0,
-        engine: pct.Engine = "auto",
-        scaling_mode: pct.ScalingMode = "auto",
+        engine: pc._typing.Engine = "auto",
+        scaling_mode: pc._typing.ScalingMode = "auto",
     ) -> pc.LazyFrameRemote:
         """
         Run a query remotely on Polars Cloud.
