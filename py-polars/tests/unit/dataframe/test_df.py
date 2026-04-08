@@ -1349,7 +1349,12 @@ def test_from_generator_or_iterable() -> None:
     # ref: issue #6489 (initial chunk_size cannot be smaller than 'infer_schema_length')
     df = pl.DataFrame(
         data=iter(
-            ([{"col": None}] * 1000)  # pyrefly: ignore[unsupported-operation]
+            (
+                [  # pyrefly: ignore[unsupported-operation] https://github.com/facebook/pyrefly/issues/3074
+                    {"col": None}
+                ]
+                * 1000
+            )
             + [{"col": ["a", "b", "c"]}]
         ),
         infer_schema_length=1001,
@@ -2840,7 +2845,10 @@ def test_series_iter_over_frame() -> None:
         2: pl.Series("a", [1, 2, 3]),
     }
     for idx, s in enumerate(reversed(df)):
-        assert_series_equal(s, expected[idx])  # pyrefly: ignore[bad-argument-type]
+        assert_series_equal(
+            s,  # pyrefly: ignore[bad-argument-type]  https://github.com/facebook/pyrefly/issues/3048
+            expected[idx],
+        )
 
 
 def test_union_with_aliases_4770() -> None:
@@ -2866,6 +2874,7 @@ def test_init_datetimes_with_timezone() -> None:
     tz_europe = "Europe/Amsterdam"
 
     dtm = datetime(2022, 10, 12, 12, 30)
+    type_overrides: dict[str, Any]
     for time_unit in DTYPE_TEMPORAL_UNITS:
         for type_overrides in (
             {
@@ -2886,7 +2895,7 @@ def test_init_datetimes_with_timezone() -> None:
                     "d1": [dtm.replace(tzinfo=ZoneInfo(tz_us))],
                     "d2": [dtm.replace(tzinfo=ZoneInfo(tz_europe))],
                 },
-                **type_overrides,  # pyrefly: ignore[bad-argument-type]
+                **type_overrides,  # pyrefly: ignore[bad-argument-type] https://github.com/facebook/pyrefly/issues/3046
             )
             expected = pl.DataFrame(
                 {"d1": ["2022-10-12 12:30"], "d2": ["2022-10-12 12:30"]}
