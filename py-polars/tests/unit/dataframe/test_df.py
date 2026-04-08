@@ -245,7 +245,7 @@ def test_from_arrow(plmonkeypatch: PlMonkeyPatch) -> None:
     for t in (tbl, empty_tbl):
         df = pl.DataFrame(t, schema_overrides={"e": pl.Int8})
         override_schema: dict[str, PolarsDataType] = expected_schema.copy()
-        override_schema["e"] = pl.Int8  # pyrefly: ignore[unsupported-operation]
+        override_schema["e"] = pl.Int8
         assert df.schema == override_schema
         assert df.rows() == expected_data[: (df.height)]
 

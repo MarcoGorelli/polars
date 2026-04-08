@@ -714,7 +714,7 @@ def struct(
     """
     pyexprs = parse_into_list_of_expressions(
         *exprs,
-        **named_exprs,  # pyrefly: ignore[bad-argument-type]
+        **named_exprs,
     )
 
     if schema:

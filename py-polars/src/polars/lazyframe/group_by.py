@@ -192,7 +192,7 @@ class LazyGroupBy:
 
         pyexprs = parse_into_list_of_expressions(
             *aggs,
-            **named_aggs,  # pyrefly: ignore[bad-argument-type]
+            **named_aggs,
         )
         return wrap_ldf(self.lgb.agg(pyexprs))
 
