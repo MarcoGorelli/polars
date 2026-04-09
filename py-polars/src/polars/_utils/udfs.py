@@ -24,7 +24,7 @@ from typing import (
 )
 
 from polars._utils.cache import LRUCache
-from polars._utils.various import no_default, re_escape
+from polars._utils.various import NO_DEFAULT, re_escape
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, MutableMapping
@@ -359,7 +359,7 @@ class BytecodeParser:
     _map_target_name: str | None = None
     _can_attempt_rewrite: bool | None = None
     _caller_variables: dict[str, Any] | None = None
-    _col_expression: tuple[str, str] | NoDefault | None = no_default
+    _col_expression: tuple[str, str] | NoDefault | None = NO_DEFAULT
 
     def __init__(self, function: Callable[[Any], Any], map_target: MapTarget) -> None:
         """
@@ -492,11 +492,8 @@ class BytecodeParser:
 
     def to_expression(self, col: str) -> str | None:
         """Translate postfix bytecode instructions to polars expression/string."""
-        if self._col_expression is not no_default and self._col_expression is not None:
-            (  # pyrefly: ignore[not-iterable] https://github.com/facebook/pyrefly/issues/3042
-                col_name,
-                expr,
-            ) = self._col_expression
+        if self._col_expression is not NO_DEFAULT and self._col_expression is not None:
+            col_name, expr = self._col_expression
             if col != col_name:
                 expr = re.sub(
                     rf'pl\.col\("{re_escape(col_name)}"\)',

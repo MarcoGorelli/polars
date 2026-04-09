@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import re
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Protocol
 
 import pytest
@@ -13,18 +14,20 @@ from polars.testing import assert_frame_equal, assert_series_equal
 from polars.testing.parametric import series
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Callable, Iterable, Sequence
 
     from polars._typing import IntoExpr
 
-    class TopKFunction(Protocol):  # noqa: D101
+    class TopKFunction(Protocol):
+        """Function signature of `DataFrame.top_k` / `DataFrame.bottom_k`."""
+
         def __call__(
             self,
             df: pl.DataFrame,
             /,
             k: int,
             *,
-            by: "IntoExpr" | Iterable["IntoExpr"],
+            by: IntoExpr | Iterable[IntoExpr],
             reverse: bool | Sequence[bool] = False,
         ) -> pl.DataFrame: ...
 
@@ -504,6 +507,7 @@ def test_sorted_top_k_20719(descending: bool) -> None:
     # Note: Output stability is guaranteed by the input sortedness as an
     # implementation detail.
 
+    func: TopKFunction
     for func, reverse in [
         (pl.DataFrame.top_k, False),
         (pl.DataFrame.bottom_k, True),

@@ -307,13 +307,13 @@ def _post_apply_columns(
         pydf_dtype = pydf_dtypes[i]
         if dtype is None:
             continue
-        elif dtype == Categorical != pydf_dtype:
+        if dtype == Categorical != pydf_dtype:
             column_casts.append(F.col(col).cast(Categorical, strict=strict)._pyexpr)
         elif dtype == Enum != pydf_dtype:
             column_casts.append(F.col(col).cast(dtype, strict=strict)._pyexpr)
         elif structs and (struct := structs.get(col)) and struct != pydf_dtype:
             column_casts.append(F.col(col).cast(struct, strict=strict)._pyexpr)
-        elif dtype is not None and dtype != Unknown and dtype != pydf_dtype:
+        elif dtype != Unknown and dtype != pydf_dtype:
             if dtype.is_temporal() and dtype != Duration and pydf_dtype == String:
                 temporal_cast = F.col(col).str.strptime(dtype, strict=strict)._pyexpr  # type: ignore[arg-type]
                 column_casts.append(temporal_cast)
