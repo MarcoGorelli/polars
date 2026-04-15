@@ -4,7 +4,7 @@ import contextlib
 from collections.abc import Generator, Iterator, Sequence
 from functools import reduce
 from itertools import chain
-from typing import TYPE_CHECKING, get_args
+from typing import TYPE_CHECKING, get_args, cast
 
 import polars._reexport as pl
 from polars import functions as F
@@ -185,6 +185,7 @@ def concat(
         if not isinstance(elems[0], (pl.DataFrame, pl.LazyFrame)):
             msg = f"{how!r} strategy is not supported for {qualified_type_name(elems[0])!r}"
             raise TypeError(msg)
+        elems = cast(list[pl.DataFrame] |list[pl.LazyFrame], elems)
 
         # establish common columns, maintaining the order in which they appear
         all_columns = list(chain.from_iterable(e.collect_schema() for e in elems))
@@ -235,6 +236,7 @@ def concat(
     from polars.lazyframe.opt_flags import QueryOptFlags
 
     if isinstance(first, pl.DataFrame):
+        elems = cast(list[pl.DataFrame], elems)
         if how == "vertical":
             out = wrap_df(plr.concat_df(elems))
         elif how == "vertical_relaxed":
