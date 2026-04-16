@@ -11463,7 +11463,7 @@ Consider using {self}.implode() instead"""
 
         old_pyexpr = parse_into_expression(old, str_as_lit=True)  # type: ignore[arg-type]
         new_pyexpr = parse_into_expression(
-            new,  # pyrefly: ignore[bad-argument-type] https://github.com/facebook/pyrefly/issues/3042
+            new,
             str_as_lit=True,
         )
 

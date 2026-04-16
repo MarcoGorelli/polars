@@ -165,7 +165,7 @@ class LRUCache(MutableMapping[K, V]):
         if (item := self._items.pop(key, default)) is NO_DEFAULT:
             msg = f"{key!r} not found in cache"
             raise KeyError(msg)
-        return item  # pyrefly: ignore[bad-return]  https://github.com/facebook/pyrefly/issues/3042
+        return item
 
     def popitem(self) -> tuple[K, V]:
         """Remove the least recently used value; raises KeyError if cache is empty."""

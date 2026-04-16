@@ -1350,7 +1350,7 @@ def test_from_generator_or_iterable() -> None:
     df = pl.DataFrame(
         data=iter(
             (
-                [  # pyrefly: ignore[unsupported-operation] https://github.com/facebook/pyrefly/issues/3074
+                [
                     {"col": None}
                 ]
                 * 1000
@@ -2895,7 +2895,7 @@ def test_init_datetimes_with_timezone() -> None:
                     "d1": [dtm.replace(tzinfo=ZoneInfo(tz_us))],
                     "d2": [dtm.replace(tzinfo=ZoneInfo(tz_europe))],
                 },
-                **type_overrides,  # pyrefly: ignore[bad-argument-type] https://github.com/facebook/pyrefly/issues/3046
+                **type_overrides,
             )
             expected = pl.DataFrame(
                 {"d1": ["2022-10-12 12:30"], "d2": ["2022-10-12 12:30"]}

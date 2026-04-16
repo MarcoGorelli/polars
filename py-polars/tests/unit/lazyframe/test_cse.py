@@ -1007,7 +1007,7 @@ def test_cse_custom_io_source_same_object() -> None:
         x
         for x in map(
             str.strip,
-            plan.splitlines(),  # pyrefly: ignore[bad-argument-type] https://github.com/facebook/pyrefly/issues/3030
+            plan.splitlines(),
         )
         if x.startswith("CACHE[")
     ]
@@ -1040,7 +1040,7 @@ def test_cse_custom_io_source_same_object() -> None:
         x
         for x in map(
             str.strip,
-            plan.splitlines(),  # pyrefly: ignore[bad-argument-type] https://github.com/facebook/pyrefly/issues/3030
+            plan.splitlines(),
         )
         if x.startswith("CACHE[")
     ]
@@ -1082,7 +1082,7 @@ def test_cse_custom_io_source_same_object() -> None:
         x
         for x in map(
             str.strip,
-            plan.splitlines(),  # pyrefly: ignore[bad-argument-type] https://github.com/facebook/pyrefly/issues/3030
+            plan.splitlines(),
         )
         if x.startswith("CACHE[")
     ]
