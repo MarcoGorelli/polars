@@ -300,6 +300,11 @@ pub enum PhysNodeKind {
         input: PhysStream,
         limit: Option<IdxSize>,
     },
+    #[cfg(feature = "interpolate")]
+    Interpolate {
+        input: PhysStream,
+        method: polars_ops::series::InterpolationMethod,
+    },
     Rle(PhysStream),
     RleId(PhysStream),
     SortedUnique {
@@ -441,6 +446,10 @@ pub enum PhysNodeKind {
         right_on: PlSmallStr,
         tmp_left_key_col: Option<PlSmallStr>,
         tmp_right_key_col: Option<PlSmallStr>,
+        left_by: Option<Vec<PlSmallStr>>,
+        right_by: Option<Vec<PlSmallStr>>,
+        by_descending: Option<Vec<bool>>,
+        by_nulls_last: Option<Vec<bool>>,
         args: JoinArgs,
     },
 
@@ -540,6 +549,12 @@ fn visit_node_inputs_mut(
             | PhysNodeKind::RleId(input)
             | PhysNodeKind::SortedUnique { input, .. }
             | PhysNodeKind::PeakMinMax { input, .. } => {
+                rec!(input.node);
+                visit(input);
+            },
+
+            #[cfg(feature = "interpolate")]
+            PhysNodeKind::Interpolate { input, .. } => {
                 rec!(input.node);
                 visit(input);
             },
