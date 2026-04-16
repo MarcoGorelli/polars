@@ -96,7 +96,9 @@ project-excludes = ["src/polars/series/*", 'src/polars/io/spreadsheet/_write_uti
 project-includes = ["src/polars", "tests"]
 search-path = ["./src", "."]
 ignore-missing-imports = [
-  "_polars_runtime_32",
+  "_polars_runtime_32.*",
+  "_polars_runtime_64.*",
+  "_polars_runtime_compat.*",
   "IPython.*",
   "adbc_driver_manager.*",
   "adbc_driver_sqlite.*",
