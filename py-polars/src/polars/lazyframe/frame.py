@@ -114,7 +114,6 @@ if TYPE_CHECKING:
     from typing import IO, Concatenate, Literal, ParamSpec
 
     import deltalake
-    import polars_cloud._typing as pct
     import pyiceberg.catalog
     import pyiceberg.table
 
