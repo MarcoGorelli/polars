@@ -74,7 +74,9 @@ _MIN_NUMPY_SIZE_FOR_MULTITHREADING = 1000
 
 
 def dict_to_pydf(
-    data: Mapping[str, Sequence[object] | Mapping[str, Sequence[object]] | Series | None],
+    data: Mapping[
+        str, Sequence[object] | Mapping[str, Sequence[object]] | Series | None
+    ],
     schema: SchemaDefinition | None = None,
     *,
     schema_overrides: SchemaDict | None = None,
@@ -332,7 +334,9 @@ def _post_apply_columns(
 
 
 def _expand_dict_values(
-    data: Mapping[str, Sequence[object] | Mapping[str, Sequence[object]] | Series | None],
+    data: Mapping[
+        str, Sequence[object] | Mapping[str, Sequence[object]] | Series | None
+    ],
     *,
     schema_overrides: SchemaDict | None = None,
     strict: bool = True,
@@ -421,7 +425,9 @@ def _expand_dict_values(
 
 
 def _expand_dict_data(
-    data: Mapping[str, Sequence[object] | Mapping[str, Sequence[object]] | Series | None],
+    data: Mapping[
+        str, Sequence[object] | Mapping[str, Sequence[object]] | Series | None
+    ],
     dtypes: SchemaDict,
     *,
     strict: bool = True,
