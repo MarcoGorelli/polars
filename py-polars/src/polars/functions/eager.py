@@ -185,16 +185,16 @@ def concat(
         if not isinstance(elems[0], (pl.DataFrame, pl.LazyFrame)):
             msg = f"{how!r} strategy is not supported for {qualified_type_name(elems[0])!r}"
             raise TypeError(msg)
-        elems = cast("Sequence[pl.DataFrame] | Sequence[pl.LazyFrame]", elems)
+        frames = cast("Sequence[pl.DataFrame] | Sequence[pl.LazyFrame]", elems)
 
         # establish common columns, maintaining the order in which they appear
-        all_columns = list(chain.from_iterable(e.collect_schema() for e in elems))
+        all_columns = list(chain.from_iterable(e.collect_schema() for e in frames))
         key = {v: k for k, v in enumerate(ordered_unique(all_columns))}
         output_column_order = list(key)
         common_cols = sorted(
             reduce(
                 lambda x, y: set(x) & set(y),  # type: ignore[arg-type, return-value]
-                chain(e.collect_schema() for e in elems),
+                chain(e.collect_schema() for e in frames),
             ),
             key=lambda k: key.get(k, 0),
         )
@@ -208,7 +208,7 @@ def concat(
         join_method: JoinStrategy = (
             "full" if how == "align" else how.removeprefix("align_")  # type: ignore[assignment]
         )
-        join_frames = [df.lazy() for df in elems]
+        join_frames = [df.lazy() for df in frames]
 
         def join_fn(x: pl.LazyFrame, y: pl.LazyFrame) -> pl.LazyFrame:
             return x.join(
@@ -227,7 +227,7 @@ def concat(
             lf = reduce(join_fn, join_frames)
         lf = lf.sort(by=common_cols, maintain_order=True).select(*output_column_order)
 
-        eager = isinstance(elems[0], pl.DataFrame)
+        eager = isinstance(frames[0], pl.DataFrame)
         return lf.collect() if eager else lf  # type: ignore[return-value]
 
     out: Series | DataFrame | LazyFrame | Expr
@@ -236,12 +236,13 @@ def concat(
     from polars.lazyframe.opt_flags import QueryOptFlags
 
     if isinstance(first, pl.DataFrame):
+        dataframes = cast("Sequence[pl.DataFrame]", elems)
         if how == "vertical":
-            out = wrap_df(plr.concat_df(elems))
+            out = wrap_df(plr.concat_df(dataframes))
         elif how == "vertical_relaxed":
             out = wrap_ldf(
                 plr.concat_lf(
-                    [df.lazy() for df in elems],  # pyrefly: ignore[missing-attribute]
+                    [df.lazy() for df in dataframes],
                     rechunk=rechunk,
                     parallel=parallel,
                     to_supertypes=True,
@@ -250,11 +251,11 @@ def concat(
             ).collect(optimizations=QueryOptFlags._eager())
 
         elif how == "diagonal":
-            out = wrap_df(plr.concat_df_diagonal(elems))
+            out = wrap_df(plr.concat_df_diagonal(dataframes))
         elif how == "diagonal_relaxed":
             out = wrap_ldf(
                 plr.concat_lf_diagonal(
-                    [df.lazy() for df in elems],  # pyrefly: ignore[missing-attribute]
+                    [df.lazy() for df in dataframes],
                     rechunk=rechunk,
                     parallel=parallel,
                     to_supertypes=True,
@@ -262,17 +263,18 @@ def concat(
                 )
             ).collect(optimizations=QueryOptFlags._eager())
         elif how == "horizontal":
-            out = wrap_df(plr.concat_df_horizontal(elems, strict=strict))
+            out = wrap_df(plr.concat_df_horizontal(dataframes, strict=strict))
         else:
             allowed = ", ".join(repr(m) for m in get_args(ConcatMethod))
             msg = f"DataFrame `how` must be one of {{{allowed}}}, got {how!r}"
             raise ValueError(msg)
 
     elif isinstance(first, pl.LazyFrame):
+        lazyframes = cast("Sequence[pl.LazyFrame]", elems)
         if how in ("vertical", "vertical_relaxed"):
             return wrap_ldf(
                 plr.concat_lf(
-                    elems,
+                    lazyframes,
                     rechunk=rechunk,
                     parallel=parallel,
                     to_supertypes=how.endswith("relaxed"),
@@ -282,7 +284,7 @@ def concat(
         elif how in ("diagonal", "diagonal_relaxed"):
             return wrap_ldf(
                 plr.concat_lf_diagonal(
-                    elems,
+                    lazyframes,
                     rechunk=rechunk,
                     parallel=parallel,
                     to_supertypes=how.endswith("relaxed"),
@@ -292,7 +294,7 @@ def concat(
         elif how == "horizontal":
             return wrap_ldf(
                 plr.concat_lf_horizontal(
-                    elems,
+                    lazyframes,
                     parallel=parallel,
                     strict=strict,
                 )
