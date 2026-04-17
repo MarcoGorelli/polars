@@ -74,7 +74,7 @@ _MIN_NUMPY_SIZE_FOR_MULTITHREADING = 1000
 
 
 def dict_to_pydf(
-    data: Mapping[str, Sequence[object] | Mapping[str, Sequence[object]] | Series],
+    data: Mapping[str, Sequence[object] | Mapping[str, Sequence[object]] | Series | None],
     schema: SchemaDefinition | None = None,
     *,
     schema_overrides: SchemaDict | None = None,
@@ -332,7 +332,7 @@ def _post_apply_columns(
 
 
 def _expand_dict_values(
-    data: Mapping[str, Sequence[object] | Mapping[str, Sequence[object]] | Series],
+    data: Mapping[str, Sequence[object] | Mapping[str, Sequence[object]] | Series | None],
     *,
     schema_overrides: SchemaDict | None = None,
     strict: bool = True,
@@ -421,18 +421,18 @@ def _expand_dict_values(
 
 
 def _expand_dict_data(
-    data: Mapping[str, Sequence[object] | Mapping[str, Sequence[object]] | Series],
+    data: Mapping[str, Sequence[object] | Mapping[str, Sequence[object]] | Series | None],
     dtypes: SchemaDict,
     *,
     strict: bool = True,
-) -> Mapping[str, Sequence[object] | Mapping[str, Sequence[object]] | Series]:
+) -> Mapping[str, Sequence[object] | Mapping[str, Sequence[object]] | Series | None]:
     """
     Expand any unsized generators/iterators.
 
     (Note that `range` is sized, and will take a fast-path on Series init).
     """
     expanded_data: dict[
-        str, Sequence[object] | Mapping[str, Sequence[object]] | Series
+        str, Sequence[object] | Mapping[str, Sequence[object]] | Series | None
     ] = {}
     for name, val in data.items():
         expanded_data[name] = (
