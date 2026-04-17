@@ -1022,7 +1022,7 @@ class DataFrame:
                 msg = f"copy not allowed: cast from {arr.dtype} to {dtype} prohibited"
                 raise RuntimeError(msg)
 
-            arr = arr.__array__(dtype)  # pyrefly: ignore[no-matching-overload]
+            arr = arr.__array__(dtype)  # pyrefly: ignore[no-matching-overload]  https://github.com/numpy/numpy/issues/30873
 
         return arr
 
