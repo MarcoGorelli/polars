@@ -4,7 +4,7 @@ import contextlib
 from collections.abc import Generator, Iterator, Sequence
 from functools import reduce
 from itertools import chain
-from typing import TYPE_CHECKING, get_args
+from typing import TYPE_CHECKING, get_args, cast, Sequence
 
 import polars._reexport as pl
 from polars import functions as F
@@ -185,11 +185,12 @@ def concat(
         if not isinstance(elems[0], (pl.DataFrame, pl.LazyFrame)):
             msg = f"{how!r} strategy is not supported for {qualified_type_name(elems[0])!r}"
             raise TypeError(msg)
+        elems = cast(Sequence[pl.DataFrame] | Sequence[pl.LazyFrame], elems)
 
         # establish common columns, maintaining the order in which they appear
         all_columns = list(
             chain.from_iterable(
-                e.collect_schema()  # pyrefly: ignore[missing-attribute]
+                e.collect_schema()
                 for e in elems
             )
         )
@@ -199,7 +200,7 @@ def concat(
             reduce(
                 lambda x, y: set(x) & set(y),  # type: ignore[arg-type, return-value]
                 chain(
-                    e.collect_schema()  # pyrefly: ignore[missing-attribute]
+                    e.collect_schema()
                     for e in elems
                 ),
             ),
@@ -215,7 +216,7 @@ def concat(
         join_method: JoinStrategy = (
             "full" if how == "align" else how.removeprefix("align_")  # type: ignore[assignment]
         )
-        join_frames = [df.lazy() for df in elems]  # pyrefly: ignore[missing-attribute]
+        join_frames = [df.lazy() for df in elems]
 
         def join_fn(x: pl.LazyFrame, y: pl.LazyFrame) -> pl.LazyFrame:
             return x.join(
