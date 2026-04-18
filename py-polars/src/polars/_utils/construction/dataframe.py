@@ -68,6 +68,8 @@ if TYPE_CHECKING:
         PolarsDataType,
         SchemaDefinition,
         SchemaDict,
+        NonNestedLiteral,
+        NumpyArray,
     )
 
 _MIN_NUMPY_SIZE_FOR_MULTITHREADING = 1000
@@ -75,7 +77,7 @@ _MIN_NUMPY_SIZE_FOR_MULTITHREADING = 1000
 
 def dict_to_pydf(
     data: Mapping[
-        str, Sequence[object] | Mapping[str, Sequence[object]] | Series | None
+        str, Sequence[object] | Mapping[str, Sequence[object]] | Series | NumpyArray| NonNestedLiteral| None
     ],
     schema: SchemaDefinition | None = None,
     *,
@@ -148,7 +150,7 @@ def dict_to_pydf(
         data_series = [
             s._s
             for s in _expand_dict_values(
-                data,
+                data,  # pyrefly: ignore[bad-argument-type]
                 schema_overrides=schema_overrides,
                 strict=strict,
                 nan_to_null=nan_to_null,
