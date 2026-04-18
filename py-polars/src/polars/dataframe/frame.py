@@ -396,8 +396,8 @@ class DataFrame:
                 self._df = PyDataFrame.empty_with_height(height)
 
         elif isinstance(data, dict):
-            self._df = dict_to_pydf(  # pyrefly: ignore[bad-argument-type]
-                data,  # pyrefly: ignore[bad-argument-type]
+            self._df = dict_to_pydf(
+                data,
                 schema=schema,
                 schema_overrides=schema_overrides,
                 strict=strict,
