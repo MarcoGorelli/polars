@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import (
+    Iterator,
     IO,
     TYPE_CHECKING,
     Any,
@@ -50,6 +51,73 @@ class ArrowSchemaExportable(Protocol):
     """Type protocol for Arrow C Schema Interface via Arrow PyCapsule Interface."""
 
     def __arrow_c_schema__(self) -> object: ...
+
+class NumpyArray(Protocol):
+    """
+    Protocol to match against NumPy Arrays.
+
+    Use this as an argument type, else `np.ndarray` will be reported as `Any`
+    if NumPy isn't installed.
+    """
+    def byteswap(self, *args: Any, **kwargs :Any) -> Any:
+        ...
+    def conjugate(self, *args: Any, **kwargs :Any) -> Any:
+        ...
+    def ravel(self, *args: Any, **kwargs :Any) -> Any:
+        ...
+    def searchsorted(self, *args: Any, **kwargs :Any) -> Any:
+        ...
+    def swapaxes(self, *args: Any, **kwargs :Any) -> Any:
+        ...
+
+class PyArrowTable(Protocol):
+    """
+    Protocol to match against PyArrow tables.
+
+    Use this as an argument type, else `pa.Table` will be reported as `Any`
+    if PyArrow isn't installed.
+    """
+    def filter(self, *args: Any, **kwargs :Any) -> Any:
+        ...
+    def group_by(self, *args: Any, **kwargs :Any) -> Any:
+        ...
+    def add_column(self, *args: Any, **kwargs :Any) -> Any:
+        ...
+    def remove_column(self, *args: Any, **kwargs :Any) -> Any:
+        ...
+    def take(self, *args: Any, **kwargs :Any) -> Any:
+        ...
+    def to_pandas(self, *args: Any, **kwargs :Any) -> Any:
+        ...
+
+class PandasDataFrame(Protocol):
+    """
+    Protocol to match against pandas DataFrames.
+
+    Use this as an argument type, else `pandas.DataFrame` will be reported as `Any`
+    if pandas-stubs isn't installed.
+    """
+    def where(self, *args: Any, **kwargs :Any) -> Any:
+        ...
+    def groupby(self, *args: Any, **kwargs :Any) -> Any:
+        ...
+    def unstack(self, *args: Any, **kwargs :Any) -> Any:
+        ...
+    def pivot_table(self, *args: Any, **kwargs :Any) -> Any:
+        ...
+
+class TorchTensor(Protocol):
+    """
+    Protocol to match against torch Tensors.
+
+    Use this as an argument type, else `torch.Tensor` will be reported as `Any`
+    if torch isn't installed.
+    """
+    def cuda(self, *args: Any, **kwargs :Any) -> Any:
+        ...
+    def backward(self, *args: Any, **kwargs :Any) -> Any:
+        ...
+
 
 
 # Data types
@@ -217,15 +285,15 @@ ExplainFormat: TypeAlias = Literal["plain", "tree"]
 # type signature for allowed frame init
 FrameInitTypes: TypeAlias = Union[
     Mapping[
-        str, Union[Sequence[object], Mapping[str, Sequence[object]], "Series", None]
+        str, Union[Sequence[object], Mapping[str, Sequence[object]], "Series", NumpyArray, NonNestedLiteral, None]
     ],
-    Sequence[Any],
-    "np.ndarray[Any, Any]",
-    "pa.Table",
-    "pd.DataFrame",
+    Iterable[Any],
+    NumpyArray,
+    PyArrowTable,
+    PandasDataFrame,
     "ArrowArrayExportable",
     "ArrowStreamExportable",
-    "torch.Tensor",
+    TorchTensor,
     "DataFrame",
 ]
 
