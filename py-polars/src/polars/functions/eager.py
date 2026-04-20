@@ -696,16 +696,17 @@ def merge_sorted(
     if not isinstance(elems[0], (pl.DataFrame, pl.LazyFrame)):
         msg = f"merge_sorted is not supported for {qualified_type_name(elems[0])!r}"
         raise TypeError(msg)
+    frames = cast("Sequence[pl.DataFrame] | Sequence[pl.LazyFrame]", elems)
 
-    frames = [
-        df.lazy()  # pyrefly: ignore[missing-attribute] https://github.com/facebook/pyrefly/issues/3047
-        for df in elems
+    lazy_frames = [
+        df.lazy()
+        for df in frames
     ]
 
     def reduce_fn(x: pl.LazyFrame, y: pl.LazyFrame) -> pl.LazyFrame:
         return x.merge_sorted(y, key=key, maintain_order=maintain_order)
 
-    lf = reduce_balanced(reduce_fn, frames)
+    lf = reduce_balanced(reduce_fn, lazy_frames)
     eager = isinstance(elems[0], pl.DataFrame)
     return lf.collect() if eager else lf  # type: ignore[return-value]
 

@@ -1078,7 +1078,6 @@ def _read_spreadsheet_calamine(
 
         read_options["dtypes"] = parser_dtypes
 
-    df: pl.DataFrame
     if fastexcel_version < (0, 11, 2):
         ws = parser.load_sheet_by_name(name=sheet_name, **read_options)
         df: pl.DataFrame = ws.to_polars()
