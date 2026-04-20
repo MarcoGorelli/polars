@@ -64,12 +64,12 @@ if TYPE_CHECKING:
     from polars import DataFrame, Series
     from polars._plr import PySeries
     from polars._typing import (
+        NonNestedLiteral,
+        NumpyArray,
         Orientation,
         PolarsDataType,
         SchemaDefinition,
         SchemaDict,
-        NonNestedLiteral,
-        NumpyArray,
     )
 
 _MIN_NUMPY_SIZE_FOR_MULTITHREADING = 1000
@@ -77,7 +77,13 @@ _MIN_NUMPY_SIZE_FOR_MULTITHREADING = 1000
 
 def dict_to_pydf(
     data: Mapping[
-        str, Sequence[object] | Mapping[str, Sequence[object]] | Series | NumpyArray| NonNestedLiteral| None
+        str,
+        Sequence[object]
+        | Mapping[str, Sequence[object]]
+        | Series
+        | NumpyArray
+        | NonNestedLiteral
+        | None,
     ],
     schema: SchemaDefinition | None = None,
     *,

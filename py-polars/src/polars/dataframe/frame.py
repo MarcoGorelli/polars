@@ -397,7 +397,7 @@ class DataFrame:
 
         elif isinstance(data, dict):
             self._df = dict_to_pydf(
-                data,
+                data,  # pyrefly: ignore[bad-argument-type] (todo)
                 schema=schema,
                 schema_overrides=schema_overrides,
                 strict=strict,
@@ -1558,7 +1558,12 @@ class DataFrame:
             # TODO: we can parallelize this by calling from_numpy
             columns = []
             for i, name in enumerate(key):
-                columns.append(pl.Series(name, value[:, i]))
+                columns.append(
+                    pl.Series(
+                        name,  # pyrefly: ignore[bad-argument-type] (todo)
+                        value[:, i],
+                    )
+                )
             self._df = self.with_columns(columns)._df
 
         # df[a, b]

@@ -332,18 +332,16 @@ def test_align_frames() -> None:
     # use "align_frames" to calculate dot-product from disjoint rows. pandas uses an
     # index to automatically infer the correct frame-alignment for the calculation;
     # we need to do it explicitly (which also makes it clearer what is happening)
-    pf1, pf2 = (
-        pl.align_frames(  # pyrefly: ignore[bad-specialization] https://github.com/facebook/pyrefly/issues/3047
-            pl.from_pandas(pdf1.reset_index()),
-            pl.from_pandas(pdf2.reset_index()),
-            on="date",
-        )
+    pf1, pf2 = pl.align_frames(
+        pl.from_pandas(pdf1.reset_index()),
+        pl.from_pandas(pdf2.reset_index()),
+        on="date",
     )
     pl_dot = (
-        (pf1[["a", "b"]] * pf2[["a", "b"]])  # pyrefly: ignore[bad-index]
+        (pf1[["a", "b"]] * pf2[["a", "b"]])
         .fill_null(0)
         .select(pl.sum_horizontal("*").alias("dot"))
-        .insert_column(0, pf1["date"])  # pyrefly: ignore[bad-index]
+        .insert_column(0, pf1["date"])
     )
     # confirm we match the same operation in pandas
     assert_frame_equal(pl_dot, pl.from_pandas(pd_dot))
@@ -356,8 +354,8 @@ def test_align_frames() -> None:
         on="date",
     )
     assert isinstance(lf1, pl.LazyFrame)
-    assert_frame_equal(lf1.collect(), pf1)  # pyrefly: ignore[bad-argument-type]
-    assert_frame_equal(lf2.collect(), pf2)  # pyrefly: ignore[bad-argument-type]
+    assert_frame_equal(lf1.collect(), pf1)
+    assert_frame_equal(lf2.collect(), pf2)
 
     # misc: no frames results in an empty list
     assert pl.align_frames(on="date") == []
@@ -399,11 +397,11 @@ def test_align_frames_with_nulls() -> None:
     df1 = pl.DataFrame({"key": ["x", "y", None], "value": [1, 2, 0]})
     df2 = pl.DataFrame({"key": ["x", None, "z", "y"], "value": [4, 3, 6, 5]})
 
-    a1, a2 = pl.align_frames(df1, df2, on="key")  # pyrefly: ignore[bad-specialization]
+    a1, a2 = pl.align_frames(df1, df2, on="key")
 
     aligned_frame_data = (
-        a1.to_dict(as_series=False),  # pyrefly: ignore[missing-attribute]
-        a2.to_dict(as_series=False),  # pyrefly: ignore[missing-attribute]
+        a1.to_dict(as_series=False),
+        a2.to_dict(as_series=False),
     )
     assert aligned_frame_data == (
         {"key": [None, "x", "y", "z"], "value": [0, 1, 2, None]},
@@ -417,7 +415,7 @@ def test_align_frames_duplicate_key() -> None:
     df2 = pl.DataFrame({"y": [0, 0, -1], "z": [5.5, 6.0, 7.5], "x": ["a", "b", "b"]})
 
     # align rows, confirming correctness and original column order
-    af1, af2 = pl.align_frames(df1, df2, on="x")  # pyrefly: ignore[bad-specialization]
+    af1, af2 = pl.align_frames(df1, df2, on="x")
 
     # shape: (6, 2)   shape: (6, 3)
     # ┌─────┬──────┐  ┌──────┬──────┬─────┐
@@ -432,7 +430,7 @@ def test_align_frames_duplicate_key() -> None:
     # │ b   ┆ null │  │ -1   ┆ 7.5  ┆ b   │
     # │ e   ┆ 5    │  │ null ┆ null ┆ e   │
     # └─────┴──────┘  └──────┴──────┴─────┘
-    assert af1.rows() == [  # pyrefly: ignore[missing-attribute]
+    assert af1.rows() == [
         ("a", 1),
         ("a", 2),
         ("a", 4),
@@ -440,7 +438,7 @@ def test_align_frames_duplicate_key() -> None:
         ("b", None),
         ("e", 5),
     ]
-    assert af2.rows() == [  # pyrefly: ignore[missing-attribute]
+    assert af2.rows() == [
         (0, 5.5, "a"),
         (0, 5.5, "a"),
         (0, 5.5, "a"),
@@ -450,9 +448,7 @@ def test_align_frames_duplicate_key() -> None:
     ]
 
     # align frames the other way round, using "left" alignment strategy
-    af1, af2 = pl.align_frames(  # pyrefly: ignore[bad-specialization]
-        df2, df1, on="x", how="left"
-    )
+    af1, af2 = pl.align_frames(df2, df1, on="x", how="left")
 
     # shape: (5, 3)        shape: (5, 2)
     # ┌─────┬─────┬─────┐  ┌─────┬──────┐
@@ -466,14 +462,14 @@ def test_align_frames_duplicate_key() -> None:
     # │ 0   ┆ 6.0 ┆ b   │  │ b   ┆ null │
     # │ -1  ┆ 7.5 ┆ b   │  │ b   ┆ null │
     # └─────┴─────┴─────┘  └─────┴──────┘
-    assert af1.rows() == [  # pyrefly: ignore[missing-attribute]
+    assert af1.rows() == [
         (0, 5.5, "a"),
         (0, 5.5, "a"),
         (0, 5.5, "a"),
         (0, 6.0, "b"),
         (-1, 7.5, "b"),
     ]
-    assert af2.rows() == [  # pyrefly: ignore[missing-attribute]
+    assert af2.rows() == [
         ("a", 1),
         ("a", 2),
         ("a", 4),
@@ -485,11 +481,9 @@ def test_align_frames_duplicate_key() -> None:
 def test_align_frames_single_row_20445() -> None:
     left = pl.DataFrame({"a": [1], "b": [2]})
     right = pl.DataFrame({"a": [1], "c": [3]})
-    result = pl.align_frames(  # pyrefly: ignore[bad-specialization]
-        left, right, how="left", on="a"
-    )
-    assert_frame_equal(result[0], left)  # pyrefly: ignore[bad-argument-type]
-    assert_frame_equal(result[1], right)  # pyrefly: ignore[bad-argument-type]
+    result = pl.align_frames(left, right, how="left", on="a")
+    assert_frame_equal(result[0], left)
+    assert_frame_equal(result[1], right)
 
 
 def test_coalesce() -> None:

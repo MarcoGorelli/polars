@@ -2838,7 +2838,7 @@ def test_series_iter_over_frame() -> None:
     }
     for idx, s in enumerate(reversed(df)):
         assert_series_equal(
-            s,  # pyrefly: ignore[bad-argument-type]  https://github.com/facebook/pyrefly/issues/3048
+            s,
             expected[idx],
         )
 
