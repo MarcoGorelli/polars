@@ -301,7 +301,8 @@ def _read_parquet_with_pyarrow(
     | list[str]
     | list[Path]
     | list[IO[bytes]]
-    | list[bytes],
+    | list[bytes]
+    | memoryview[int],
     *,
     columns: list[int] | list[str] | None = None,
     storage_options: StorageOptionsDict | None = None,
@@ -316,7 +317,7 @@ def _read_parquet_with_pyarrow(
     )
     pyarrow_options = pyarrow_options or {}
 
-    sources: list[str | Path | IO[bytes] | bytes | list[str] | list[Path]] = []
+    sources: list[str | Path | IO[bytes] | bytes | list[str] | list[Path] | memoryview[int]] = []
     if isinstance(source, list):
         if len(source) > 0 and isinstance(source[0], (bytes, io.IOBase)):
             sources = source  # type: ignore[assignment]

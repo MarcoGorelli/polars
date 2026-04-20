@@ -5,7 +5,7 @@ from collections import OrderedDict
 from datetime import date, datetime, time
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, reveal_type
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -924,8 +924,8 @@ def test_excel_write_compound_types(
         xls.getvalue(),
         xls.getbuffer(),
     ):
-        xldf = pl.read_excel(  # pyrefly: ignore[no-matching-overload]
-            binary_data,  # type: ignore[arg-type]
+        xldf = pl.read_excel(
+            binary_data,
             sheet_name="data",
             engine=engine,
             include_file_paths="wbook",

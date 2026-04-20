@@ -331,8 +331,9 @@ def get_sources(
     | list[Path]
     | list[IO[bytes]]
     | list[IO[str]]
-    | list[bytes],
-) -> list[str] | list[Path] | list[IO[str]] | list[IO[bytes]] | list[bytes]:
+    | list[bytes]
+    | memoryview[int],
+) -> list[str] | list[Path] | list[IO[str]] | list[IO[bytes]] | list[bytes] | memoryview[int]:
     if isinstance(source, (str, Path)):
         source = normalize_filepath(source, check_not_directory=False)
     elif is_path_or_str_sequence(source):

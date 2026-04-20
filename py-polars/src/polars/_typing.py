@@ -441,6 +441,7 @@ FileSource: TypeAlias = (
     | list[Path]
     | list[IO[bytes]]
     | list[bytes]
+    | memoryview[int]
 )
 
 JSONEncoder = Callable[[Any], bytes] | Callable[[Any], str]
