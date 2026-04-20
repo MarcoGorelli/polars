@@ -1440,7 +1440,7 @@ class DataFrame:
 
     def __setitem__(
         self,
-        key: str | Sequence[int] | Sequence[str] | tuple[Any, str | int],
+        key: str | Sequence[str] | tuple[Any, str | int],
         value: Any,
     ) -> None:  # pragma: no cover
         """
@@ -1560,7 +1560,7 @@ class DataFrame:
             for i, name in enumerate(key):
                 columns.append(
                     pl.Series(
-                        name,  # pyrefly: ignore[bad-argument-type] (todo)
+                        name,
                         value[:, i],
                     )
                 )
