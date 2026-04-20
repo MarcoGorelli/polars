@@ -2518,7 +2518,9 @@ class DataFrame:
             from polars.ml.torch import PolarsDataset
 
             pds_label = (
-                None if label is None else label_frame.columns  # pyrefly: ignore[unbound-name]
+                None
+                if label is None
+                else label_frame.columns  # pyrefly: ignore[unbound-name]
             )
             return PolarsDataset(frame, label=pds_label, features=features)
         else:

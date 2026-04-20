@@ -351,7 +351,6 @@ def _expand_dict_values(
     nan_to_null: bool = False,
 ) -> dict[str, Series]:
     """Expand any scalar values in dict data (propagate literal as array)."""
-    breakpoint()
     updated_data = {}
     if data:
         if any(isinstance(val, pl.Expr) for val in data.values()):
@@ -364,7 +363,6 @@ def _expand_dict_values(
             raise TypeError(msg)
 
         dtypes = schema_overrides or {}
-        breakpoint()
         data = _expand_dict_data(data, dtypes, strict=strict)
         array_len = max((arrlen(val) or 0) for val in data.values())
         if array_len > 0:
@@ -379,7 +377,7 @@ def _expand_dict_values(
                     ):
                         s_vals = {
                             nm: vdf[nm].extend_constant(
-                                v,  # pyrefly: ignore[bad-argument-type]
+                                v,
                                 n=(array_len - 1),
                             )
                             for nm, v in val.items()
@@ -420,7 +418,7 @@ def _expand_dict_values(
                     name,
                     values=val,  # type: ignore[arg-type]
                     dtype=dtypes.get(name),
-                    strict=strict
+                    strict=strict,
                 )
 
         elif all((arrlen(val) is None) for val in data.values()):
@@ -432,9 +430,7 @@ def _expand_dict_values(
                     strict=strict,
                 )
     if order and list(updated_data) != order:
-        breakpoint()
         return {col: updated_data.pop(col) for col in order}
-    breakpoint()
     return updated_data
 
 
@@ -449,9 +445,7 @@ def _expand_dict_data(
 
     (Note that `range` is sized, and will take a fast-path on Series init).
     """
-    expanded_data: dict[
-        str, ArrayLike | NonNestedLiteral | None
-    ] = {}
+    expanded_data: dict[str, ArrayLike | NonNestedLiteral | None] = {}
     for name, val in data.items():
         expanded_data[name] = (
             pl.Series(name, val, dtypes.get(name), strict=strict)

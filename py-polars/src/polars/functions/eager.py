@@ -480,12 +480,13 @@ def union(
         if not isinstance(elems[0], (pl.DataFrame, pl.LazyFrame)):
             msg = f"{how!r} strategy is not supported for {qualified_type_name(elems[0])!r}"
             raise TypeError(msg)
+        frames = cast("Sequence[pl.DataFrame] | Sequence[pl.LazyFrame]", elems)
 
         # establish common columns, maintaining the order in which they appear
         all_columns = list(
             chain.from_iterable(
-                e.collect_schema()  # pyrefly: ignore[missing-attribute]
-                for e in elems
+                e.collect_schema()
+                for e in frames
             )
         )
         key = {v: k for k, v in enumerate(ordered_unique(all_columns))}
@@ -494,8 +495,8 @@ def union(
             reduce(
                 lambda x, y: set(x) & set(y),  # type: ignore[arg-type, return-value]
                 chain(
-                    e.collect_schema()  # pyrefly: ignore[missing-attribute]
-                    for e in elems
+                    e.collect_schema()
+                    for e in frames
                 ),
             ),
             key=lambda k: key.get(k, 0),
@@ -510,7 +511,7 @@ def union(
         join_method: JoinStrategy = (
             "full" if how == "align" else how.removeprefix("align_")  # type: ignore[assignment]
         )
-        join_frames = [df.lazy() for df in elems]  # pyrefly: ignore[missing-attribute]
+        join_frames = [df.lazy() for df in frames]
 
         def join_fn(x: pl.LazyFrame, y: pl.LazyFrame) -> pl.LazyFrame:
             return x.join(
@@ -529,7 +530,7 @@ def union(
             lf = reduce(join_fn, join_frames)
         lf = lf.sort(by=common_cols, maintain_order=False).select(*output_column_order)
 
-        eager = isinstance(elems[0], pl.DataFrame)
+        eager = isinstance(frames[0], pl.DataFrame)
         return lf.collect() if eager else lf  # type: ignore[return-value]
 
     out: Series | DataFrame | LazyFrame | Expr
@@ -538,10 +539,11 @@ def union(
     from polars.lazyframe.opt_flags import QueryOptFlags
 
     if isinstance(first, pl.DataFrame):
+        dataframes = cast("Sequence[pl.DataFrame] | Sequence[pl.LazyFrame]", elems)
         if how in ("vertical", "vertical_relaxed"):
             out = wrap_ldf(
                 plr.concat_lf(
-                    [df.lazy() for df in elems],  # pyrefly: ignore[missing-attribute]
+                    [df.lazy() for df in dataframes],
                     rechunk=False,
                     parallel=True,
                     to_supertypes=how.endswith("relaxed"),
@@ -551,7 +553,7 @@ def union(
         elif how in ("diagonal", "diagonal_relaxed"):
             out = wrap_ldf(
                 plr.concat_lf_diagonal(
-                    [df.lazy() for df in elems],  # pyrefly: ignore[missing-attribute]
+                    [df.lazy() for df in dataframes],
                     rechunk=False,
                     parallel=True,
                     to_supertypes=how.endswith("relaxed"),
@@ -607,12 +609,8 @@ def union(
             raise ValueError(msg)
 
     elif isinstance(first, pl.Expr):
-        return wrap_expr(
-            plr.concat_expr(
-                [e._pyexpr for e in elems],  # pyrefly: ignore[missing-attribute]
-                False,
-            )
-        )
+        exprs = cast("Sequence[pl.Expr]", elems)
+        return wrap_expr(plr.concat_expr([e._pyexpr for e in exprs], False))
     else:
         msg = f"did not expect type: {qualified_type_name(first)!r} in `concat`"
         raise TypeError(msg)
@@ -698,10 +696,7 @@ def merge_sorted(
         raise TypeError(msg)
     frames = cast("Sequence[pl.DataFrame] | Sequence[pl.LazyFrame]", elems)
 
-    lazy_frames = [
-        df.lazy()
-        for df in frames
-    ]
+    lazy_frames = [df.lazy() for df in frames]
 
     def reduce_fn(x: pl.LazyFrame, y: pl.LazyFrame) -> pl.LazyFrame:
         return x.merge_sorted(y, key=key, maintain_order=maintain_order)
