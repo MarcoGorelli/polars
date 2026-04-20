@@ -205,7 +205,7 @@ def test_surrealdb_fetchall(batch_size: int | None) -> None:
             )
         else:
             res = cast("pl.DataFrame", res)
-            assert_frame_equal(df_expected, res)  # type: ignore[arg-type]
+            assert_frame_equal(df_expected, res)
 
 
 def test_async_nested_captured_loop_21263() -> None:
