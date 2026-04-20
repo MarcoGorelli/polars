@@ -64,6 +64,7 @@ if TYPE_CHECKING:
     from polars import DataFrame, Series
     from polars._plr import PySeries
     from polars._typing import (
+        ArrayLike,
         NonNestedLiteral,
         NumpyArray,
         Orientation,
@@ -342,9 +343,7 @@ def _post_apply_columns(
 
 
 def _expand_dict_values(
-    data: Mapping[
-        str, Sequence[object] | Mapping[str, Sequence[object]] | Series | None
-    ],
+    data: Mapping[str, ArrayLike | NonNestedLiteral | None],
     *,
     schema_overrides: SchemaDict | None = None,
     strict: bool = True,
@@ -395,6 +394,7 @@ def _expand_dict_values(
                     updated_data[name] = s
 
                 elif arrlen(val) is not None or _is_generator(val):
+                    breakpoint()
                     updated_data[name] = pl.Series(
                         name=name,
                         values=val,
@@ -433,13 +433,11 @@ def _expand_dict_values(
 
 
 def _expand_dict_data(
-    data: Mapping[
-        str, Sequence[object] | Mapping[str, Sequence[object]] | Series | None
-    ],
+    data: Mapping[str, ArrayLike | NonNestedLiteral | None],
     dtypes: SchemaDict,
     *,
     strict: bool = True,
-) -> Mapping[str, Sequence[object] | Mapping[str, Sequence[object]] | Series | None]:
+) -> Mapping[str, ArrayLike | NonNestedLiteral | None]:
     """
     Expand any unsized generators/iterators.
 
