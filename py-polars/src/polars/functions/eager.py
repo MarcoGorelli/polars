@@ -312,12 +312,8 @@ def concat(
             raise ValueError(msg)
 
     elif isinstance(first, pl.Expr):
-        return wrap_expr(
-            plr.concat_expr(
-                [e._pyexpr for e in elems],  # pyrefly: ignore[missing-attribute]
-                rechunk,
-            )
-        )
+        exprs = cast("Sequence[pl.Expr]", elems)
+        return wrap_expr(plr.concat_expr([e._pyexpr for e in exprs], rechunk))
     else:
         msg = f"did not expect type: {qualified_type_name(first)!r} in `concat`"
         raise TypeError(msg)
