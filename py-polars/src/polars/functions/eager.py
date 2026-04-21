@@ -483,21 +483,13 @@ def union(
         frames = cast("Sequence[pl.DataFrame] | Sequence[pl.LazyFrame]", elems)
 
         # establish common columns, maintaining the order in which they appear
-        all_columns = list(
-            chain.from_iterable(
-                e.collect_schema()
-                for e in frames
-            )
-        )
+        all_columns = list(chain.from_iterable(e.collect_schema() for e in frames))
         key = {v: k for k, v in enumerate(ordered_unique(all_columns))}
         output_column_order = list(key)
         common_cols = sorted(
             reduce(
                 lambda x, y: set(x) & set(y),  # type: ignore[arg-type, return-value]
-                chain(
-                    e.collect_schema()
-                    for e in frames
-                ),
+                chain(e.collect_schema() for e in frames),
             ),
             key=lambda k: key.get(k, 0),
         )

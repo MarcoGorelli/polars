@@ -317,7 +317,9 @@ def _read_parquet_with_pyarrow(
     )
     pyarrow_options = pyarrow_options or {}
 
-    sources: list[str | Path | IO[bytes] | bytes | list[str] | list[Path] | memoryview[int]] = []
+    sources: list[
+        str | Path | IO[bytes] | bytes | list[str] | list[Path] | memoryview[int]
+    ] = []
     if isinstance(source, list):
         if len(source) > 0 and isinstance(source[0], (bytes, io.IOBase)):
             sources = source  # type: ignore[assignment]

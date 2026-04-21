@@ -66,7 +66,6 @@ if TYPE_CHECKING:
     from polars._typing import (
         ArrayLike,
         NonNestedLiteral,
-        NumpyArray,
         Orientation,
         PolarsDataType,
         SchemaDefinition,
@@ -77,15 +76,7 @@ _MIN_NUMPY_SIZE_FOR_MULTITHREADING = 1000
 
 
 def dict_to_pydf(
-    data: Mapping[
-        str,
-        Sequence[object]
-        | Mapping[str, Sequence[object]]
-        | Series
-        | NumpyArray
-        | NonNestedLiteral
-        | None,
-    ],
+    data: Mapping[str, ArrayLike | NonNestedLiteral | None],
     schema: SchemaDefinition | None = None,
     *,
     schema_overrides: SchemaDict | None = None,

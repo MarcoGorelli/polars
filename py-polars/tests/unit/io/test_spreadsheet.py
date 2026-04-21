@@ -5,7 +5,7 @@ from collections import OrderedDict
 from datetime import date, datetime, time
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, reveal_type
+from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
 import pytest
