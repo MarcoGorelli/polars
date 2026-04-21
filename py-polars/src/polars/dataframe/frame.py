@@ -6136,6 +6136,8 @@ class DataFrame:
         """
         from polars.lazyframe import QueryOptFlags
 
+        optimizations = QueryOptFlags._eager()
+        optimizations.sort_collapse = True
         return (
             self.lazy()
             .sort(
@@ -6146,7 +6148,7 @@ class DataFrame:
                 multithreaded=multithreaded,
                 maintain_order=maintain_order,
             )
-            .collect(optimizations=QueryOptFlags._eager())
+            .collect(optimizations=optimizations)
         )
 
     def sql(self, query: str, *, table_name: str = "self") -> DataFrame:
