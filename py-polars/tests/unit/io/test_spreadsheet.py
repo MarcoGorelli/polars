@@ -958,17 +958,15 @@ def test_excel_read_named_table_with_total_row(tmp_path: Path) -> None:
     )
     for engine in ("calamine", "openpyxl"):
         col_subset = ["x", "z"]
-        subset_kwarg = {"columns": col_subset}
-        base_kwargs = {"table_name": "PolarsFrameTable", "engine": engine}
+        subset_kwarg: dict[str, Any] = {"columns": col_subset}
+        base_kwargs: dict[str, Any] = {"table_name": "PolarsFrameTable", "engine": engine}
 
         for kwargs, df_expected in (
             (base_kwargs, df),  # all cols
             ({**base_kwargs, **subset_kwarg}, df.select(col_subset)),
         ):
             # read from named table
-            xldf = pl.read_excel(  # pyrefly: ignore[no-matching-overload]
-                wb_path, **kwargs
-            )
+            xldf = pl.read_excel(wb_path, **kwargs)
             assert_frame_equal(df_expected, xldf)
 
     # xlsx2csv doesn't support reading named tables, so we see the
