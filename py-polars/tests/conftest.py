@@ -66,7 +66,7 @@ def _patched_cloud(
 
         class LazyExe:
             def __init__(
-                self, query: DirectQuery, prev_tgt: io.BytesIO | None, path: Path
+                self, query: DirectQuery, prev_tgt: io.BytesIO | io.StringIO | io.TextIOBase | None, path: Path
             ) -> None:
                 self.query = query
 
@@ -80,11 +80,9 @@ def _patched_cloud(
                 # 2. If our target was different, write the result into our target
                 #    transparently.
                 if self.prev_tgt is not None:
-                    is_string = isinstance(self.prev_tgt, (io.StringIO, io.TextIOBase))
-
-                    if is_string:
+                    if isinstance(self.prev_tgt, (io.StringIO, io.TextIOBase)):
                         with Path.open(self.path, "r") as f:
-                            self.prev_tgt.write(f.read())  # type: ignore[arg-type]
+                            self.prev_tgt.write(f.read())
                     else:
                         with Path.open(self.path, "rb") as f:
                             self.prev_tgt.write(f.read())
@@ -205,7 +203,7 @@ def _patched_cloud(
                 assert isinstance(q, DirectQuery)
                 query = LazyExe(
                     q,
-                    prev_tgt,  # pyrefly: ignore[bad-argument-type]
+                    prev_tgt,
                     args[0],  # pyrefly: ignore[bad-argument-type]
                 )
 
