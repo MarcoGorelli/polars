@@ -2611,9 +2611,7 @@ class DataFrame:
             if parse_version(pd.__version__) < (1, 5):
                 msg = f'pandas>=1.5.0 is required for `to_pandas("use_pyarrow_extension_array=True")`, found Pandas {pd.__version__!r}'
                 raise ModuleUpgradeRequiredError(msg)
-            if not _PYARROW_AVAILABLE or parse_version(
-                pa.__version__  # pyrefly: ignore[bad-argument-type]
-            ) < (
+            if not _PYARROW_AVAILABLE or parse_version(pa.__version__) < (
                 8,
                 0,
             ):
