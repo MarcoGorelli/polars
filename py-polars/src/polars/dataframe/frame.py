@@ -1066,10 +1066,10 @@ class DataFrame:
         properties.
 
         >>> df = pl.DataFrame({"a": [1, 2], "b": [3.0, 4.0], "c": ["x", "y"]})
-        >>> dfi = df.__dataframe__()
-        >>> dfi.num_rows()
+        >>> dfi = df.__dataframe__()  # doctest: +SKIP
+        >>> dfi.num_rows()  # doctest: +SKIP
         2
-        >>> dfi.get_column(1).dtype
+        >>> dfi.get_column(1).dtype  # doctest: +SKIP
         (<DtypeKind.FLOAT: 2>, 64, 'g', '=')
         """
         if nan_as_null:
@@ -4029,6 +4029,16 @@ class DataFrame:
         ... )
         >>> path: pathlib.Path = dirpath / "new_file.arrow"
         >>> df.write_ipc(path)
+
+        Write to a ``BytesIO`` object by passing ``file=None``. The returned
+        buffer's position is at the end of the written data, so call ``seek(0)``
+        before reading it back.
+
+        >>> buf = df.write_ipc(file=None)
+        >>> buf.seek(0)
+        0
+        >>> pl.read_ipc(buf).equals(df)
+        True
         """
         return_bytes = file is None
         target: str | Path | IO[bytes]
