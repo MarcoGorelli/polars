@@ -455,7 +455,7 @@ def test_parquet_chunks_545(case: int) -> None:
     f = io.BytesIO()
     # repeat until it has case instances
     values: list[Any] = [1.0, pd.to_datetime("2010-10-10")]
-    df = pd.DataFrame(np.tile( values, [case, 1]), columns=["floats", "dates"])
+    df = pd.DataFrame(np.tile(values, [case, 1]), columns=["floats", "dates"])
 
     # write as parquet
     df.to_parquet(f)

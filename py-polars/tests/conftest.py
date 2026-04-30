@@ -67,7 +67,10 @@ def _patched_cloud(
 
         class LazyExe:
             def __init__(
-                self, query: DirectQuery, prev_tgt: io.BytesIO | io.StringIO | io.TextIOBase | None, path: str | Path
+                self,
+                query: DirectQuery,
+                prev_tgt: io.BytesIO | io.StringIO | io.TextIOBase | None,
+                path: str | Path,
             ) -> None:
                 self.query = query
 
