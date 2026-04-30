@@ -10,6 +10,7 @@ import polars as pl
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
+    from os import PathLike
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -66,7 +67,7 @@ def _patched_cloud(
 
         class LazyExe:
             def __init__(
-                self, query: DirectQuery, prev_tgt: io.BytesIO | io.StringIO | io.TextIOBase | None, path: Path
+                self, query: DirectQuery, prev_tgt: io.BytesIO | io.StringIO | io.TextIOBase | None, path: str | Path
             ) -> None:
                 self.query = query
 
@@ -81,10 +82,10 @@ def _patched_cloud(
                 #    transparently.
                 if self.prev_tgt is not None:
                     if isinstance(self.prev_tgt, (io.StringIO, io.TextIOBase)):
-                        with Path.open(self.path, "r") as f:
+                        with Path(self.path).open("r") as f:
                             self.prev_tgt.write(f.read())
                     else:
-                        with Path.open(self.path, "rb") as f:
+                        with Path(self.path).open("rb") as f:
                             self.prev_tgt.write(f.read())
 
                     # delete the temporary file
@@ -204,7 +205,7 @@ def _patched_cloud(
                 query = LazyExe(
                     q,
                     prev_tgt,
-                    args[0],  # pyrefly: ignore[bad-argument-type]
+                    args[0],
                 )
 
                 if lazy:
