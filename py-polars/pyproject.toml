@@ -106,8 +106,12 @@ ignore-missing-imports = [
 ]
 # pyrefly equivalent of mypy's `follow_imports = "skip"`
 replace-imports-with-any = [
+  "arrow_odbc.*",
+  "jax.*",
+  "marimo.*",
   "pyarrow.*",
   "pyiceberg.*",
+  "torch.*",
 ]
 
 [tool.mypy]

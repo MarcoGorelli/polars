@@ -208,10 +208,10 @@ def compute_stats(table: pa.Table, tight_bounds: bool = True) -> DeltaStats:
         ):
             try:
                 mn = _arrow_scalar_to_json(
-                    pc.min(col)  # pyrefly: ignore[missing-attribute]
+                    pc.min(col)
                 )
                 mx = _arrow_scalar_to_json(
-                    pc.max(col)  # pyrefly: ignore[missing-attribute]
+                    pc.max(col)
                 )
                 if mn is not None:
                     min_values[name] = mn
