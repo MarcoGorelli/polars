@@ -659,7 +659,7 @@ def test_agg_empty_sum_after_filter_14734() -> None:
 
     expect = pl.Series("b", [0, 0]).to_frame()
     assert_frame_equal(expect, last.select("b"))
-    assert_frame_equal(expect, curr.select("b"))  # pyrefly: ignore[unbound-name]
+    assert_frame_equal(expect, curr.select("b"))
 
 
 @pytest.mark.slow
