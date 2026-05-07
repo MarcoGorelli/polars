@@ -745,6 +745,19 @@ fn create_physical_plan_impl(
                 join_type_options,
             )))
         },
+        Gather {
+            input,
+            idxs,
+            null_on_oob,
+        } => {
+            let input = recurse!(input, state)?;
+            let idxs = recurse!(idxs, state)?;
+            Ok(Box::new(executors::GatherExec::new(
+                input,
+                idxs,
+                null_on_oob,
+            )))
+        },
         HStack {
             input,
             exprs,
@@ -823,6 +836,7 @@ fn create_physical_plan_impl(
             };
             Ok(Box::new(exec))
         },
+        UnoptimizedDispatch { .. } => get_streaming_executor_builder()(root, lp_arena, expr_arena),
         Invalid => unreachable!(),
     }
 }

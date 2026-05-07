@@ -323,9 +323,9 @@ def test_quantile_vs_numpy(tp: type, n: int) -> None:
     except IndexError:
         np_result = None
     if np_result:
-        q = pl.Series(a).quantile(q, interpolation="linear")
-        assert q is not None
-        assert np.isclose(q, np_result)
+        pl_result = pl.Series(a).quantile(q, interpolation="linear")
+        assert pl_result is not None
+        assert np.isclose(pl_result, np_result)
 
     df = pl.DataFrame({"a": a})
 
