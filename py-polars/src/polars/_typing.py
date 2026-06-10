@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from polars import DataFrame, Expr, LazyFrame, Series
+    from polars.schema import Schema
     from polars._dependencies import numpy as np
     from polars.datatypes import DataType, DataTypeClass, IntegerType, TemporalType
     from polars.lazyframe.engine_config import GPUEngine
@@ -365,7 +366,14 @@ ParametricProfileNames: TypeAlias = Literal["fast", "balanced", "expensive"]
 # typevars for core polars types
 PolarsType = TypeVar("PolarsType", "DataFrame", "LazyFrame", "Series", "Expr")
 FrameType = TypeVar("FrameType", "DataFrame", "LazyFrame")
+if TYPE_CHECKING:
+    from typing_extensions import TypeVar as _TypeVar
+
+    SchemaT = _TypeVar("SchemaT", bound="Schema", default=Any)
+else:
+    SchemaT = TypeVar("SchemaT", bound="Schema")
 BufferInfo: TypeAlias = tuple[int, int, int]
+
 
 # type alias for supported spreadsheet engines
 ExcelSpreadsheetEngine: TypeAlias = Literal["calamine", "openpyxl", "xlsx2csv"]
@@ -536,6 +544,7 @@ __all__ = [
     "RowTotalsDefinition",
     "SchemaDefinition",
     "SchemaDict",
+    "SchemaT",
     "SearchSortedSide",
     "SelectorType",
     "SerializationFormat",

@@ -20,6 +20,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
+    Generic,
     NoReturn,
     TypeVar,
     cast,
@@ -46,7 +47,7 @@ from polars._dependencies import (
 from polars._dependencies import numpy as np
 from polars._dependencies import pandas as pd
 from polars._dependencies import pyarrow as pa
-from polars._typing import DbWriteMode, JaxExportType, TorchExportType
+from polars._typing import DbWriteMode, JaxExportType, SchemaT, TorchExportType
 from polars._utils.construction import (
     arrow_to_pydf,
     dataframe_to_pydf,
@@ -205,7 +206,7 @@ if TYPE_CHECKING:
     P = ParamSpec("P")
 
 
-class DataFrame:
+class DataFrame(Generic[SchemaT]):
     """
     Two-dimensional data structure representing data as a table with rows and columns.
 
@@ -976,7 +977,7 @@ class DataFrame:
         return {name: self[name].flags for name in self.columns}
 
     @property
-    def schema(self) -> Schema:
+    def schema(self) -> SchemaT:
         """
         Get an ordered mapping of column names to their data type.
 
@@ -992,7 +993,7 @@ class DataFrame:
         >>> df.schema
         Schema({'foo': Int64, 'bar': Float64, 'ham': String})
         """
-        return Schema(zip(self.columns, self.dtypes, strict=True), check_dtypes=False)
+        return Schema(zip(self.columns, self.dtypes, strict=True), check_dtypes=False)  # type: ignore[return-value]
 
     def __array__(
         self,
@@ -1648,7 +1649,7 @@ class DataFrame:
             ).render()
         )
 
-    def collect_schema(self) -> Schema:
+    def collect_schema(self) -> SchemaT:
         """
         Get an ordered mapping of column names to their data type.
 
@@ -10291,7 +10292,7 @@ class DataFrame:
         """
         return wrap_s(self._df.is_unique())
 
-    def lazy(self) -> LazyFrame:
+    def lazy(self) -> LazyFrame[SchemaT]:
         """
         Start a lazy query from this point. This returns a `LazyFrame` object.
 

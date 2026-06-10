@@ -224,12 +224,12 @@ class Schema(BaseSchema):
         )
 
     @overload
-    def to_frame(self, *, eager: Literal[False]) -> LazyFrame: ...
+    def to_frame(self, *, eager: Literal[False]) -> LazyFrame[Schema]: ...
 
     @overload
-    def to_frame(self, *, eager: Literal[True] = ...) -> DataFrame: ...
+    def to_frame(self, *, eager: Literal[True] = ...) -> DataFrame[Schema]: ...
 
-    def to_frame(self, *, eager: bool = True) -> DataFrame | LazyFrame:
+    def to_frame(self, *, eager: bool = True) -> DataFrame[Schema] | LazyFrame[Schema]:
         """
         Create an empty DataFrame (or LazyFrame) from this Schema.
 

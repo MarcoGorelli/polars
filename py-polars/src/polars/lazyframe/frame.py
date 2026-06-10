@@ -14,6 +14,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
+    Generic,
     NoReturn,
     TypeVar,
     overload,
@@ -33,6 +34,7 @@ from polars._dependencies import polars_cloud as pc
 from polars._dependencies import pyarrow as pa
 from polars._typing import (
     ParquetMetadata,
+    SchemaT,
 )
 from polars._utils.async_ import _AioDataFrameResult, _GeventDataFrameResult
 from polars._utils.convert import negate_duration_string, parse_as_duration_string
@@ -248,7 +250,7 @@ def _gpu_engine_callback(
     return partial(cudf_polars.execute_with_cudf, config=engine)
 
 
-class LazyFrame:
+class LazyFrame(Generic[SchemaT]):
     """
     Representation of a Lazy computation graph/query against a DataFrame.
 
@@ -644,7 +646,7 @@ class LazyFrame:
         return self.collect_schema().dtypes()
 
     @property
-    def schema(self) -> Schema:
+    def schema(self) -> SchemaT:
         """
         Get an ordered mapping of column names to their data type.
 
@@ -2398,7 +2400,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         engine: EngineType = "auto",
         background: Literal[False] = False,
         optimizations: QueryOptFlags = DEFAULT_QUERY_OPT_FLAGS,
-    ) -> DataFrame: ...
+    ) -> DataFrame[SchemaT]: ...
 
     @deprecate_streaming_parameter()
     @forward_old_opt_flags()
@@ -2635,7 +2637,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         gevent: Literal[True],
         engine: EngineType = "auto",
         optimizations: QueryOptFlags = DEFAULT_QUERY_OPT_FLAGS,
-    ) -> _GeventDataFrameResult[DataFrame]: ...
+    ) -> _GeventDataFrameResult[DataFrame[SchemaT]]: ...
 
     @overload
     def collect_async(
@@ -2644,7 +2646,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         gevent: Literal[False] = False,
         engine: EngineType = "auto",
         optimizations: QueryOptFlags = DEFAULT_QUERY_OPT_FLAGS,
-    ) -> Awaitable[DataFrame]: ...
+    ) -> Awaitable[DataFrame[SchemaT]]: ...
 
     @deprecate_streaming_parameter()
     def collect_async(
@@ -2653,7 +2655,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         gevent: bool = False,
         engine: EngineType = "auto",
         optimizations: QueryOptFlags = DEFAULT_QUERY_OPT_FLAGS,
-    ) -> Awaitable[DataFrame] | _GeventDataFrameResult[DataFrame]:
+    ) -> Awaitable[DataFrame[SchemaT]] | _GeventDataFrameResult[DataFrame[SchemaT]]:
         """
         Collect DataFrame asynchronously in thread pool.
 
@@ -2761,7 +2763,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         ldf.collect_with_callback(engine, result._callback)
         return result
 
-    def collect_schema(self) -> Schema:
+    def collect_schema(self) -> SchemaT:
         """
         Resolve the schema of this LazyFrame.
 
@@ -2796,7 +2798,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         >>> schema.len()
         3
         """
-        return Schema(self._ldf.collect_schema(), check_dtypes=False)
+        return Schema(self._ldf.collect_schema(), check_dtypes=False)  # type: ignore[return-value]
 
     @overload
     def sink_parquet(
@@ -4473,7 +4475,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         lazy: bool = False,
         engine: EngineType = "auto",
         optimizations: QueryOptFlags = DEFAULT_QUERY_OPT_FLAGS,
-    ) -> Iterator[DataFrame]:
+    ) -> Iterator[DataFrame[SchemaT]]:
         """
         Evaluate the query in streaming mode and get a generator that returns chunks.
 
@@ -4588,7 +4590,7 @@ naive plan: (run LazyFrame.explain(optimized=True) to see the optimized plan)
         """
         return self.head(n_rows).collect(**kwargs)
 
-    def lazy(self) -> LazyFrame:
+    def lazy(self) -> LazyFrame[SchemaT]:
         """
         Return lazy representation, i.e. itself.
 
