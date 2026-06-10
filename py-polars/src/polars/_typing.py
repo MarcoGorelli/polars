@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import (
@@ -28,10 +29,10 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from polars import DataFrame, Expr, LazyFrame, Series
-    from polars.schema import Schema
     from polars._dependencies import numpy as np
     from polars.datatypes import DataType, DataTypeClass, IntegerType, TemporalType
     from polars.lazyframe.engine_config import GPUEngine
+    from polars.schema import Schema
     from polars.selectors import Selector
 
 
@@ -366,7 +367,9 @@ ParametricProfileNames: TypeAlias = Literal["fast", "balanced", "expensive"]
 # typevars for core polars types
 PolarsType = TypeVar("PolarsType", "DataFrame", "LazyFrame", "Series", "Expr")
 FrameType = TypeVar("FrameType", "DataFrame", "LazyFrame")
-if TYPE_CHECKING:
+if sys.version_info >= (3, 13):
+    SchemaT = TypeVar("SchemaT", bound="Schema", default=Any)
+elif TYPE_CHECKING:
     from typing_extensions import TypeVar as _TypeVar
 
     SchemaT = _TypeVar("SchemaT", bound="Schema", default=Any)
