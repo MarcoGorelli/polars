@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["infer","infer_records_schema"],"mod":["deserialize"]};

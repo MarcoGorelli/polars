@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["InterpolationMethod"],"fn":["interpolate"],"mod":["array","list","nan_propagating_aggregate"],"trait":["AsBinary","AsUtf8","BinaryNameSpaceImpl","ChunkedSet","Utf8NameSpaceImpl"]};
